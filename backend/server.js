@@ -106,11 +106,14 @@ const corsOptions = {
     if (!origin) return callback(null, true);
     
     const allowedOrigins = [
-      FRONTEND_URL,
+      FRONTEND_URL,                    // http://localhost:5173
       'http://localhost:3000',
       'http://localhost:5173',
       'http://127.0.0.1:5173',
-      'http://127.0.0.1:3000'
+      'http://127.0.0.1:3000',
+      // Add the backend URL for direct access during development
+      `http://localhost:${PORT}`,      // http://localhost:5001
+      `http://127.0.0.1:${PORT}`,      // http://127.0.0.1:5001
     ];
     
     // Add additional origins from environment if specified
@@ -123,6 +126,7 @@ const corsOptions = {
       callback(null, true);
     } else {
       console.warn('🚫 CORS blocked origin:', origin);
+      console.log('🔍 Allowed origins:', allowedOrigins);
       callback(new Error('Not allowed by CORS'));
     }
   },
@@ -132,8 +136,6 @@ const corsOptions = {
   maxAge: 86400, // Cache preflight for 24 hours
   optionsSuccessStatus: 200 // For legacy browser support
 };
-
-app.use(cors(corsOptions));
 
 // =============================================================================
 // RATE LIMITING
