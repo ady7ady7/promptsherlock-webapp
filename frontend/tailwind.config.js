@@ -18,6 +18,8 @@ export default {
         'slide-up': 'slideUp 0.6s ease-out',
         'pulse-glow': 'pulseGlow 2s infinite',
         'gradient-shift': 'gradientShift 3s ease-in-out infinite',
+        'bounce-slow': 'bounce 3s infinite',
+        'spin-slow': 'spin 3s linear infinite',
       },
       keyframes: {
         fadeIn: {
@@ -39,5 +41,20 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+    function({ addComponents, theme }) {
+      addComponents({
+        '.glass-effect': {
+          '@apply backdrop-blur-lg bg-white/10 border border-white/20 rounded-2xl': {},
+        },
+        '.glow-button': {
+          '@apply bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white font-semibold py-3 px-6 rounded-lg transform transition-all duration-200 hover:scale-105 hover:shadow-lg': {},
+          'box-shadow': '0 4px 15px rgba(59, 130, 246, 0.3)',
+          '&:hover': {
+            'box-shadow': '0 8px 25px rgba(59, 130, 246, 0.5)',
+          },
+        },
+      })
+    },
+  ],
 }

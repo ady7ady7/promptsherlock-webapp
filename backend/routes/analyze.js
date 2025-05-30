@@ -1,11 +1,83 @@
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import upload from '../middleware/upload.js';
+import multer from 'multer';
 import { cleanupFiles } from '../utils/cleanup.js';
 import fs from 'fs/promises';
 import path from 'path';
+import { fileURLToPath } from 'url';
+import { dirname } from 'path';
 
 const router = express.Router();
+
+// Get directory paths for ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
+try {
+  await fs.access(uploadsDir);
+} catch {
+  await fs.mkdir(uploadsDir, { recursive: true });
+  console.log('📁 Created uploads directory:', uploadsDir);
+}
+
+// Configure multer storage directly in this file
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, uploadsDir);
+  },
+  filename: (req, file, cb) => {
+    // Generate unique filename with timestamp and random string
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const ext = path.extname(file.originalname).toLowerCase();
+    cb(null, `image-${uniqueSuffix}${ext}`);
+  }
+});
+
+// File filter for image validation
+const fileFilter = (req, file, cb) => {
+  console.log('🔍 Validating file:', {
+    originalname: file.originalname,
+    mimetype: file.mimetype
+  });
+
+  // Allowed MIME types
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+  
+  // Check MIME type
+  if (!allowedTypes.includes(file.mimetype)) {
+    const error = new Error(`Invalid file type: ${file.mimetype}. Allowed types: ${allowedTypes.join(', ')}`);
+    error.code = 'INVALID_FILE_TYPE';
+    return cb(error, false);
+  }
+
+  // Additional extension validation for security
+  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  const fileExtension = path.extname(file.originalname).toLowerCase();
+  
+  if (!allowedExtensions.includes(fileExtension)) {
+    const error = new Error(`Invalid file extension: ${fileExtension}. Allowed extensions: ${allowedExtensions.join(', ')}`);
+    error.code = 'INVALID_FILE_EXTENSION';
+    return cb(error, false);
+  }
+
+  console.log('✅ File validation passed:', file.originalname);
+  cb(null, true);
+};
+
+// Configure multer
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
+    files: parseInt(process.env.MAX_FILES) || 10, // 10 files maximum
+    fields: 10, // Maximum number of non-file fields
+    fieldNameSize: 100, // Maximum field name size
+    fieldSize: 1024 * 1024, // 1MB max field size
+  }
+});
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
@@ -61,10 +133,81 @@ Please be thorough, specific, and provide insights that would be valuable for un
 }
 
 /**
+ * Handle multer errors
+ */
+const handleUploadErrors = (error, req, res, next) => {
+  console.error('🚨 Upload error:', error);
+
+  if (error instanceof multer.MulterError) {
+    switch (error.code) {
+      case 'LIMIT_FILE_SIZE':
+        return res.status(400).json({
+          success: false,
+          error: 'File too large',
+          details: `Maximum file size is ${Math.round((parseInt(process.env.MAX_FILE_SIZE) || 10485760) / 1024 / 1024)}MB`,
+          code: 'FILE_TOO_LARGE'
+        });
+      
+      case 'LIMIT_FILE_COUNT':
+        return res.status(400).json({
+          success: false,
+          error: 'Too many files',
+          details: `Maximum ${parseInt(process.env.MAX_FILES) || 10} files allowed`,
+          code: 'TOO_MANY_FILES'
+        });
+      
+      case 'LIMIT_UNEXPECTED_FILE':
+        return res.status(400).json({
+          success: false,
+          error: 'Unexpected file field',
+          details: 'Please use the "images" field for file uploads',
+          code: 'UNEXPECTED_FIELD'
+        });
+      
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'File upload error',
+          details: error.message,
+          code: error.code
+        });
+    }
+  }
+
+  // Handle custom validation errors
+  if (error.code === 'INVALID_FILE_TYPE' || error.code === 'INVALID_FILE_EXTENSION') {
+    return res.status(400).json({
+      success: false,
+      error: 'Invalid file format',
+      details: error.message,
+      code: error.code
+    });
+  }
+
+  // Pass other errors to the global error handler
+  next(error);
+};
+
+/**
  * POST /api/analyze
  * Analyze uploaded images using Gemini AI
  */
-router.post('/', upload.array('images', 10), async (req, res) => {
+router.post('/', (req, res, next) => {
+  // Use multer middleware with error handling
+  upload.array('images', 10)(req, res, (error) => {
+    if (error) {
+      return handleUploadErrors(error, req, res, next);
+    }
+    
+    // Continue to the actual route handler
+    handleAnalyzeRequest(req, res);
+  });
+});
+
+/**
+ * Main analysis request handler
+ */
+async function handleAnalyzeRequest(req, res) {
   const uploadedFiles = req.files || [];
   const customPrompt = req.body.prompt || '';
   
@@ -81,7 +224,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
     }
 
     if (uploadedFiles.length > 10) {
-      await cleanupFiles(uploadedFiles.map(file => file.path));
+      await cleanupFiles(uploadedFiles);
       return res.status(400).json({
         success: false,
         error: 'Too many images. Maximum 10 images allowed per request.',
@@ -113,7 +256,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
         console.log(`✅ Processed image: ${file.originalname}`);
       } catch (error) {
         console.error(`❌ Failed to process ${file.originalname}:`, error.message);
-        await cleanupFiles(uploadedFiles.map(f => f.path));
+        await cleanupFiles(uploadedFiles);
         return res.status(500).json({
           success: false,
           error: `Failed to process image: ${file.originalname}`,
@@ -140,7 +283,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
     console.log(`✅ Analysis completed in ${processingTime}ms`);
 
     // Cleanup uploaded files immediately after processing
-    await cleanupFiles(uploadedFiles.map(file => file.path));
+    await cleanupFiles(uploadedFiles);
     console.log('🗑️ Temporary files cleaned up');
 
     // Validate response
@@ -171,7 +314,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
 
     // Always cleanup files on error
     if (uploadedFiles.length > 0) {
-      await cleanupFiles(uploadedFiles.map(file => file.path));
+      await cleanupFiles(uploadedFiles);
       console.log('🗑️ Cleaned up files after error');
     }
 
@@ -209,7 +352,7 @@ router.post('/', upload.array('images', 10), async (req, res) => {
       ...(isDevelopment && { stack: error.stack })
     });
   }
-});
+}
 
 /**
  * GET /api/analyze/health
@@ -222,7 +365,7 @@ router.get('/health', (req, res) => {
     aiModel: process.env.AI_MODEL || 'gemini-1.5-flash',
     maxFiles: parseInt(process.env.MAX_FILES) || 10,
     maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 10485760,
-    supportedTypes: (process.env.ALLOWED_TYPES || 'image/jpeg,image/png,image/gif,image/webp').split(','),
+    supportedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
     timestamp: new Date().toISOString()
   });
 });
