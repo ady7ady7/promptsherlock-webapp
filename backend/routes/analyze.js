@@ -1,373 +1,599 @@
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import multer from 'multer';
+import { uploadMiddleware } from '../middleware/upload.js';
 import { cleanupFiles } from '../utils/cleanup.js';
 import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path';
 
 const router = express.Router();
-
-// Get directory paths for ES modules
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-
-// Ensure uploads directory exists
-const uploadsDir = path.join(__dirname, '..', process.env.UPLOAD_DIR || 'uploads');
-try {
-  await fs.access(uploadsDir);
-} catch {
-  await fs.mkdir(uploadsDir, { recursive: true });
-  console.log('📁 Created uploads directory:', uploadsDir);
-}
-
-// Configure multer storage directly in this file
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
-  },
-  filename: (req, file, cb) => {
-    // Generate unique filename with timestamp and random string
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname).toLowerCase();
-    cb(null, `image-${uniqueSuffix}${ext}`);
-  }
-});
-
-// File filter for image validation
-const fileFilter = (req, file, cb) => {
-  console.log('🔍 Validating file:', {
-    originalname: file.originalname,
-    mimetype: file.mimetype
-  });
-
-  // Allowed MIME types
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
-  
-  // Check MIME type
-  if (!allowedTypes.includes(file.mimetype)) {
-    const error = new Error(`Invalid file type: ${file.mimetype}. Allowed types: ${allowedTypes.join(', ')}`);
-    error.code = 'INVALID_FILE_TYPE';
-    return cb(error, false);
-  }
-
-  // Additional extension validation for security
-  const allowedExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
-  const fileExtension = path.extname(file.originalname).toLowerCase();
-  
-  if (!allowedExtensions.includes(fileExtension)) {
-    const error = new Error(`Invalid file extension: ${fileExtension}. Allowed extensions: ${allowedExtensions.join(', ')}`);
-    error.code = 'INVALID_FILE_EXTENSION';
-    return cb(error, false);
-  }
-
-  console.log('✅ File validation passed:', file.originalname);
-  cb(null, true);
-};
-
-// Configure multer
-const upload = multer({
-  storage: storage,
-  fileFilter: fileFilter,
-  limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024, // 10MB default
-    files: parseInt(process.env.MAX_FILES) || 10, // 10 files maximum
-    fields: 10, // Maximum number of non-file fields
-    fieldNameSize: 100, // Maximum field name size
-    fieldSize: 1024 * 1024, // 1MB max field size
-  }
-});
 
 // Initialize Gemini AI
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Get Gemini model
+// Get Gemini model with enhanced configuration
 const model = genAI.getGenerativeModel({ 
   model: process.env.AI_MODEL || 'gemini-1.5-flash',
   generationConfig: {
     maxOutputTokens: parseInt(process.env.AI_MAX_TOKENS) || 8192,
     temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.1,
-  }
+    topP: 0.8,
+    topK: 40,
+  },
+  safetySettings: [
+    {
+      category: 'HARM_CATEGORY_HARASSMENT',
+      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+    },
+    {
+      category: 'HARM_CATEGORY_HATE_SPEECH',
+      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+    },
+    {
+      category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+    },
+    {
+      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
+      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
+    },
+  ],
 });
+
+// =============================================================================
+// UTILITY FUNCTIONS
+// =============================================================================
 
 /**
  * Convert file to Gemini-compatible format
+ * SECURITY: Validates file exists and is readable before processing
+ * 
+ * @param {string} filePath - Path to the uploaded file
+ * @param {string} mimeType - MIME type of the file
+ * @returns {Promise<Object>} Gemini-compatible file object
  */
 async function fileToGenerativePart(filePath, mimeType) {
   try {
+    // Security check: Verify file exists and is readable
+    await fs.access(filePath, fs.constants.R_OK);
+    
+    // Read file data
     const data = await fs.readFile(filePath);
+    
+    // Validate file size (additional check beyond multer)
+    const maxSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
+    if (data.length > maxSize) {
+      throw new Error(`File too large: ${data.length} bytes`);
+    }
+    
+    // Convert to base64 for Gemini API
+    const base64Data = data.toString('base64');
+    
+    console.log(`📄 Converted file to base64 (${base64Data.length} chars)`);
+    
     return {
       inlineData: {
-        data: data.toString('base64'),
+        data: base64Data,
         mimeType: mimeType
       }
     };
   } catch (error) {
-    console.error('❌ Error reading file:', error);
-    throw new Error('Failed to process image file');
+    console.error('❌ Error converting file:', error);
+    throw new Error(`Failed to process image file: ${error.message}`);
   }
 }
 
 /**
- * Generate comprehensive image analysis prompt
+ * Generate comprehensive and dynamic analysis prompt
+ * 
+ * @param {number} imageCount - Number of images to analyze
+ * @param {string} customPrompt - User's custom analysis request
+ * @returns {string} Formatted analysis prompt
  */
 function generateAnalysisPrompt(imageCount, customPrompt = '') {
-  const basePrompt = `You are an expert image analyst. Please provide a comprehensive analysis of the ${imageCount === 1 ? 'image' : `${imageCount} images`} provided.
+  const basePrompt = `You are an expert AI image analyst with advanced computer vision capabilities. Please provide a comprehensive and detailed analysis of the ${imageCount === 1 ? 'image' : `${imageCount} images`} I'm sharing with you.
 
-Your analysis should include:
+## Analysis Framework:
 
-1. **Visual Description**: Describe what you see in detail
-2. **Objects & Elements**: Identify all significant objects, people, animals, or elements
-3. **Composition & Style**: Analyze the composition, colors, lighting, and artistic style
-4. **Context & Setting**: Describe the environment, location, or context
-5. **Technical Aspects**: Comment on image quality, resolution, and photographic technique if applicable
-6. **Emotional Tone**: Describe the mood or emotional impact of the image(s)
-7. **Notable Features**: Point out any unique, interesting, or unusual aspects
+### 🔍 **Visual Description**
+- Describe what you see in vivid detail
+- Note the primary subjects, objects, and scenes
+- Identify any people, animals, or notable elements
 
-${customPrompt ? `\n**Special Focus**: ${customPrompt}\n` : ''}
+### 🎨 **Composition & Aesthetics**
+- Analyze the visual composition, framing, and layout
+- Describe colors, lighting, shadows, and contrast
+- Comment on artistic style, mood, and atmosphere
+- Evaluate visual balance and focal points
 
-Please be thorough, specific, and provide insights that would be valuable for understanding the image(s) comprehensively. Format your response in clear sections for easy reading.`;
+### 🏞️ **Context & Environment**
+- Describe the setting, location, or environment
+- Note time of day, weather, or seasonal indicators
+- Identify architectural or geographical features
+
+### 🔧 **Technical Analysis**
+- Comment on image quality, resolution, and clarity
+- Note photographic techniques (depth of field, perspective, etc.)
+- Identify any potential camera settings or equipment used
+
+### 📝 **Text & Readable Content**
+- Transcribe any visible text, signs, or writing
+- Note logos, brands, or identifying marks
+- Describe any documents or readable materials
+
+### 💭 **Interpretation & Insights**
+- Provide context about what might be happening
+- Note any symbolic, cultural, or historical significance
+- Suggest the purpose or story behind the image(s)
+
+### ⭐ **Notable Features**
+- Highlight unique, interesting, or unusual aspects
+- Point out any anomalies or unexpected elements
+- Note anything that stands out or requires attention
+
+${imageCount > 1 ? `
+
+### 🔗 **Multi-Image Analysis** (for ${imageCount} images)
+- Compare and contrast the different images
+- Identify relationships, patterns, or sequences
+- Note any progression, variation, or common themes
+- Analyze the collection as a cohesive set
+
+` : ''}
+
+${customPrompt ? `
+
+### 🎯 **Special Focus Area**
+Based on your specific request: "${customPrompt}"
+
+Please pay particular attention to this aspect while maintaining the comprehensive analysis above.
+
+` : ''}
+
+## Instructions:
+- Be extremely detailed and specific in your observations
+- Use clear, organized sections for easy reading
+- Provide insights that would be valuable for understanding the content
+- If you're uncertain about something, mention your confidence level
+- Focus on factual observations while providing thoughtful interpretation
+
+Please analyze thoroughly and provide rich, detailed insights about the image(s).`;
 
   return basePrompt;
 }
 
 /**
- * Handle multer errors
+ * Validate and sanitize analysis results
+ * 
+ * @param {string} analysis - Raw AI analysis text
+ * @returns {string} Validated and formatted analysis
  */
-const handleUploadErrors = (error, req, res, next) => {
-  console.error('🚨 Upload error:', error);
+function validateAnalysisResult(analysis) {
+  if (!analysis || typeof analysis !== 'string') {
+    throw new Error('Invalid analysis result format');
+  }
 
-  if (error instanceof multer.MulterError) {
-    switch (error.code) {
-      case 'LIMIT_FILE_SIZE':
-        return res.status(400).json({
-          success: false,
-          error: 'File too large',
-          details: `Maximum file size is ${Math.round((parseInt(process.env.MAX_FILE_SIZE) || 10485760) / 1024 / 1024)}MB`,
-          code: 'FILE_TOO_LARGE'
-        });
-      
-      case 'LIMIT_FILE_COUNT':
-        return res.status(400).json({
-          success: false,
-          error: 'Too many files',
-          details: `Maximum ${parseInt(process.env.MAX_FILES) || 10} files allowed`,
-          code: 'TOO_MANY_FILES'
-        });
-      
-      case 'LIMIT_UNEXPECTED_FILE':
-        return res.status(400).json({
-          success: false,
-          error: 'Unexpected file field',
-          details: 'Please use the "images" field for file uploads',
-          code: 'UNEXPECTED_FIELD'
-        });
-      
-      default:
-        return res.status(400).json({
-          success: false,
-          error: 'File upload error',
-          details: error.message,
-          code: error.code
-        });
+  const trimmed = analysis.trim();
+  
+  if (trimmed.length === 0) {
+    throw new Error('Analysis result is empty');
+  }
+
+  if (trimmed.length < 50) {
+    throw new Error('Analysis result too short - may indicate an error');
+  }
+
+  // Check for common error patterns
+  const errorPatterns = [
+    /I cannot|I am unable|I can't/i,
+    /error|failed|invalid/i,
+    /safety|blocked|restricted/i
+  ];
+
+  for (const pattern of errorPatterns) {
+    if (pattern.test(trimmed.substring(0, 200))) {
+      console.warn('⚠️ Potential error in analysis result');
+      break;
     }
   }
 
-  // Handle custom validation errors
-  if (error.code === 'INVALID_FILE_TYPE' || error.code === 'INVALID_FILE_EXTENSION') {
-    return res.status(400).json({
-      success: false,
-      error: 'Invalid file format',
-      details: error.message,
-      code: error.code
-    });
-  }
+  return trimmed;
+}
 
-  // Pass other errors to the global error handler
-  next(error);
-};
+// =============================================================================
+// ROUTE HANDLERS
+// =============================================================================
 
 /**
  * POST /api/analyze
  * Analyze uploaded images using Gemini AI
+ * 
+ * Security: Uses secure upload middleware with comprehensive validation
+ * Rate limiting: Applied at server level
+ * File cleanup: Automatic cleanup after processing
  */
-router.post('/', (req, res, next) => {
-  // Use multer middleware with error handling
-  upload.array('images', 10)(req, res, (error) => {
-    if (error) {
-      return handleUploadErrors(error, req, res, next);
-    }
-    
-    // Continue to the actual route handler
-    handleAnalyzeRequest(req, res);
-  });
-});
-
-/**
- * Main analysis request handler
- */
-async function handleAnalyzeRequest(req, res) {
+router.post('/', uploadMiddleware('images', 10), async (req, res) => {
   const uploadedFiles = req.files || [];
   const customPrompt = req.body.prompt || '';
+  const requestId = Date.now().toString(36) + Math.random().toString(36).substr(2);
   
-  console.log(`📸 Received ${uploadedFiles.length} files for analysis`);
+  console.log(`📸 [${requestId}] Analysis request: ${uploadedFiles.length} files`);
   
   try {
-    // Validate file upload
+    // Validate request
     if (!uploadedFiles || uploadedFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No images provided. Please upload at least one image.',
-        details: 'The request must include image files in the "images" field.'
+        error: 'No images provided',
+        details: 'Please upload at least one image file using the "images" field.',
+        code: 'NO_FILES_UPLOADED'
       });
     }
 
+    // Additional security validation
     if (uploadedFiles.length > 10) {
+      console.warn(`⚠️ [${requestId}] Too many files: ${uploadedFiles.length}`);
       await cleanupFiles(uploadedFiles);
       return res.status(400).json({
         success: false,
-        error: 'Too many images. Maximum 10 images allowed per request.',
-        details: `You uploaded ${uploadedFiles.length} images. Please reduce to 10 or fewer.`
+        error: 'Too many images',
+        details: `Maximum 10 images allowed. You uploaded ${uploadedFiles.length} images.`,
+        code: 'TOO_MANY_FILES'
       });
     }
 
-    // Log file details for debugging
-    console.log('📋 Files received:', uploadedFiles.map(file => ({
+    // Log file details for security monitoring
+    const fileDetails = uploadedFiles.map(file => ({
       filename: file.filename,
+      originalName: file.originalname,
       size: file.size,
-      mimetype: file.mimetype
-    })));
+      mimetype: file.mimetype,
+      path: file.path
+    }));
+    
+    console.log(`📋 [${requestId}] Files:`, fileDetails);
 
-    // Prepare images for Gemini API
+    // Validate custom prompt length and content
+    if (customPrompt && customPrompt.length > 1000) {
+      await cleanupFiles(uploadedFiles);
+      return res.status(400).json({
+        success: false,
+        error: 'Custom prompt too long',
+        details: 'Maximum 1000 characters allowed for custom prompts.',
+        code: 'PROMPT_TOO_LONG'
+      });
+    }
+
+    // Process files for AI analysis
     const imageParts = [];
     const processedFiles = [];
+    const processingStartTime = Date.now();
 
-    for (const file of uploadedFiles) {
+    console.log(`🔄 [${requestId}] Processing ${uploadedFiles.length} files for AI analysis...`);
+
+    for (let i = 0; i < uploadedFiles.length; i++) {
+      const file = uploadedFiles[i];
       try {
+        console.log(`📄 [${requestId}] Processing file ${i + 1}/${uploadedFiles.length}: ${file.originalname}`);
+        
         const imagePart = await fileToGenerativePart(file.path, file.mimetype);
         imageParts.push(imagePart);
+        
         processedFiles.push({
+          index: i + 1,
           filename: file.filename,
           originalName: file.originalname,
           size: file.size,
-          mimetype: file.mimetype
+          mimetype: file.mimetype,
+          processed: true
         });
-        console.log(`✅ Processed image: ${file.originalname}`);
+        
+        console.log(`✅ [${requestId}] File ${i + 1} processed successfully`);
+        
       } catch (error) {
-        console.error(`❌ Failed to process ${file.originalname}:`, error.message);
+        console.error(`❌ [${requestId}] Failed to process file ${i + 1} (${file.originalname}):`, error.message);
+        
+        // Cleanup all files and return error
         await cleanupFiles(uploadedFiles);
+        
         return res.status(500).json({
           success: false,
           error: `Failed to process image: ${file.originalname}`,
-          details: 'The image file may be corrupted or in an unsupported format.'
+          details: 'The image file may be corrupted, too large, or in an unsupported format.',
+          code: 'FILE_PROCESSING_ERROR',
+          fileIndex: i + 1
         });
       }
     }
 
-    // Generate analysis prompt
-    const prompt = generateAnalysisPrompt(imageParts.length, customPrompt);
+    const processingTime = Date.now() - processingStartTime;
+    console.log(`⚡ [${requestId}] File processing completed in ${processingTime}ms`);
+
+    // Generate AI analysis prompt
+    const analysisPrompt = generateAnalysisPrompt(imageParts.length, customPrompt);
     
-    // Prepare content for Gemini
-    const content = [prompt, ...imageParts];
+    // Prepare content for Gemini API
+    const content = [analysisPrompt, ...imageParts];
 
-    console.log('🤖 Sending request to Gemini AI...');
-    const startTime = Date.now();
+    console.log(`🤖 [${requestId}] Sending request to Gemini AI (${process.env.AI_MODEL || 'gemini-1.5-flash'})...`);
+    const aiStartTime = Date.now();
 
-    // Call Gemini API
-    const result = await model.generateContent(content);
-    const response = await result.response;
-    const analysis = response.text();
-
-    const processingTime = Date.now() - startTime;
-    console.log(`✅ Analysis completed in ${processingTime}ms`);
-
-    // Cleanup uploaded files immediately after processing
-    await cleanupFiles(uploadedFiles);
-    console.log('🗑️ Temporary files cleaned up');
-
-    // Validate response
-    if (!analysis || analysis.trim().length === 0) {
+    // Call Gemini API with error handling
+    let result, response, analysis;
+    
+    try {
+      result = await model.generateContent(content);
+      response = await result.response;
+      analysis = response.text();
+      
+      // Validate the response
+      if (!analysis) {
+        throw new Error('Empty response from AI service');
+      }
+      
+    } catch (apiError) {
+      console.error(`❌ [${requestId}] Gemini API error:`, apiError);
+      
+      // Cleanup files before returning error
+      await cleanupFiles(uploadedFiles);
+      
+      // Handle specific API errors
+      if (apiError.message?.includes('API key')) {
+        return res.status(401).json({
+          success: false,
+          error: 'AI service authentication failed',
+          details: 'Invalid or missing API key. Please check server configuration.',
+          code: 'AUTH_ERROR'
+        });
+      }
+      
+      if (apiError.message?.includes('quota') || apiError.message?.includes('limit')) {
+        return res.status(429).json({
+          success: false,
+          error: 'AI service rate limit exceeded',
+          details: 'The AI service is temporarily unavailable due to rate limiting. Please try again later.',
+          code: 'RATE_LIMIT_ERROR'
+        });
+      }
+      
+      if (apiError.message?.includes('safety') || apiError.message?.includes('blocked')) {
+        return res.status(400).json({
+          success: false,
+          error: 'Content blocked by safety filters',
+          details: 'The uploaded images contain content that cannot be analyzed due to safety restrictions.',
+          code: 'CONTENT_BLOCKED'
+        });
+      }
+      
+      if (apiError.message?.includes('file size') || apiError.message?.includes('too large')) {
+        return res.status(400).json({
+          success: false,
+          error: 'Images too large for AI processing',
+          details: 'One or more images exceed the AI service size limits. Please try smaller images.',
+          code: 'FILE_SIZE_ERROR'
+        });
+      }
+      
+      // Generic API error
       return res.status(500).json({
         success: false,
-        error: 'AI analysis failed to generate results',
-        details: 'The AI service returned an empty response. Please try again.'
+        error: 'AI analysis failed',
+        details: 'The AI service encountered an error while processing your images. Please try again.',
+        code: 'AI_SERVICE_ERROR'
       });
     }
 
-    // Return successful response
-    res.json({
+    const aiProcessingTime = Date.now() - aiStartTime;
+    console.log(`🧠 [${requestId}] AI analysis completed in ${aiProcessingTime}ms`);
+
+    // Validate and sanitize the analysis result
+    try {
+      analysis = validateAnalysisResult(analysis);
+    } catch (validationError) {
+      console.error(`❌ [${requestId}] Analysis validation failed:`, validationError.message);
+      
+      await cleanupFiles(uploadedFiles);
+      
+      return res.status(500).json({
+        success: false,
+        error: 'Invalid analysis result',
+        details: 'The AI service returned an invalid response. Please try again.',
+        code: 'INVALID_ANALYSIS'
+      });
+    }
+
+    // Cleanup uploaded files immediately after successful processing
+    const cleanupStartTime = Date.now();
+    await cleanupFiles(uploadedFiles);
+    const cleanupTime = Date.now() - cleanupStartTime;
+    
+    console.log(`🗑️ [${requestId}] Files cleaned up in ${cleanupTime}ms`);
+
+    // Calculate total processing time
+    const totalProcessingTime = Date.now() - processingStartTime;
+
+    // Prepare success response
+    const responseData = {
       success: true,
-      analysis: analysis.trim(),
+      analysis: analysis,
       metadata: {
+        requestId: requestId,
         processedImages: processedFiles.length,
-        processingTimeMs: processingTime,
-        model: process.env.AI_MODEL || 'gemini-1.5-flash',
+        totalProcessingTimeMs: totalProcessingTime,
+        breakdown: {
+          fileProcessingMs: processingTime,
+          aiAnalysisMs: aiProcessingTime,
+          cleanupMs: cleanupTime
+        },
+        aiModel: process.env.AI_MODEL || 'gemini-1.5-flash',
         customPrompt: customPrompt || null,
         files: processedFiles,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        security: {
+          filesValidated: true,
+          immediateCleanup: true,
+          secureProcessing: true
+        }
       }
-    });
+    };
+
+    console.log(`✅ [${requestId}] Analysis completed successfully - ${analysis.length} characters, ${totalProcessingTime}ms total`);
+
+    // Return successful response
+    res.json(responseData);
 
   } catch (error) {
-    console.error('🚨 Analysis error:', error);
+    console.error(`🚨 [${requestId}] Unexpected error:`, error);
 
-    // Always cleanup files on error
-    if (uploadedFiles.length > 0) {
-      await cleanupFiles(uploadedFiles);
-      console.log('🗑️ Cleaned up files after error');
+    // Emergency cleanup of files
+    if (uploadedFiles && uploadedFiles.length > 0) {
+      try {
+        await cleanupFiles(uploadedFiles);
+        console.log(`🗑️ [${requestId}] Emergency cleanup completed`);
+      } catch (cleanupError) {
+        console.error(`❌ [${requestId}] Emergency cleanup failed:`, cleanupError);
+      }
     }
 
-    // Handle specific Gemini API errors
-    if (error.message?.includes('API key')) {
-      return res.status(401).json({
-        success: false,
-        error: 'AI service authentication failed',
-        details: 'Please check your API configuration and try again.'
-      });
-    }
-
-    if (error.message?.includes('quota') || error.message?.includes('limit')) {
-      return res.status(429).json({
-        success: false,
-        error: 'AI service rate limit exceeded',
-        details: 'Please wait a moment and try again. The service is temporarily busy.'
-      });
-    }
-
-    if (error.message?.includes('content') || error.message?.includes('safety')) {
-      return res.status(400).json({
-        success: false,
-        error: 'Content not suitable for analysis',
-        details: 'The uploaded images may contain content that cannot be analyzed.'
-      });
-    }
-
-    // Generic error response
+    // Return generic error response (don't leak sensitive information)
     const isDevelopment = process.env.NODE_ENV === 'development';
+    
     res.status(500).json({
       success: false,
-      error: 'Image analysis failed',
-      details: isDevelopment ? error.message : 'An unexpected error occurred. Please try again.',
+      error: 'Internal server error',
+      details: isDevelopment 
+        ? `Server error: ${error.message}` 
+        : 'An unexpected error occurred. Please try again.',
+      code: 'INTERNAL_ERROR',
+      requestId: requestId,
       ...(isDevelopment && { stack: error.stack })
     });
   }
-}
+});
 
 /**
  * GET /api/analyze/health
- * Health check for analyze service
+ * Health check for the analysis service
+ * Returns configuration and status information
  */
-router.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    service: 'Image Analysis',
-    aiModel: process.env.AI_MODEL || 'gemini-1.5-flash',
-    maxFiles: parseInt(process.env.MAX_FILES) || 10,
-    maxFileSize: parseInt(process.env.MAX_FILE_SIZE) || 10485760,
-    supportedTypes: ['image/jpeg', 'image/png', 'image/gif', 'image/webp'],
-    timestamp: new Date().toISOString()
-  });
+router.get('/health', async (req, res) => {
+  try {
+    const { getUploadConfig, validateUploadDirectory } = await import('../middleware/upload.js');
+    
+    // Get upload configuration
+    const uploadConfig = getUploadConfig();
+    
+    // Validate upload directory
+    const directoryStatus = await validateUploadDirectory();
+    
+    // Test Gemini AI connectivity (optional quick test)
+    let aiStatus = 'unknown';
+    try {
+      // Quick test with minimal content
+      const testModel = genAI.getGenerativeModel({ model: process.env.AI_MODEL || 'gemini-1.5-flash' });
+      const testResult = await testModel.generateContent('Test connection - respond with "OK"');
+      const testResponse = await testResult.response;
+      aiStatus = testResponse.text().includes('OK') ? 'connected' : 'limited';
+    } catch (aiError) {
+      aiStatus = 'error';
+      console.warn('⚠️ AI health check failed:', aiError.message);
+    }
+
+    res.json({
+      status: 'OK',
+      service: 'Image Analysis API',
+      timestamp: new Date().toISOString(),
+      version: '1.0.0',
+      
+      aiService: {
+        provider: 'Google Gemini',
+        model: process.env.AI_MODEL || 'gemini-1.5-flash',
+        status: aiStatus,
+        maxTokens: parseInt(process.env.AI_MAX_TOKENS) || 8192,
+        temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.1
+      },
+      
+      uploadConfig: {
+        maxFileSize: uploadConfig.maxFileSizeMB + 'MB',
+        maxFiles: uploadConfig.maxFiles,
+        allowedTypes: uploadConfig.allowedMimeTypes,
+        allowedExtensions: uploadConfig.allowedExtensions
+      },
+      
+      storage: {
+        directory: directoryStatus.path,
+        exists: directoryStatus.exists,
+        writable: directoryStatus.writable,
+        ...(directoryStatus.error && { error: directoryStatus.error })
+      },
+      
+      security: {
+        fileValidation: 'enabled',
+        secureFilenames: 'enabled',
+        immediateCleanup: 'enabled',
+        rateLimiting: 'enabled',
+        corsProtection: 'enabled'
+      },
+      
+      environment: process.env.NODE_ENV || 'development'
+    });
+    
+  } catch (error) {
+    console.error('❌ Health check error:', error);
+    
+    res.status(500).json({
+      status: 'ERROR',
+      service: 'Image Analysis API',
+      timestamp: new Date().toISOString(),
+      error: 'Health check failed',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Service unavailable'
+    });
+  }
+});
+
+/**
+ * GET /api/analyze/config
+ * Get current upload and analysis configuration
+ * Useful for frontend to know current limits
+ */
+router.get('/config', async (req, res) => {
+  try {
+    const { getUploadConfig } = await import('../middleware/upload.js');
+    const config = getUploadConfig();
+    
+    res.json({
+      success: true,
+      config: {
+        upload: {
+          maxFileSize: config.maxFileSize,
+          maxFileSizeMB: config.maxFileSizeMB,
+          maxFiles: config.maxFiles,
+          allowedTypes: config.allowedMimeTypes,
+          allowedExtensions: config.allowedExtensions
+        },
+        analysis: {
+          aiModel: process.env.AI_MODEL || 'gemini-1.5-flash',
+          maxTokens: parseInt(process.env.AI_MAX_TOKENS) || 8192,
+          temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.1,
+          maxPromptLength: 1000
+        },
+        features: {
+          customPrompts: true,
+          multipleImages: true,
+          detailedAnalysis: true,
+          secureProcessing: true
+        }
+      },
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('❌ Config endpoint error:', error);
+    
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get configuration',
+      details: 'Unable to retrieve current configuration'
+    });
+  }
 });
 
 export default router;
