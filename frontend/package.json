@@ -5,11 +5,18 @@
   "description": "Frontend React application for AI-powered image analysis",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "dev": "vite --mode development",
+    "dev:host": "vite --mode development --host",
+    "build": "vite build --mode production",
+    "build:dev": "vite build --mode development",
     "preview": "vite preview",
-    "clean": "rm -rf dist"
+    "preview:host": "vite preview --host",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext js,jsx --fix",
+    "clean": "rm -rf dist",
+    "analyze": "vite build --mode production && npx vite-bundle-analyzer dist",
+    "type-check": "tsc --noEmit",
+    "test": "echo \"No tests specified\" && exit 0"
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
@@ -23,10 +30,12 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.15.0",
+    "@fullhuman/postcss-purgecss": "^7.0.2",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^4.3.3",
     "autoprefixer": "^10.4.20",
+    "cssnano": "^7.0.7",
     "eslint": "^9.15.0",
     "eslint-plugin-react": "^7.37.2",
     "eslint-plugin-react-hooks": "^5.0.0",

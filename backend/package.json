@@ -6,10 +6,15 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon --watch . --ext js,json server.js",
+    "dev": "nodemon --watch . --ext js,json --env-file .env server.js",
+    "dev:debug": "nodemon --inspect --watch . --ext js,json --env-file .env server.js",
+    "build": "echo \"No build step required for Node.js\" && exit 0",
     "test": "echo \"Error: no test specified\" && exit 1",
+    "test:env": "node test-env.js",
+    "test:upload": "node test-upload.js",
     "clean": "node utils/cleanup.js",
-    "lint": "echo \"Linting not configured\" && exit 0"
+    "lint": "echo \"Linting not configured\" && exit 0",
+    "health": "curl -f http://localhost:5000/health || exit 1"
   },
   "keywords": [
     "image-analysis",
@@ -18,7 +23,7 @@
     "api",
     "gemini"
   ],
-  "author": "Your Name",
+  "author": "ady7ady7",
   "license": "MIT",
   "dependencies": {
     "@google/generative-ai": "^0.21.0",
