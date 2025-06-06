@@ -1,0 +1,49 @@
+config:
+  target: 'http://localhost:5000'
+  phases:
+    - duration: 60
+      arrivalRate: 5
+      name: "Warm up"
+    - duration: 120
+      arrivalRate: 10
+      name: "Sustained load"
+    - duration: 60
+      arrivalRate: 20
+      name: "Peak load"
+  defaults:
+    headers:
+      User-Agent: "Artillery Load Test"
+
+scenarios:
+  - name: "Health Check Load Test"
+    weight: 30
+    flow:
+      - get:
+          url: "/health"
+          expect:
+            - statusCode: 200
+            - hasProperty: "status"
+
+  - name: "Config Endpoint Load Test"
+    weight: 20
+    flow:
+      - get:
+          url: "/api/analyze/config"
+          expect:
+            - statusCode: 200
+            - hasProperty: "success"
+
+  - name: "Image Analysis Load Test"
+    weight: 50
+    flow:
+      - post:
+          url: "/api/analyze"
+          formData:
+            images: "@./test-data/test-image.jpg"
+            prompt: "Analyze this test image"
+          expect:
+            - statusCode: [200, 400, 429]
+          capture:
+            - json: "$.metadata.totalProcessingTimeMs"
+              as: "processingTime"
+      - think: 5
