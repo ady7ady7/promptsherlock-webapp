@@ -1,38 +1,23 @@
 # =============================================================================
 # NETLIFY CONFIGURATION FOR IMAGEANALYZER
 # =============================================================================
-# Place this file in the root of your repository (same level as package.json)
 
-# =============================================================================
-# BUILD CONFIGURATION
-# =============================================================================
 [build]
-  # Command to build your frontend
-  command = "cd frontend && npm install --legacy-peer-deps && npm run build"
-  
-  # Directory to deploy (where your built files are)
+  # Force install ALL dependencies including devDependencies
+  command = "cd frontend && NODE_ENV=development npm install --legacy-peer-deps && npm run build"
   publish = "frontend/dist"
 
-# Build environment variables (separate section for proper TOML syntax)
 [build.environment]
   NODE_VERSION = "20"
   NPM_VERSION = "10.2.3"
   CI = "true"
-  NODE_ENV = "production"
+  # Don't set NODE_ENV=production here, we'll set it during build only
 
-# =============================================================================
-# REACT ROUTER SUPPORT (SPA)
-# =============================================================================
-# This makes React Router work properly
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
 
-# =============================================================================
-# SECURITY HEADERS
-# =============================================================================
-# These headers protect your app from attacks
 [[headers]]
   for = "/*"
   [headers.values]
@@ -43,10 +28,6 @@
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
     Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.onrender.com"
 
-# =============================================================================
-# PERFORMANCE OPTIMIZATION
-# =============================================================================
-# Cache static assets for better performance
 [[headers]]
   for = "/assets/*"
   [headers.values]
