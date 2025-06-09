@@ -7,6 +7,8 @@ import compression from 'compression';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import rootRouter from './routes/root.js';
+
 
 // Import environment validation
 import { initializeEnvironment, getValidatedConfig } from './utils/envValidation.js';
@@ -238,6 +240,9 @@ app.get('/health', (req, res) => {
 
 // API routes
 app.use('/api/analyze', analyzeRouter);
+
+app.use('/', rootRouter);
+
 
 // =============================================================================
 // ERROR HANDLING
