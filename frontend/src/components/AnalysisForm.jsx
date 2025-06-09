@@ -1,3 +1,6 @@
+// frontend/src/components/AnalysisForm.jsx - FIXED VERSION
+// Key fix: Ensure API path is constructed correctly
+
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -16,23 +19,10 @@ import PropTypes from 'prop-types';
 import ImageUploader from './ImageUploader';
 
 /**
- * Main Analysis Form Component - Orchestrates the entire user experience
- * 
- * Features:
- * - Image upload integration
- * - Custom prompt input
- * - API communication with backend
- * - Loading states and error handling
- * - Results display with formatting
- * - Glass morphism design
- * 
- * @param {Object} props - Component props
- * @param {string} props.apiUrl - Backend API URL
- * @param {Function} props.onAnalysisComplete - Callback when analysis completes
- * @param {Object} props.initialState - Initial form state
+ * Main Analysis Form Component - Fixed API path construction
  */
 const AnalysisForm = ({
-  apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5001',
+  apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000',
   onAnalysisComplete,
   initialState = {}
 }) => {
@@ -59,20 +49,48 @@ const AnalysisForm = ({
   const resultsRef = useRef(null);
 
   // =============================================================================
-  // FORM VALIDATION
+  // API URL CONSTRUCTION (FIXED)
   // =============================================================================
   
   /**
-   * Validates the entire form
-   * @returns {boolean} - Whether the form is valid
+   * Construct the correct API endpoint URL
+   * Prevents double /api/ in the path
    */
+  const getApiEndpoint = useCallback((endpoint) => {
+    // Remove trailing slash from apiUrl if present
+    const baseUrl = apiUrl.replace(/\/$/, '');
+    
+    // Ensure endpoint starts with /
+    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+    
+    // Check if baseUrl already ends with /api
+    if (baseUrl.endsWith('/api')) {
+      // If baseUrl includes /api, don't add it again
+      return `${baseUrl}${cleanEndpoint}`;
+    } else {
+      // If baseUrl doesn't include /api, add it
+      return `${baseUrl}/api${cleanEndpoint}`;
+    }
+  }, [apiUrl]);
+
+  // Debug: Log the constructed URLs
+  React.useEffect(() => {
+    console.log('🔍 API Configuration:');
+    console.log('  VITE_API_URL:', import.meta.env.VITE_API_URL);
+    console.log('  apiUrl prop:', apiUrl);
+    console.log('  Analyze endpoint:', getApiEndpoint('/analyze'));
+  }, [apiUrl, getApiEndpoint]);
+
+  // =============================================================================
+  // FORM VALIDATION (unchanged)
+  // =============================================================================
+  
   const validateForm = useCallback(() => {
     const newValidation = {
       images: { isValid: true, message: '' },
       prompt: { isValid: true, message: '' }
     };
 
-    // Validate images
     if (!formState.images || formState.images.length === 0) {
       newValidation.images = {
         isValid: false,
@@ -80,7 +98,6 @@ const AnalysisForm = ({
       };
     }
 
-    // Validate prompt (optional but recommended)
     if (formState.prompt.length > 1000) {
       newValidation.prompt = {
         isValid: false,
@@ -89,30 +106,20 @@ const AnalysisForm = ({
     }
 
     setValidation(newValidation);
-    
     return newValidation.images.isValid && newValidation.prompt.isValid;
   }, [formState.images, formState.prompt]);
 
   // =============================================================================
-  // STATE UPDATERS
+  // STATE UPDATERS (unchanged)
   // =============================================================================
   
-  /**
-   * Updates form state immutably
-   * @param {Object} updates - Partial state updates
-   */
   const updateFormState = useCallback((updates) => {
     setFormState(prev => ({ ...prev, ...updates }));
   }, []);
 
-  /**
-   * Handles image changes from ImageUploader
-   * @param {Array} images - Updated images array
-   */
   const handleImagesChange = useCallback((images) => {
     updateFormState({ images });
     
-    // Clear image validation error if images are added
     if (images.length > 0 && !validation.images.isValid) {
       setValidation(prev => ({
         ...prev,
@@ -121,15 +128,10 @@ const AnalysisForm = ({
     }
   }, [updateFormState, validation.images.isValid]);
 
-  /**
-   * Handles prompt text changes
-   * @param {Event} event - Input change event
-   */
   const handlePromptChange = useCallback((event) => {
     const prompt = event.target.value;
     updateFormState({ prompt });
     
-    // Clear prompt validation error if under limit
     if (prompt.length <= 1000 && !validation.prompt.isValid) {
       setValidation(prev => ({
         ...prev,
@@ -139,24 +141,18 @@ const AnalysisForm = ({
   }, [updateFormState, validation.prompt.isValid]);
 
   // =============================================================================
-  // API COMMUNICATION
+  // API COMMUNICATION (FIXED)
   // =============================================================================
   
-  /**
-   * Constructs FormData for API request
-   * @returns {FormData} - Formatted form data
-   */
   const constructFormData = useCallback(() => {
     const formData = new FormData();
     
-    // Add images
     formState.images.forEach((imageObj) => {
       if (imageObj.file) {
         formData.append('images', imageObj.file);
       }
     });
     
-    // Add prompt if provided
     if (formState.prompt.trim()) {
       formData.append('prompt', formState.prompt.trim());
     }
@@ -164,21 +160,19 @@ const AnalysisForm = ({
     return formData;
   }, [formState.images, formState.prompt]);
 
-  /**
-   * Handles API errors with user-friendly messages
-   * @param {Error} error - API error
-   * @returns {string} - User-friendly error message
-   */
   const handleApiError = useCallback((error) => {
     console.error('API Error:', error);
     
     if (error.response) {
-      // Server responded with error status
       const { status, data } = error.response;
       
       switch (status) {
         case 400:
           return data.error || 'Invalid request. Please check your images and try again.';
+        case 403:
+          return 'Access denied. Please check CORS configuration.';
+        case 404:
+          return 'API endpoint not found. Please check the server configuration.';
         case 413:
           return 'Files too large. Please reduce image sizes and try again.';
         case 429:
@@ -189,26 +183,22 @@ const AnalysisForm = ({
           return data.error || `Request failed (${status}). Please try again.`;
       }
     } else if (error.request) {
-      // Network error
       return 'Network error. Please check your connection and try again.';
     } else {
-      // Other error
       return 'An unexpected error occurred. Please try again.';
     }
   }, []);
 
   /**
-   * Submits the form to the API
+   * Submit form to API - FIXED endpoint construction
    */
   const handleSubmit = useCallback(async (event) => {
     event.preventDefault();
     
-    // Validate form
     if (!validateForm()) {
       return;
     }
     
-    // Clear previous results and errors
     updateFormState({
       isLoading: true,
       results: null,
@@ -217,14 +207,15 @@ const AnalysisForm = ({
     });
 
     try {
-      // Construct form data
       const formData = constructFormData();
       
-      console.log('Submitting analysis request...');
+      // FIXED: Use the corrected API endpoint
+      const analyzeUrl = getApiEndpoint('/analyze');
       
-      // Make API request
+      console.log('🚀 Making API request to:', analyzeUrl);
+      
       const response = await axios.post(
-        `${apiUrl}/api/analyze`,
+        analyzeUrl, // This should be: https://prompt-sherlock.onrender.com/api/analyze
         formData,
         {
           headers: {
@@ -240,9 +231,8 @@ const AnalysisForm = ({
         }
       );
       
-      console.log('Analysis response:', response.data);
+      console.log('✅ Analysis response:', response.data);
       
-      // Handle successful response
       if (response.data.success) {
         updateFormState({
           results: response.data,
@@ -250,7 +240,6 @@ const AnalysisForm = ({
           error: null
         });
         
-        // Scroll to results
         setTimeout(() => {
           resultsRef.current?.scrollIntoView({ 
             behavior: 'smooth', 
@@ -258,7 +247,6 @@ const AnalysisForm = ({
           });
         }, 500);
         
-        // Notify parent component
         onAnalysisComplete?.(response.data);
         
       } else {
@@ -274,15 +262,12 @@ const AnalysisForm = ({
         results: null
       });
     }
-  }, [validateForm, updateFormState, constructFormData, apiUrl, handleApiError, onAnalysisComplete]);
+  }, [validateForm, updateFormState, constructFormData, getApiEndpoint, handleApiError, onAnalysisComplete]);
 
   // =============================================================================
-  // UTILITY FUNCTIONS
+  // UTILITY FUNCTIONS (unchanged)
   // =============================================================================
   
-  /**
-   * Resets the form to initial state
-   */
   const handleReset = useCallback(() => {
     setFormState({
       images: [],
@@ -298,28 +283,20 @@ const AnalysisForm = ({
       prompt: { isValid: true, message: '' }
     });
     
-    // Focus on image uploader
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
-  /**
-   * Copies analysis results to clipboard
-   */
   const handleCopyResults = useCallback(async () => {
     if (!formState.results?.analysis) return;
     
     try {
       await navigator.clipboard.writeText(formState.results.analysis);
-      // You could add a toast notification here
       console.log('Results copied to clipboard');
     } catch (error) {
       console.error('Failed to copy results:', error);
     }
   }, [formState.results]);
 
-  /**
-   * Downloads analysis results as text file
-   */
   const handleDownloadResults = useCallback(() => {
     if (!formState.results?.analysis) return;
     
@@ -337,7 +314,7 @@ const AnalysisForm = ({
   }, [formState.results]);
 
   // =============================================================================
-  // ANIMATION VARIANTS
+  // ANIMATION VARIANTS (unchanged)
   // =============================================================================
   
   const containerVariants = {
@@ -400,12 +377,9 @@ const AnalysisForm = ({
   };
 
   // =============================================================================
-  // RENDER HELPERS
+  // RENDER HELPERS (unchanged)
   // =============================================================================
   
-  /**
-   * Renders form validation errors
-   */
   const renderValidationErrors = () => {
     const hasErrors = !validation.images.isValid || !validation.prompt.isValid;
     
@@ -436,9 +410,6 @@ const AnalysisForm = ({
     );
   };
 
-  /**
-   * Renders API error messages
-   */
   const renderApiError = () => {
     if (!formState.error) return null;
     
@@ -455,6 +426,19 @@ const AnalysisForm = ({
           <div className="flex-1">
             <h4 className="text-red-400 font-semibold mb-2">Analysis Failed</h4>
             <p className="text-red-300 mb-4">{formState.error}</p>
+            
+            {/* Debug info for development */}
+            {import.meta.env.DEV && (
+              <details className="mt-4">
+                <summary className="text-red-400 text-sm cursor-pointer">Debug Info</summary>
+                <div className="mt-2 text-xs text-red-200 font-mono">
+                  <p>API URL: {apiUrl}</p>
+                  <p>Analyze endpoint: {getApiEndpoint('/analyze')}</p>
+                  <p>Environment: {import.meta.env.MODE}</p>
+                </div>
+              </details>
+            )}
+            
             <button
               onClick={() => updateFormState({ error: null })}
               className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
@@ -467,9 +451,6 @@ const AnalysisForm = ({
     );
   };
 
-  /**
-   * Renders loading state
-   */
   const renderLoadingState = () => {
     if (!formState.isLoading) return null;
     
@@ -500,9 +481,6 @@ const AnalysisForm = ({
     );
   };
 
-  /**
-   * Renders analysis results
-   */
   const renderResults = () => {
     if (!formState.results) return null;
     
@@ -516,7 +494,6 @@ const AnalysisForm = ({
         initial="hidden"
         animate="visible"
       >
-        {/* Results Header */}
         <div className="glass-effect p-6 rounded-lg">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center space-x-3">
@@ -544,7 +521,6 @@ const AnalysisForm = ({
             </div>
           </div>
           
-          {/* Metadata */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="text-center">
               <div className="text-blue-400 font-semibold">Images</div>
@@ -570,7 +546,6 @@ const AnalysisForm = ({
           </div>
         </div>
 
-        {/* Analysis Content */}
         <div className="glass-effect p-6 rounded-lg">
           <div className="flex items-center space-x-2 mb-4">
             <FileText className="w-5 h-5 text-blue-400" />
@@ -584,7 +559,6 @@ const AnalysisForm = ({
           </div>
         </div>
 
-        {/* Action Buttons */}
         <div className="flex justify-center space-x-4">
           <button
             onClick={handleReset}
@@ -616,9 +590,7 @@ const AnalysisForm = ({
       initial="hidden"
       animate="visible"
     >
-      {/* Main Form */}
       <form onSubmit={handleSubmit} className="space-y-8">
-        {/* Image Uploader Section */}
         <motion.div variants={itemVariants}>
           <ImageUploader
             onImagesChange={handleImagesChange}
@@ -630,7 +602,6 @@ const AnalysisForm = ({
           />
         </motion.div>
 
-        {/* Custom Prompt Section */}
         <motion.div 
           className="glass-effect p-6 rounded-lg space-y-4"
           variants={itemVariants}
@@ -671,12 +642,10 @@ const AnalysisForm = ({
           </div>
         </motion.div>
 
-        {/* Validation Errors */}
         <AnimatePresence>
           {renderValidationErrors()}
         </AnimatePresence>
 
-        {/* Submit Button */}
         <motion.div 
           className="flex justify-center"
           variants={itemVariants}
@@ -705,17 +674,14 @@ const AnalysisForm = ({
         </motion.div>
       </form>
 
-      {/* API Error Display */}
       <AnimatePresence>
         {renderApiError()}
       </AnimatePresence>
 
-      {/* Loading State */}
       <AnimatePresence>
         {renderLoadingState()}
       </AnimatePresence>
 
-      {/* Results Display */}
       <AnimatePresence>
         {renderResults()}
       </AnimatePresence>
@@ -723,18 +689,9 @@ const AnalysisForm = ({
   );
 };
 
-// =============================================================================
-// PROP TYPES VALIDATION
-// =============================================================================
-
 AnalysisForm.propTypes = {
-  /** Backend API URL */
   apiUrl: PropTypes.string,
-  
-  /** Callback when analysis completes successfully */
   onAnalysisComplete: PropTypes.func,
-  
-  /** Initial form state */
   initialState: PropTypes.shape({
     images: PropTypes.array,
     prompt: PropTypes.string

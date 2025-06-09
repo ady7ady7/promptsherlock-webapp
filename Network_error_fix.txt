@@ -1,0 +1,53 @@
+# 🚀 Complete Deployment Fix Guide
+
+This guide will help you fix the "Network error" issue between your Netlify frontend and Render backend.
+
+## 🔍 Quick Diagnosis
+
+Run the backend test suite to identify issues:
+
+```bash
+# In your backend directory
+node test-production.js https://your-backend.onrender.com https://your-frontend.netlify.app
+```
+
+## 🛠️ Step-by-Step Fixes
+
+### 1. Backend Environment Variables (Render)
+
+Go to your Render dashboard → Your service → Environment tab and set:
+
+```env
+# Required Variables
+GEMINI_API_KEY=AIza...your-actual-key
+FRONTEND_URL=https://your-exact-netlify-domain.netlify.app
+NODE_ENV=production
+
+# Optional but Recommended
+AI_MODEL=gemini-1.5-flash
+MAX_FILE_SIZE=10485760
+MAX_FILES=10
+RATE_LIMIT_WINDOW_MS=900000
+RATE_LIMIT_MAX=100
+```
+
+**Critical Notes:**
+- `FRONTEND_URL` must match your Netlify domain exactly (no trailing slash)
+- If you have a custom domain, use that instead
+- After setting, **redeploy your backend service**
+
+### 2. Frontend Environment Variables (Netlify)
+
+Go to Netlify dashboard → Your site → Site settings → Environment variables:
+
+```env
+# Required Variable
+VITE_API_URL=https://your-exact-render-service.onrender.com
+
+# Optional
+VITE_BUILD_TARGET=es2015
+```
+
+**Critical Notes:**
+- `VITE_API_URL` must match your Render service URL exactly
+- No trailing slash
