@@ -15,7 +15,7 @@
 
 # Build environment variables (separate section for proper TOML syntax)
 [build.environment]
-  NODE_VERSION = "18.19.0"
+  NODE_VERSION = "20"
   NPM_VERSION = "10.2.3"
   CI = "true"
   NODE_ENV = "production"

@@ -24,6 +24,13 @@
     "test:component": "vitest run src/__tests__/components",
     "test:integration": "vitest run src/__tests__/integration"
   },
+
+  
+"engines": {
+    "node": ">=20.0.0",
+    "npm": ">=9.0.0"
+  },
+  
   "dependencies": {
     "@headlessui/react": "^2.2.0",
     "axios": "^1.9.0",
