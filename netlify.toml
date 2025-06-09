@@ -8,7 +8,7 @@
 # =============================================================================
 [build]
   # Command to build your frontend
-  command = "cd frontend && npm ci --legacy-peer-deps && npm run build"
+  command = "cd frontend && npm install --legacy-peer-deps && npm run build"
   
   # Directory to deploy (where your built files are)
   publish = "frontend/dist"
