@@ -1,0 +1,79 @@
+# =============================================================================
+# NETLIFY CONFIGURATION FOR IMAGEANALYZER
+# =============================================================================
+# Place this file in the root of your repository (same level as package.json)
+
+# =============================================================================
+# BUILD CONFIGURATION
+# =============================================================================
+[build]
+  # Command to build your frontend
+  # This runs: cd frontend && npm ci --legacy-peer-deps && npm run build
+  command = "cd frontend && npm ci --legacy-peer-deps && npm run build"
+  
+  # Directory to deploy (where your built files are)
+  # Netlify will serve everything in frontend/dist
+  publish = "frontend/dist"
+  
+  # Build environment settings
+  environment = { 
+    NODE_VERSION = "18.19.0",    # Use Node.js 18.19.0
+    NPM_VERSION = "10.2.3",      # Use npm 10.2.3
+    CI = "true",                 # Enable CI mode
+    NODE_ENV = "production"      # Set production environment
+  }
+
+# =============================================================================
+# REACT ROUTER SUPPORT (SPA)
+# =============================================================================
+# This makes React Router work properly
+# Without this, visiting /upload directly would show 404
+[[redirects]]
+  from = "/*"                    # Any URL
+  to = "/index.html"             # Serve your React app
+  status = 200                   # HTTP 200 (success)
+
+# =============================================================================
+# SECURITY HEADERS
+# =============================================================================
+# These headers protect your app from attacks
+[[headers]]
+  for = "/*"                     # Apply to all pages
+  [headers.values]
+    # Prevent clickjacking attacks
+    X-Frame-Options = "DENY"
+    
+    # Prevent MIME type sniffing
+    X-Content-Type-Options = "nosniff"
+    
+    # Enable XSS protection
+    X-XSS-Protection = "1; mode=block"
+    
+    # Control referrer information
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # Limit browser permissions
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    
+    # Content Security Policy (what resources can load)
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.onrender.com"
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATION
+# =============================================================================
+# Cache static assets for better performance
+[[headers]]
+  for = "/assets/*"              # All files in assets folder
+  [headers.values]
+    # Cache for 1 year (files have unique hashes)
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.js"                   # All JavaScript files
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "*.css"                  # All CSS files
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
