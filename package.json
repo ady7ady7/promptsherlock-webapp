@@ -1,0 +1,21 @@
+{
+  "name": "image-analyzer-app",
+  "version": "1.0.0",
+  "description": "AI-powered image analysis application",
+  "type": "module",
+  "scripts": {
+    "test": "cd testing && npm run test",
+    "test:quick": "cd testing && npm run test:quick",
+    "test:frontend": "cd frontend && npm test",
+    "test:backend": "cd backend && npm run test:upload && npm run test:env",
+    "install:all": "npm install && cd frontend && npm install && cd backend && npm install && cd testing && npm install",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "clean": "cd frontend && npm run clean && cd backend && npm run clean"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
