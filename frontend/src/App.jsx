@@ -145,7 +145,7 @@ function App() {
   const features = [
     {
       icon: Search,
-      title: 'AI Detective Analysis',
+      title: 'AI Analysis',
       description: 'Sherlock "investigates" every image, extracting style, mood, composition, and subject matter.'
     },
     {
@@ -205,10 +205,11 @@ function App() {
         variants={subtitleVariants}
       >
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
-          Uncover. Create. Repeat. Instantly turn inspiration into AI art prompts, tailored for your favorite tools.
+          Uncover. Create. Repeat.
         </p>
         <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto font-semibold">
-          Turn any image into the perfect AI art prompt—no guesswork, no wasted time.
+          Instantly turn inspiration into AI art prompts, tailored for your favorite tools. 
+          No guesswork, no wasted time.
         </p>
       </motion.div>
 
@@ -218,7 +219,7 @@ function App() {
         variants={subtitleVariants}
       >
         <p className="text-white text-base md:text-lg leading-relaxed mb-6">
-          Meet <strong className="gradient-text">Prompt Sherlock</strong>, your AI-powered creative sidekick. Upload up to 10 images and let Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. In seconds, get ready-to-use prompts, expertly tailored for the world's top visual AI engines: Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
+          Upload up to 10 images and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, expertly tailored for the world's top visual AI engines: Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
@@ -230,9 +231,9 @@ function App() {
             <ul className="text-gray-300 space-y-2 text-sm">
               <li><strong>Instant Inspiration:</strong> Found an image you love? Sherlock reverse-engineers it into a prompt you can use right now.</li>
               <li><strong>Tool-Optimized Prompts:</strong> Get prompts fine-tuned for the exact AI engine you use—no more trial and error.</li>
-              <li><strong>Style & Character Consistency:</strong> Maintain your unique look across projects with style and character matching.</li>
+              <li><strong>Style & Character Consistency:</strong> Maintain your unique look across projects.</li>
               <li><strong>Save Hours:</strong> Skip manual prompt crafting and focus on creating.</li>
-              <li><strong>Interactive Refinement:</strong> Tweak, remix, and perfect your prompts with our intuitive editor.</li>
+              <li><strong>Interactive Refinement:</strong> Tweak, remix, and perfect your prompts with our intuitive editor. (SOON)</li>
             </ul>
           </div>
           
@@ -381,7 +382,7 @@ function App() {
             whileHover={{ scale: 1.05 }}
             transition={{ duration: 0.2 }}
           >
-            Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the creative community
+            Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the community
           </motion.p>
           <p className="text-gray-600 text-xs mt-2">
             © 2024 Prompt Sherlock. Privacy-focused AI prompt generation.
