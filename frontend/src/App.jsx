@@ -11,7 +11,9 @@ import {
   Clock,
   Users,
   Palette,
-  Wand2
+  Wand2,
+  Target,
+  Lightbulb
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import AnalysisForm from './components/AnalysisForm';
@@ -25,7 +27,7 @@ import Navigation from './components/Navigation';
  * - Framer Motion animations
  * - Responsive layout
  * - AI-powered prompt generation branding
- * - Sherlock detective theme
+ * - Smooth draggable carousel
  */
 function App() {
   // =============================================================================
@@ -33,6 +35,8 @@ function App() {
   // =============================================================================
   
   const [hasAnalysis, setHasAnalysis] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragConstraints, setDragConstraints] = useState({ left: 0, right: 0 });
 
   // =============================================================================
   // EVENT HANDLERS
@@ -139,10 +143,11 @@ function App() {
   };
 
   // =============================================================================
-  // FEATURE DATA - Updated for Prompt Sherlock
+  // FEATURE DATA - Original 3 + New 3
   // =============================================================================
 
   const features = [
+    // Original 3 boxes (keeping exactly as they were)
     {
       icon: Search,
       title: 'AI Analysis',
@@ -157,6 +162,22 @@ function App() {
       icon: Palette,
       title: 'Style & Character Profiles',
       description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (Coming soon)'
+    },
+    // New 3 boxes
+    {
+      icon: Lightbulb,
+      title: 'Instant Inspiration',
+      description: 'Turn any image into a perfect AI prompt—no guesswork.'
+    },
+    {
+      icon: Target,
+      title: 'Style Consistency',
+      description: 'Keep your unique look across projects.'
+    },
+    {
+      icon: Clock,
+      title: 'Save Hours',
+      description: 'Skip manual prompt writing, focus on creating.'
     }
   ];
 
@@ -210,7 +231,7 @@ function App() {
         </p>
       </motion.div>
 
-      {/* Marketing Description - Optimized */}
+      {/* Simplified Marketing Description - Only intro + button */}
       <motion.div
         className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
         variants={subtitleVariants}
@@ -219,114 +240,84 @@ function App() {
           <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, tailored for top AI engines like Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
-          <div>
-            <h3 className="text-blue-300 font-bold text-xl mb-4 flex items-center">
-              <Wand2 className="w-6 h-6 mr-3" />
-              Why Prompt Sherlock?
-            </h3>
-            <ul className="text-gray-300 space-y-3">
-              <li className="flex items-start">
-                <span className="text-blue-400 mr-3">•</span>
-                <div>
-                  <strong className="text-white">Instant Inspiration:</strong> Turn any image into a perfect AI prompt—no guesswork.
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-400 mr-3">•</span>
-                <div>
-                  <strong className="text-white">Tool-Optimized:</strong> Prompts fine-tuned for your favorite AI engine.
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-400 mr-3">•</span>
-                <div>
-                  <strong className="text-white">Style Consistency:</strong> Keep your unique look across projects.
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-blue-400 mr-3">•</span>
-                <div>
-                  <strong className="text-white">Save Hours:</strong> Skip manual prompt writing—focus on creating.
-                </div>
-              </li>
-              <li className="flex items-start">
-                <span className="text-purple-400 mr-3">•</span>
-                <div>
-                  <strong className="text-white">Interactive Refinement:</strong> Tweak and perfect prompts with our editor. <span className="text-purple-300 text-sm italic">(Coming soon)</span>
-                </div>
-              </li>
-            </ul>
-          </div>
+        {/* Centered CTA Button */}
+        <div className="text-center">
+          <motion.button
+            className="glass-button px-10 py-5 text-white font-bold text-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300 border border-blue-400/30 mx-auto"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => document.querySelector('#upload-section')?.scrollIntoView({ behavior: 'smooth' })}
+          >
+            Get Started Now
+          </motion.button>
           
-          <div>
-            <h3 className="text-purple-300 font-bold text-xl mb-4 flex items-center">
-              <Users className="w-6 h-6 mr-3" />
-              Who's it for?
-            </h3>
-            <p className="text-gray-300 leading-relaxed mb-6">
-              <strong className="text-white">Digital artists, designers, marketers, AI creators</strong>—anyone who wants to transform inspiration into stunning AI art, fast.
-            </p>
-            
-            <div className="space-y-4">
-              <motion.button
-                className="glass-button w-full py-4 text-white font-bold text-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300 border border-blue-400/30"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => document.querySelector('#upload-section')?.scrollIntoView({ behavior: 'smooth' })}
-              >
-                Get Started Now
-              </motion.button>
-              
-              <p className="text-center text-sm text-gray-400">
-                Upload Your First Image—See Sherlock in Action!
-              </p>
-            </div>
-          </div>
+          <p className="text-gray-400 text-sm mt-4">
+            Upload Your First Image—See Sherlock in Action!
+          </p>
         </div>
       </motion.div>
 
-      {/* Feature Highlights */}
+      {/* Smooth Draggable Feature Carousel - 6 boxes total */}
       <motion.div
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
-        variants={containerVariants}
+        className="max-w-7xl mx-auto overflow-hidden"
+        variants={featureVariants}
+        initial="hidden"
+        animate="visible"
       >
-        {features.map((feature, index) => (
-          <motion.div
-            key={feature.title}
-            className="glass-effect p-6 rounded-xl hover:bg-white/15 transition-all duration-300"
-            variants={featureVariants}
-            custom={index}
-            whileHover={{ 
-              scale: 1.05,
-              boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)'
-            }}
-            whileTap={{ scale: 0.95 }}
-          >
+        <motion.div
+          className="flex space-x-6 cursor-grab active:cursor-grabbing"
+          drag="x"
+          dragConstraints={{
+            left: -(features.length - 3) * 320, // Approximate width per card + gap
+            right: 0
+          }}
+          dragElastic={0.1}
+          dragMomentum={false}
+          onDragStart={() => setIsDragging(true)}
+          onDragEnd={() => setIsDragging(false)}
+          style={{ width: `${features.length * 320}px` }}
+        >
+          {features.map((feature, index) => (
             <motion.div
-              className="flex flex-col items-center text-center space-y-3"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
+              key={feature.title}
+              className="glass-effect p-6 rounded-xl hover:bg-white/15 transition-all duration-300 flex-shrink-0"
+              style={{ width: '300px' }}
+              whileHover={!isDragging ? { 
+                scale: 1.05,
+                boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)'
+              } : {}}
+              whileTap={!isDragging ? { scale: 0.95 } : {}}
             >
               <motion.div
-                className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full"
-                whileHover={{ rotate: 360 }}
-                transition={{ duration: 0.6 }}
+                className="flex flex-col items-center text-center space-y-3"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
               >
-                <feature.icon className="w-6 h-6 text-blue-400" />
+                <motion.div
+                  className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full"
+                  whileHover={!isDragging ? { rotate: 360 } : {}}
+                  transition={{ duration: 0.6 }}
+                >
+                  <feature.icon className="w-6 h-6 text-blue-400" />
+                </motion.div>
+                
+                <h3 className="text-white font-semibold text-lg">
+                  {feature.title}
+                </h3>
+                
+                <p className="text-gray-300 text-sm">
+                  {feature.description}
+                </p>
               </motion.div>
-              
-              <h3 className="text-white font-semibold text-lg">
-                {feature.title}
-              </h3>
-              
-              <p className="text-gray-300 text-sm">
-                {feature.description}
-              </p>
             </motion.div>
-          </motion.div>
-        ))}
+          ))}
+        </motion.div>
+        
+        {/* Drag hint */}
+        <p className="text-center text-gray-400 text-sm mt-4">
+          ← Drag to explore more features →
+        </p>
       </motion.div>
     </motion.header>
   );
