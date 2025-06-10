@@ -2,26 +2,27 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import { 
   Shield, 
-  Eye, 
-  Trash2, 
   Lock, 
+  Trash2, 
+  Eye, 
   Server, 
-  UserCheck,
+  AlertTriangle,
+  CheckCircle,
   ArrowLeft,
   Calendar,
-  Globe
+  Search
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 /**
- * Privacy Policy Page Component
+ * Privacy Policy Page Component - Prompt Sherlock
  * 
  * Features:
- * - Professional layout with glass morphism
- * - Comprehensive privacy sections
- * - Emphasis on immediate deletion and no data retention
+ * - Comprehensive privacy policy
+ * - Clear data handling practices
+ * - Glass morphism styling
  * - Mobile-responsive design
- * - Framer Motion animations
+ * - Updated branding for Prompt Sherlock
  */
 const Privacy = () => {
   // =============================================================================
@@ -64,60 +65,98 @@ const Privacy = () => {
   };
 
   // =============================================================================
-  // PRIVACY SECTIONS DATA
+  // PRIVACY SECTIONS DATA - Updated for Prompt Sherlock
   // =============================================================================
 
   const privacySections = [
     {
-      id: 'image-processing',
+      id: 'data-collection',
       icon: Eye,
-      title: 'Image Processing',
+      title: '1. Information We Collect',
       content: [
         {
-          subtitle: 'Immediate Processing',
-          text: 'When you upload images to ImageAnalyzer, they are processed immediately by our AI systems. Your images are temporarily stored in memory during analysis and are completely removed from our servers within seconds of processing completion.'
+          subtitle: 'Images for Analysis',
+          text: 'When you use Prompt Sherlock, you upload images that are temporarily processed by our AI to generate custom prompts. These images are immediately deleted after analysis completion.'
         },
         {
-          subtitle: 'No Permanent Storage',
-          text: 'We do not save, store, or retain your images in any permanent storage system. Once analysis is complete, all traces of your images are automatically deleted from our servers and cannot be recovered.'
+          subtitle: 'No Personal Data Collection',
+          text: 'We do not collect, store, or process any personal information, account data, or user profiles. Prompt Sherlock operates on a completely anonymous basis.'
         },
         {
-          subtitle: 'Secure Transmission',
-          text: 'All image uploads are transmitted using industry-standard SSL/TLS encryption. Your images are protected during transmission and processing.'
+          subtitle: 'Technical Information',
+          text: 'We may collect basic technical information such as browser type and general location for service optimization, but this data is not linked to individual users or uploaded content.'
         }
       ]
     },
     {
-      id: 'data-collection',
+      id: 'data-processing',
       icon: Server,
-      title: 'Data Collection',
+      title: '2. How We Process Your Data',
       content: [
         {
-          subtitle: 'What We Collect',
-          text: 'We collect minimal technical information necessary for service operation, including: IP addresses for rate limiting, browser information for compatibility, and basic usage analytics for service improvement.'
+          subtitle: 'Immediate Processing',
+          text: 'Your uploaded images are processed in real-time by our AI to analyze style, composition, mood, and other visual elements to generate tailored prompts for AI art tools.'
         },
         {
-          subtitle: 'What We Don\'t Collect',
-          text: 'We do not collect, store, or process: personal identifying information, user accounts or profiles, image metadata beyond what is necessary for analysis, or any data that could identify you personally.'
+          subtitle: 'Temporary Storage Only',
+          text: 'Images are held in temporary server memory only during the brief analysis process (typically 5-30 seconds). No images are written to permanent storage or databases.'
         },
         {
-          subtitle: 'Analytics Data',
-          text: 'We may collect anonymous usage statistics to improve our service, including number of images processed, analysis completion times, and error rates. This data cannot be linked to individual users.'
+          subtitle: 'Automatic Deletion',
+          text: 'All uploaded images are automatically and permanently deleted from our servers immediately upon completion of the prompt generation process.'
+        }
+      ]
+    },
+    {
+      id: 'data-sharing',
+      icon: Lock,
+      title: '3. Data Sharing and Third Parties',
+      content: [
+        {
+          subtitle: 'No Data Sharing',
+          text: 'We do not share, sell, rent, or otherwise distribute your images or generated prompts to any third parties. Your creative content remains completely private.'
+        },
+        {
+          subtitle: 'AI Processing Partners',
+          text: 'We use Claude 3.5 Sonnet for image analysis. Images are transmitted securely to Anthropic for processing and are subject to their privacy policy, with immediate deletion after processing.'
+        },
+        {
+          subtitle: 'No Marketing or Analytics',
+          text: 'We do not use your images for marketing purposes, model training, or any analytics beyond basic service functionality measurement.'
+        }
+      ]
+    },
+    {
+      id: 'data-security',
+      icon: Shield,
+      title: '4. Data Security',
+      content: [
+        {
+          subtitle: 'Encryption in Transit',
+          text: 'All data transmitted to and from Prompt Sherlock is encrypted using industry-standard HTTPS/TLS protocols to prevent interception during upload and analysis.'
+        },
+        {
+          subtitle: 'Secure Processing',
+          text: 'Our servers use secure, isolated processing environments with no permanent storage capabilities for user content.'
+        },
+        {
+          subtitle: 'Privacy by Design',
+          text: 'Prompt Sherlock is built from the ground up with privacy as the core principle. Our architecture makes it technically impossible to retain user images beyond the processing period.'
         }
       ]
     },
     {
       id: 'user-rights',
-      icon: UserCheck,
-      title: 'Your Rights',
+      icon: CheckCircle,
+      title: '5. Your Rights and Choices',
       content: [
         {
           subtitle: 'Right to Privacy',
-          text: 'You have the absolute right to privacy when using our service. Since we don\'t store your images or personal data, there is no data to access, modify, or delete after processing is complete.'
+          text: 'You maintain full ownership and control over your uploaded images. Since we don\'t store your images or personal data, there is no data to access, modify, or delete after processing is complete.'
         },
         {
           subtitle: 'Data Portability',
-          text: 'Analysis results are provided to you immediately and are yours to keep. You can save, export, or use the analysis results as you see fit.'
+          text: 'Generated prompts are provided to you immediately and are yours to keep. You can save, export, or use the analysis results as you see fit.'
         },
         {
           subtitle: 'Service Transparency',
@@ -131,7 +170,7 @@ const Privacy = () => {
     {
       icon: Trash2,
       title: 'Immediate Deletion',
-      description: 'Images deleted within seconds of analysis completion'
+      description: 'Images deleted within seconds of prompt generation completion'
     },
     {
       icon: Lock,
@@ -177,9 +216,15 @@ const Privacy = () => {
           >
             <Shield className="w-10 h-10 text-green-400" />
           </motion.div>
-          <h1 className="gradient-text text-4xl md:text-5xl font-bold">
-            Privacy Policy
-          </h1>
+          <div className="text-left">
+            <h1 className="gradient-text text-4xl md:text-5xl font-bold">
+              Privacy Policy
+            </h1>
+            <p className="text-blue-300 text-lg mt-2 flex items-center">
+              <Search className="w-5 h-5 mr-2" />
+              Prompt Sherlock
+            </p>
+          </div>
         </div>
         
         <p className="text-blue-200 text-lg md:text-xl max-w-3xl mx-auto mb-4">
@@ -285,17 +330,17 @@ const Privacy = () => {
         variants={itemVariants}
       >
         <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-          <Globe className="w-5 h-5 mr-2 text-blue-400" />
-          Contact Us
+          <AlertTriangle className="w-5 h-5 mr-2 text-yellow-400" />
+          Questions or Concerns?
         </h3>
         <div className="space-y-3 text-gray-300">
           <p>
-            If you have questions about this Privacy Policy or our data practices, 
-            please contact us:
+            If you have any questions about this Privacy Policy or our data practices, please contact us.
           </p>
           <div className="space-y-2 text-sm">
-            <p>Email: privacy@imageanalyzer.app</p>
-            <p>Response time: Within 48 hours</p>
+            <p>• We respond to privacy inquiries within 48 hours</p>
+            <p>• All communications are handled confidentially</p>
+            <p>• We welcome feedback on our privacy practices</p>
           </div>
         </div>
       </motion.div>
@@ -306,13 +351,12 @@ const Privacy = () => {
         variants={itemVariants}
       >
         <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-          <Calendar className="w-5 h-5 mr-2 text-purple-400" />
+          <Calendar className="w-5 h-5 mr-2 text-blue-400" />
           Policy Updates
         </h3>
         <div className="space-y-3 text-gray-300">
           <p>
-            We may update this Privacy Policy to reflect changes in our practices 
-            or for legal compliance.
+            We may update this Privacy Policy from time to time to reflect changes in our practices or legal requirements.
           </p>
           <div className="space-y-2 text-sm">
             <p>• Changes will be posted on this page</p>

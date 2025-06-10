@@ -6,10 +6,10 @@ import fs from 'fs/promises';
 
 const router = express.Router();
 
-// Initialize Gemini AI
+// Initialize AI service
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Get Gemini model with enhanced configuration
+// Get AI model with enhanced configuration
 const model = genAI.getGenerativeModel({ 
   model: process.env.AI_MODEL || 'gemini-1.5-flash',
   generationConfig: {
@@ -43,12 +43,12 @@ const model = genAI.getGenerativeModel({
 // =============================================================================
 
 /**
- * Convert file to Gemini-compatible format
+ * Convert file to AI-compatible format
  * SECURITY: Validates file exists and is readable before processing
  * 
  * @param {string} filePath - Path to the uploaded file
  * @param {string} mimeType - MIME type of the file
- * @returns {Promise<Object>} Gemini-compatible file object
+ * @returns {Promise<Object>} AI-compatible file object
  */
 async function fileToGenerativePart(filePath, mimeType) {
   try {
@@ -64,10 +64,10 @@ async function fileToGenerativePart(filePath, mimeType) {
       throw new Error(`File too large: ${data.length} bytes`);
     }
     
-    // Convert to base64 for Gemini API
+    // Convert to base64 for AI analysis
     const base64Data = data.toString('base64');
     
-    console.log(`📄 Converted file to base64 (${base64Data.length} chars)`);
+    console.log(`📄 File processed for analysis (${base64Data.length} chars)`);
     
     return {
       inlineData: {
@@ -76,88 +76,93 @@ async function fileToGenerativePart(filePath, mimeType) {
       }
     };
   } catch (error) {
-    console.error('❌ Error converting file:', error);
+    console.error('❌ Error processing file:', error);
     throw new Error(`Failed to process image file: ${error.message}`);
   }
 }
 
 /**
- * Generate comprehensive and dynamic analysis prompt
+ * Generate Prompt Sherlock's analysis prompt
  * 
  * @param {number} imageCount - Number of images to analyze
  * @param {string} customPrompt - User's custom analysis request
  * @returns {string} Formatted analysis prompt
  */
-function generateAnalysisPrompt(imageCount, customPrompt = '') {
-  const basePrompt = `You are an expert AI image analyst with advanced computer vision capabilities. Please provide a comprehensive and detailed analysis of the ${imageCount === 1 ? 'image' : `${imageCount} images`} I'm sharing with you.
+function generatePromptSherlockAnalysis(imageCount, customPrompt = '') {
+  return `You are Prompt Sherlock, an AI assistant specialized in analyzing images to create perfect AI art prompts. Your mission is to analyze the ${imageCount === 1 ? 'image' : `${imageCount} images`} and generate detailed, actionable prompts that can be used with AI art generation tools like Midjourney, DALL·E, Stable Diffusion, and Gemini Imagen.
 
-## Analysis Framework:
+## 🔍 **IMAGE ANALYSIS FRAMEWORK**
 
-### 🔍 **Visual Description**
-- Describe what you see in vivid detail
-- Note the primary subjects, objects, and scenes
-- Identify any people, animals, or notable elements
+### **Visual Content Analysis**
+- Analyze all visual elements in detail
+- Document the primary subjects, objects, and scenes
+- Identify people, animals, objects, and environmental details
+- Note any text, logos, or readable content
 
-### 🎨 **Composition & Aesthetics**
-- Analyze the visual composition, framing, and layout
-- Describe colors, lighting, shadows, and contrast
-- Comment on artistic style, mood, and atmosphere
-- Evaluate visual balance and focal points
+### **Style & Composition Analysis**
+- Analyze artistic style, technique, and medium
+- Document color palettes, lighting conditions, and mood
+- Note photographic techniques: composition, framing, perspective
+- Assess visual balance, focal points, and artistic approach
 
-### 🏞️ **Context & Environment**
-- Describe the setting, location, or environment
-- Note time of day, weather, or seasonal indicators
-- Identify architectural or geographical features
+### **Environmental Context**
+- Analyze the setting, location, and environmental context
+- Note time period indicators, architectural styles, or geographical features
+- Document weather, season, or temporal elements
+- Identify any cultural or historical significance
 
-### 🔧 **Technical Analysis**
-- Comment on image quality, resolution, and clarity
-- Note photographic techniques (depth of field, perspective, etc.)
-- Identify any potential camera settings or equipment used
-
-### 📝 **Text & Readable Content**
-- Transcribe any visible text, signs, or writing
-- Note logos, brands, or identifying marks
-- Describe any documents or readable materials
-
-### 💭 **Interpretation & Insights**
-- Provide context about what might be happening
-- Note any symbolic, cultural, or historical significance
-- Suggest the purpose or story behind the image(s)
-
-### ⭐ **Notable Features**
-- Highlight unique, interesting, or unusual aspects
-- Point out any anomalies or unexpected elements
-- Note anything that stands out or requires attention
+### **Technical Characteristics**
+- Assess image quality, resolution, and technical aspects
+- Note camera angles, depth of field, and photographic style
+- Identify any special effects, filters, or post-processing
 
 ${imageCount > 1 ? `
-
-### 🔗 **Multi-Image Analysis** (for ${imageCount} images)
-- Compare and contrast the different images
-- Identify relationships, patterns, or sequences
-- Note any progression, variation, or common themes
-- Analyze the collection as a cohesive set
-
+### **Multi-Image Analysis** (for ${imageCount} images)
+- Compare and contrast visual patterns across images
+- Identify recurring themes, styles, or subject matter
+- Note relationships, sequences, or progressions
+- Analyze the collection for cohesive elements and variations
 ` : ''}
+
+## 🎯 **PROMPT GENERATION**
+
+Based on your analysis, generate **ready-to-use AI art prompts** that include:
+
+### **Core Prompt Components**
+1. **Subject Description**: Clear, detailed description of main subjects
+2. **Style Specifications**: Artistic style, medium, and technique descriptors
+3. **Mood & Atmosphere**: Emotional tone and ambiance keywords
+4. **Technical Parameters**: Camera angles, lighting, composition notes
+5. **Quality Enhancers**: Terms that improve AI generation quality
+
+### **Platform-Optimized Variations**
+- **Midjourney-style**: Concise, keyword-rich format with artistic descriptors
+- **DALL·E format**: Natural language descriptions with specific details
+- **Stable Diffusion**: Technical parameters and quality tags
+- **Universal prompt**: Works well across multiple AI platforms
+
+### **Style & Character Consistency**
+- Identify recurring visual elements for brand consistency
+- Note character descriptions for character consistency
+- Document style elements for maintaining visual coherence
 
 ${customPrompt ? `
-
-### 🎯 **Special Focus Area**
-Based on your specific request: "${customPrompt}"
-
-Please pay particular attention to this aspect while maintaining the comprehensive analysis above.
-
+### **Custom Focus**
+User's specific request: "${customPrompt}"
+Pay particular attention to this aspect while maintaining comprehensive analysis.
 ` : ''}
 
-## Instructions:
-- Be extremely detailed and specific in your observations
-- Use clear, organized sections for easy reading
-- Provide insights that would be valuable for understanding the content
-- If you're uncertain about something, mention your confidence level
-- Focus on factual observations while providing thoughtful interpretation
+## 📋 **RESPONSE FORMAT**
 
-Please analyze thoroughly and provide rich, detailed insights about the image(s).`;
+Present your findings in a well-structured format:
 
-  return basePrompt;
+1. **OVERVIEW**: Brief summary of what you found
+2. **DETAILED ANALYSIS**: Comprehensive breakdown of visual elements
+3. **PROMPT RECOMMENDATIONS**: Ready-to-use prompts for different AI tools
+4. **STYLE GUIDE**: Consistent elements for future use
+5. **ADDITIONAL INSIGHTS**: Any unique or notable findings
+
+Make your analysis thorough, actionable, and focused on helping the user create amazing AI art with the generated prompts. Your goal is to transform visual inspiration into practical, usable prompts.`;
 }
 
 /**
@@ -190,7 +195,7 @@ function validateAnalysisResult(analysis) {
 
   for (const pattern of errorPatterns) {
     if (pattern.test(trimmed.substring(0, 200))) {
-      console.warn('⚠️ Potential error in analysis result');
+      console.warn('⚠️ Potential issue in analysis result');
       break;
     }
   }
@@ -204,7 +209,7 @@ function validateAnalysisResult(analysis) {
 
 /**
  * POST /api/analyze
- * Analyze uploaded images using Gemini AI
+ * Analyze uploaded images and generate AI art prompts
  * 
  * Security: Uses secure upload middleware with comprehensive validation
  * Rate limiting: Applied at server level
@@ -215,15 +220,15 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
   const customPrompt = req.body.prompt || '';
   const requestId = Date.now().toString(36) + Math.random().toString(36).substr(2);
   
-  console.log(`📸 [${requestId}] Analysis request: ${uploadedFiles.length} files`);
+  console.log(`🔍 [${requestId}] Prompt Sherlock analyzing: ${uploadedFiles.length} files`);
   
   try {
     // Validate request
     if (!uploadedFiles || uploadedFiles.length === 0) {
       return res.status(400).json({
         success: false,
-        error: 'No images provided',
-        details: 'Please upload at least one image file using the "images" field.',
+        error: 'No images uploaded. Please select at least one image for analysis.',
+        details: 'Upload 1-10 images to get started with prompt generation.',
         code: 'NO_FILES_UPLOADED'
       });
     }
@@ -235,12 +240,12 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
       return res.status(400).json({
         success: false,
         error: 'Too many images',
-        details: `Maximum 10 images allowed. You uploaded ${uploadedFiles.length} images.`,
+        details: `Maximum 10 images allowed per request. You uploaded ${uploadedFiles.length} images.`,
         code: 'TOO_MANY_FILES'
       });
     }
 
-    // Log file details for security monitoring
+    // Log file details for monitoring
     const fileDetails = uploadedFiles.map(file => ({
       filename: file.filename,
       originalName: file.originalname,
@@ -249,15 +254,15 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
       path: file.path
     }));
     
-    console.log(`📋 [${requestId}] Files:`, fileDetails);
+    console.log(`📋 [${requestId}] Processing files:`, fileDetails);
 
-    // Validate custom prompt length and content
+    // Validate custom prompt
     if (customPrompt && customPrompt.length > 1000) {
       await cleanupFiles(uploadedFiles);
       return res.status(400).json({
         success: false,
         error: 'Custom prompt too long',
-        details: 'Maximum 1000 characters allowed for custom prompts.',
+        details: 'Please keep your custom prompt under 1000 characters.',
         code: 'PROMPT_TOO_LONG'
       });
     }
@@ -267,7 +272,7 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
     const processedFiles = [];
     const processingStartTime = Date.now();
 
-    console.log(`🔄 [${requestId}] Processing ${uploadedFiles.length} files for AI analysis...`);
+    console.log(`🔄 [${requestId}] Processing ${uploadedFiles.length} files...`);
 
     for (let i = 0; i < uploadedFiles.length; i++) {
       const file = uploadedFiles[i];
@@ -307,16 +312,16 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
     const processingTime = Date.now() - processingStartTime;
     console.log(`⚡ [${requestId}] File processing completed in ${processingTime}ms`);
 
-    // Generate AI analysis prompt
-    const analysisPrompt = generateAnalysisPrompt(imageParts.length, customPrompt);
+    // Generate analysis prompt
+    const analysisPrompt = generatePromptSherlockAnalysis(imageParts.length, customPrompt);
     
-    // Prepare content for Gemini API
+    // Prepare content for AI analysis
     const content = [analysisPrompt, ...imageParts];
 
-    console.log(`🤖 [${requestId}] Sending request to Gemini AI (${process.env.AI_MODEL || 'gemini-1.5-flash'})...`);
+    console.log(`🤖 [${requestId}] Starting AI analysis...`);
     const aiStartTime = Date.now();
 
-    // Call Gemini API with error handling
+    // Call AI service for analysis
     let result, response, analysis;
     
     try {
@@ -330,35 +335,35 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
       }
       
     } catch (apiError) {
-      console.error(`❌ [${requestId}] Gemini API error:`, apiError);
+      console.error(`❌ [${requestId}] AI analysis error:`, apiError);
       
       // Cleanup files before returning error
       await cleanupFiles(uploadedFiles);
       
-      // Handle specific API errors
-      if (apiError.message?.includes('API key')) {
-        return res.status(401).json({
+      // Handle specific API errors with user-friendly messages
+      if (apiError.message?.includes('API key') || apiError.message?.includes('auth')) {
+        return res.status(500).json({
           success: false,
-          error: 'AI service authentication failed',
-          details: 'Invalid or missing API key. Please check server configuration.',
-          code: 'AUTH_ERROR'
+          error: 'AI service temporarily unavailable',
+          details: 'Our analysis service is experiencing technical difficulties. Please try again later.',
+          code: 'SERVICE_UNAVAILABLE'
         });
       }
       
       if (apiError.message?.includes('quota') || apiError.message?.includes('limit')) {
         return res.status(429).json({
           success: false,
-          error: 'AI service rate limit exceeded',
-          details: 'The AI service is temporarily unavailable due to rate limiting. Please try again later.',
-          code: 'RATE_LIMIT_ERROR'
+          error: 'Service temporarily overloaded',
+          details: 'Too many requests in progress. Please try again in a few minutes.',
+          code: 'RATE_LIMIT_EXCEEDED'
         });
       }
       
       if (apiError.message?.includes('safety') || apiError.message?.includes('blocked')) {
         return res.status(400).json({
           success: false,
-          error: 'Content blocked by safety filters',
-          details: 'The uploaded images contain content that cannot be analyzed due to safety restrictions.',
+          error: 'Content cannot be analyzed',
+          details: 'The uploaded images contain content that cannot be processed due to safety restrictions.',
           code: 'CONTENT_BLOCKED'
         });
       }
@@ -366,8 +371,8 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
       if (apiError.message?.includes('file size') || apiError.message?.includes('too large')) {
         return res.status(400).json({
           success: false,
-          error: 'Images too large for AI processing',
-          details: 'One or more images exceed the AI service size limits. Please try smaller images.',
+          error: 'Images too large for analysis',
+          details: 'One or more images exceed the maximum size limit. Please try smaller images.',
           code: 'FILE_SIZE_ERROR'
         });
       }
@@ -375,9 +380,9 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
       // Generic API error
       return res.status(500).json({
         success: false,
-        error: 'AI analysis failed',
+        error: 'Analysis failed',
         details: 'The AI service encountered an error while processing your images. Please try again.',
-        code: 'AI_SERVICE_ERROR'
+        code: 'ANALYSIS_ERROR'
       });
     }
 
@@ -395,7 +400,7 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
       return res.status(500).json({
         success: false,
         error: 'Invalid analysis result',
-        details: 'The AI service returned an invalid response. Please try again.',
+        details: 'The AI service returned an incomplete response. Please try again.',
         code: 'INVALID_ANALYSIS'
       });
     }
@@ -423,14 +428,15 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
           aiAnalysisMs: aiProcessingTime,
           cleanupMs: cleanupTime
         },
-        aiModel: process.env.AI_MODEL || 'gemini-1.5-flash',
+        service: 'Prompt Sherlock',
         customPrompt: customPrompt || null,
         files: processedFiles,
         timestamp: new Date().toISOString(),
-        security: {
+        privacy: {
           filesValidated: true,
           immediateCleanup: true,
-          secureProcessing: true
+          secureProcessing: true,
+          noDataRetention: true
         }
       }
     };
@@ -453,7 +459,7 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
       }
     }
 
-    // Return generic error response (don't leak sensitive information)
+    // Return generic error response
     const isDevelopment = process.env.NODE_ENV === 'development';
     
     res.status(500).json({
@@ -472,7 +478,6 @@ router.post('/', uploadMiddleware('images', 10), async (req, res) => {
 /**
  * GET /api/analyze/health
  * Health check for the analysis service
- * Returns configuration and status information
  */
 router.get('/health', async (req, res) => {
   try {
@@ -484,38 +489,34 @@ router.get('/health', async (req, res) => {
     // Validate upload directory
     const directoryStatus = await validateUploadDirectory();
     
-    // Test Gemini AI connectivity (optional quick test)
+    // Test AI service connectivity
     let aiStatus = 'unknown';
     try {
-      // Quick test with minimal content
       const testModel = genAI.getGenerativeModel({ model: process.env.AI_MODEL || 'gemini-1.5-flash' });
       const testResult = await testModel.generateContent('Test connection - respond with "OK"');
       const testResponse = await testResult.response;
-      aiStatus = testResponse.text().includes('OK') ? 'connected' : 'limited';
+      aiStatus = testResponse.text().includes('OK') ? 'available' : 'limited';
     } catch (aiError) {
-      aiStatus = 'error';
-      console.warn('⚠️ AI health check failed:', aiError.message);
+      aiStatus = 'unavailable';
+      console.warn('⚠️ AI service health check failed:', aiError.message);
     }
 
     res.json({
       status: 'OK',
-      service: 'Image Analysis API',
+      service: 'Prompt Sherlock Analysis Service',
       timestamp: new Date().toISOString(),
       version: '1.0.0',
       
       aiService: {
-        provider: 'Google Gemini',
-        model: process.env.AI_MODEL || 'gemini-1.5-flash',
         status: aiStatus,
-        maxTokens: parseInt(process.env.AI_MAX_TOKENS) || 8192,
-        temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.1
+        capabilities: ['Image Analysis', 'Prompt Generation', 'Style Analysis', 'Multi-Image Processing']
       },
       
       uploadConfig: {
         maxFileSize: uploadConfig.maxFileSizeMB + 'MB',
         maxFiles: uploadConfig.maxFiles,
-        allowedTypes: uploadConfig.allowedMimeTypes,
-        allowedExtensions: uploadConfig.allowedExtensions
+        allowedTypes: uploadConfig.allowedExtensions,
+        securityValidation: 'enabled'
       },
       
       storage: {
@@ -525,15 +526,19 @@ router.get('/health', async (req, res) => {
         ...(directoryStatus.error && { error: directoryStatus.error })
       },
       
-      security: {
-        fileValidation: 'enabled',
-        secureFilenames: 'enabled',
+      privacy: {
+        dataRetention: 'none',
         immediateCleanup: 'enabled',
-        rateLimiting: 'enabled',
-        corsProtection: 'enabled'
+        secureProcessing: 'enabled',
+        noTracking: true
       },
       
-      environment: process.env.NODE_ENV || 'development'
+      supportedPlatforms: [
+        'Midjourney',
+        'DALL·E',
+        'Stable Diffusion',
+        'Gemini Imagen'
+      ]
     });
     
   } catch (error) {
@@ -541,7 +546,7 @@ router.get('/health', async (req, res) => {
     
     res.status(500).json({
       status: 'ERROR',
-      service: 'Image Analysis API',
+      service: 'Prompt Sherlock Analysis Service',
       timestamp: new Date().toISOString(),
       error: 'Health check failed',
       details: process.env.NODE_ENV === 'development' ? error.message : 'Service unavailable'
@@ -551,8 +556,7 @@ router.get('/health', async (req, res) => {
 
 /**
  * GET /api/analyze/config
- * Get current upload and analysis configuration
- * Useful for frontend to know current limits
+ * Get current service configuration and capabilities
  */
 router.get('/config', async (req, res) => {
   try {
@@ -561,6 +565,7 @@ router.get('/config', async (req, res) => {
     
     res.json({
       success: true,
+      service: 'Prompt Sherlock',
       config: {
         upload: {
           maxFileSize: config.maxFileSize,
@@ -570,16 +575,21 @@ router.get('/config', async (req, res) => {
           allowedExtensions: config.allowedExtensions
         },
         analysis: {
-          aiModel: process.env.AI_MODEL || 'gemini-1.5-flash',
-          maxTokens: parseInt(process.env.AI_MAX_TOKENS) || 8192,
-          temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.1,
-          maxPromptLength: 1000
+          maxPromptLength: 1000,
+          supportedFeatures: ['Style Analysis', 'Multi-Platform Prompts', 'Batch Processing', 'Custom Focus']
         },
-        features: {
-          customPrompts: true,
-          multipleImages: true,
-          detailedAnalysis: true,
-          secureProcessing: true
+        privacy: {
+          dataRetention: 'none',
+          immediateCleanup: true,
+          secureProcessing: true,
+          noTracking: true
+        },
+        outputFormats: {
+          midjourneyPrompts: true,
+          dallePrompts: true,
+          stableDiffusionPrompts: true,
+          universalPrompts: true,
+          styleGuides: true
         }
       },
       timestamp: new Date().toISOString()
@@ -591,7 +601,7 @@ router.get('/config', async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to get configuration',
-      details: 'Unable to retrieve current configuration'
+      details: 'Unable to retrieve current service configuration'
     });
   }
 });

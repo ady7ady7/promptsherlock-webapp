@@ -1,34 +1,51 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Eye, 
+  Search, 
   Zap, 
   Shield, 
-  Brain,
+  Brain, 
+  Heart, 
   Sparkles,
-  Heart
+  Eye,
+  Clock,
+  Users,
+  Palette,
+  Wand2
 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import AnalysisForm from './components/AnalysisForm';
 import Navigation from './components/Navigation';
 
+/**
+ * Main Application Component - Prompt Sherlock
+ * 
+ * Features:
+ * - Modern glass morphism design
+ * - Framer Motion animations
+ * - Responsive layout
+ * - AI-powered prompt generation branding
+ * - Sherlock detective theme
+ */
 function App() {
-  const [analysisHistory, setAnalysisHistory] = useState([]);
+  // =============================================================================
+  // STATE MANAGEMENT
+  // =============================================================================
+  
+  const [hasAnalysis, setHasAnalysis] = useState(false);
 
-  /**
-   * Handles completion of analysis
-   * @param {Object} results - Analysis results from API
-   */
+  // =============================================================================
+  // EVENT HANDLERS
+  // =============================================================================
+
   const handleAnalysisComplete = (results) => {
-    setAnalysisHistory(prev => [
-      {
-        id: Date.now(),
-        timestamp: new Date().toISOString(),
-        ...results
-      },
-      ...prev
-    ]);
-    
-    console.log('Analysis completed:', results);
+    setHasAnalysis(true);
+    // Scroll to results
+    setTimeout(() => {
+      document.querySelector('#analysis-results')?.scrollIntoView({ 
+        behavior: 'smooth' 
+      });
+    }, 100);
   };
 
   // =============================================================================
@@ -41,14 +58,13 @@ function App() {
       opacity: 1,
       transition: {
         duration: 0.6,
-        ease: 'easeOut',
         staggerChildren: 0.2
       }
     }
   };
 
   const headerVariants = {
-    hidden: { opacity: 0, y: -30 },
+    hidden: { opacity: 0, y: -50 },
     visible: {
       opacity: 1,
       y: 0,
@@ -60,12 +76,12 @@ function App() {
   };
 
   const titleVariants = {
-    hidden: { opacity: 0, scale: 0.9 },
+    hidden: { opacity: 0, scale: 0.8 },
     visible: {
       opacity: 1,
       scale: 1,
       transition: {
-        duration: 0.7,
+        duration: 0.6,
         ease: 'easeOut',
         delay: 0.2
       }
@@ -123,24 +139,24 @@ function App() {
   };
 
   // =============================================================================
-  // FEATURE DATA
+  // FEATURE DATA - Updated for Prompt Sherlock
   // =============================================================================
 
   const features = [
     {
+      icon: Search,
+      title: 'AI Detective Analysis',
+      description: 'Sherlock "investigates" every image, extracting style, mood, composition, and subject matter.'
+    },
+    {
       icon: Zap,
-      title: 'Fast Analysis',
-      description: 'Get detailed insights in seconds'
+      title: 'Instant, Tool-Specific Prompts',
+      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (SOON)'
     },
     {
-      icon: Shield,
-      title: 'Privacy First',
-      description: 'Images deleted immediately after analysis'
-    },
-    {
-      icon: Brain,
-      title: 'AI Powered',
-      description: 'Advanced computer vision technology'
+      icon: Palette,
+      title: 'Style & Character Profiles',
+      description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (SOON)'
     }
   ];
 
@@ -149,7 +165,7 @@ function App() {
   // =============================================================================
 
   /**
-   * Renders the main header section
+   * Renders the main header section with Prompt Sherlock branding
    */
   const renderHeader = () => (
     <motion.header
@@ -172,34 +188,80 @@ function App() {
           }}
           transition={{ duration: 0.3 }}
         >
-          <Eye className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
+          <Search className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
         </motion.div>
         
         <motion.h1
           className="gradient-text text-4xl md:text-5xl lg:text-6xl font-bold"
           variants={titleVariants}
         >
-          ImageAnalyzer
+          Prompt Sherlock
         </motion.h1>
       </motion.div>
 
-      {/* Subtitle */}
+      {/* Marketing Tagline */}
       <motion.div
         className="max-w-3xl mx-auto mb-8"
         variants={subtitleVariants}
       >
-        <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4">
-          Transform your images into detailed insights with AI-powered analysis
+        <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
+          Uncover. Create. Repeat. Instantly turn inspiration into AI art prompts, tailored for your favorite tools.
         </p>
-        <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto">
-          Upload up to 10 images and get comprehensive descriptions, object identification, 
-          and contextual understanding powered by advanced computer vision.
+        <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto font-semibold">
+          Turn any image into the perfect AI art prompt—no guesswork, no wasted time.
         </p>
+      </motion.div>
+
+      {/* Marketing Description */}
+      <motion.div
+        className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
+        variants={subtitleVariants}
+      >
+        <p className="text-white text-base md:text-lg leading-relaxed mb-6">
+          Meet <strong className="gradient-text">Prompt Sherlock</strong>, your AI-powered creative sidekick. Upload up to 10 images and let Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. In seconds, get ready-to-use prompts, expertly tailored for the world's top visual AI engines: Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
+        </p>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+          <div>
+            <h3 className="text-blue-300 font-semibold mb-3 flex items-center">
+              <Wand2 className="w-5 h-5 mr-2" />
+              Why Prompt Sherlock?
+            </h3>
+            <ul className="text-gray-300 space-y-2 text-sm">
+              <li><strong>Instant Inspiration:</strong> Found an image you love? Sherlock reverse-engineers it into a prompt you can use right now.</li>
+              <li><strong>Tool-Optimized Prompts:</strong> Get prompts fine-tuned for the exact AI engine you use—no more trial and error.</li>
+              <li><strong>Style & Character Consistency:</strong> Maintain your unique look across projects with style and character matching.</li>
+              <li><strong>Save Hours:</strong> Skip manual prompt crafting and focus on creating.</li>
+              <li><strong>Interactive Refinement:</strong> Tweak, remix, and perfect your prompts with our intuitive editor.</li>
+            </ul>
+          </div>
+          
+          <div>
+            <h3 className="text-purple-300 font-semibold mb-3 flex items-center">
+              <Users className="w-5 h-5 mr-2" />
+              Who's it for?
+            </h3>
+            <p className="text-gray-300 text-sm">
+              Digital artists, designers, marketers, content creators, AI enthusiasts—anyone who wants to turn inspiration into creation, faster than ever.
+            </p>
+            
+            <div className="mt-6">
+              <motion.button
+                className="glass-button w-full py-3 text-white font-semibold bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => document.querySelector('#upload-section')?.scrollIntoView({ behavior: 'smooth' })}
+              >
+                Try Prompt Sherlock Free—Turn Your Inspiration into Creation Today!
+              </motion.button>
+            </div>
+          </div>
+        </div>
       </motion.div>
 
       {/* Feature Highlights */}
       <motion.div
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto"
+        className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto"
         variants={containerVariants}
       >
         {features.map((feature, index) => (
@@ -250,6 +312,7 @@ function App() {
       variants={contentVariants}
       initial="hidden"
       animate="visible"
+      id="upload-section"
     >
       <AnalysisForm
         onAnalysisComplete={handleAnalysisComplete}
@@ -274,11 +337,11 @@ function App() {
           {/* Brand Section */}
           <div className="text-center md:text-left">
             <div className="flex items-center justify-center md:justify-start mb-4">
-              <Eye className="w-6 h-6 text-blue-400 mr-2" />
-              <span className="gradient-text font-bold text-xl">ImageAnalyzer</span>
+              <Search className="w-6 h-6 text-blue-400 mr-2" />
+              <span className="gradient-text font-bold text-xl">Prompt Sherlock</span>
             </div>
             <p className="text-gray-400 text-sm">
-              AI-powered image analysis with privacy and security at its core.
+              AI-powered creative sidekick that investigates images to create perfect AI art prompts.
             </p>
           </div>
 
@@ -294,14 +357,14 @@ function App() {
             </p>
           </div>
 
-          {/* Tech Stack */}
+          {/* Powered By */}
           <div className="text-center md:text-right">
             <h4 className="text-white font-semibold mb-3 flex items-center justify-center md:justify-end">
               <Sparkles className="w-5 h-5 mr-2 text-purple-400" />
               Powered By
             </h4>
             <div className="space-y-1 text-gray-400 text-sm">
-              <p>Google Gemini AI</p>
+              <p>Claude 3.5 Sonnet</p>
               <p>React & Tailwind CSS</p>
               <p>Framer Motion</p>
             </div>
@@ -318,10 +381,10 @@ function App() {
             whileHover={{ scale: 1.05 }}
             transition={{ duration: 0.2 }}
           >
-            Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the community
+            Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the creative community
           </motion.p>
           <p className="text-gray-600 text-xs mt-2">
-            © 2024 ImageAnalyzer. Privacy-focused AI image analysis.
+            © 2024 Prompt Sherlock. Privacy-focused AI prompt generation.
           </p>
         </div>
       </div>
@@ -334,68 +397,18 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
-      {/* Background Elements */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+      <div className="container mx-auto px-4 py-8">
         <motion.div
-          className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl"
-          animate={{
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.5, 0.3],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
-        <motion.div
-          className="absolute bottom-1/4 right-1/4 w-80 h-80 bg-purple-500/10 rounded-full blur-3xl"
-          animate={{
-            scale: [1.2, 1, 1.2],
-            opacity: [0.2, 0.4, 0.2],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut"
-          }}
-        />
+          className="max-w-7xl mx-auto"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {renderHeader()}
+          {renderMainContent()}
+          {renderFooter()}
+        </motion.div>
       </div>
-
-      {/* Main Content Container */}
-      <div className="relative z-10">
-        <div className="container mx-auto px-4 py-8">
-          <motion.div
-            className="space-y-12"
-            variants={containerVariants}
-            initial="hidden"
-            animate="visible"
-          >
-            {/* Header Section */}
-            {renderHeader()}
-
-            {/* Main Content */}
-            {renderMainContent()}
-
-            {/* Footer Section */}
-            {renderFooter()}
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Scroll to Top Button */}
-      <motion.button
-        className="fixed bottom-8 right-8 glass-effect p-3 rounded-full text-blue-400 hover:text-white hover:bg-blue-500/20 transition-all duration-300"
-        onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-        initial={{ opacity: 0, scale: 0 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 2, duration: 0.3 }}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.9 }}
-        title="Scroll to top"
-      >
-        <Eye className="w-5 h-5" />
-      </motion.button>
     </div>
   );
 }

@@ -10,12 +10,13 @@ import {
   Calendar,
   CheckCircle,
   XCircle,
-  Info
+  Info,
+  Search
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 /**
- * Terms of Service Page Component
+ * Terms of Service Page Component - Prompt Sherlock
  * 
  * Features:
  * - Professional legal-style formatting
@@ -24,6 +25,7 @@ import { Link } from 'react-router-dom';
  * - Limitation of liability
  * - Mobile-responsive design
  * - Glass morphism styling
+ * - Updated branding for Prompt Sherlock
  */
 const Terms = () => {
   // =============================================================================
@@ -66,7 +68,7 @@ const Terms = () => {
   };
 
   // =============================================================================
-  // TERMS SECTIONS DATA
+  // TERMS SECTIONS DATA - Updated for Prompt Sherlock
   // =============================================================================
 
   const termsSections = [
@@ -77,7 +79,7 @@ const Terms = () => {
       content: [
         {
           subtitle: '1.1 Service Overview',
-          text: 'ImageAnalyzer ("the Service") is an AI-powered image analysis platform that provides automated analysis and insights for user-uploaded images. The Service uses advanced computer vision technology to analyze visual content and generate detailed descriptions.'
+          text: 'Prompt Sherlock ("the Service") is an AI-powered creative tool that analyzes uploaded images to generate custom prompts for AI art generation platforms. The Service uses advanced computer vision technology to investigate visual elements and create tailored prompts for tools like Midjourney, DALL·E, Stable Diffusion, and Gemini Imagen.'
         },
         {
           subtitle: '1.2 Service Availability',
@@ -96,72 +98,72 @@ const Terms = () => {
       content: [
         {
           subtitle: '2.1 Permitted Uses',
-          text: 'You may use the Service for lawful purposes including: analyzing personal images, business image content, educational research, and creative projects. Commercial use is permitted within reasonable limits.'
+          text: 'You may use Prompt Sherlock for lawful purposes including: analyzing personal images, business image content, educational research, creative projects, and generating prompts for AI art creation. Commercial use is permitted within reasonable limits.'
         },
         {
           subtitle: '2.2 Prohibited Uses',
-          text: 'You may not: upload illegal, harmful, or inappropriate content; attempt to reverse engineer or exploit the Service; use the Service for harassment, spam, or malicious activities; violate any applicable laws or regulations.'
+          text: 'You may not use the Service to: upload illegal, harmful, offensive, or copyrighted content without permission; attempt to reverse engineer or compromise the Service; violate any applicable laws or regulations; or use the Service for automated bulk processing beyond reasonable personal or business use.'
         },
         {
-          subtitle: '2.3 Content Responsibility',
-          text: 'You are solely responsible for the content you upload and analyze. You must have the right to upload and process any images you submit to the Service. You warrant that your use complies with all applicable laws.'
-        }
-      ]
-    },
-    {
-      id: 'user-obligations',
-      icon: CheckCircle,
-      title: '3. User Obligations',
-      content: [
-        {
-          subtitle: '3.1 Compliance',
-          text: 'You agree to comply with all applicable laws, regulations, and these Terms of Service when using our platform. You are responsible for ensuring your use is lawful in your jurisdiction.'
-        },
-        {
-          subtitle: '3.2 Security',
-          text: 'You agree not to attempt to gain unauthorized access to the Service, interfere with its operation, or compromise its security. Any security vulnerabilities should be reported responsibly.'
-        },
-        {
-          subtitle: '3.3 Rate Limits',
-          text: 'You agree to respect rate limits and fair use policies. Excessive use that impacts service availability for other users may result in temporary restrictions.'
-        }
-      ]
-    },
-    {
-      id: 'limitation-liability',
-      icon: Scale,
-      title: '4. Limitation of Liability',
-      content: [
-        {
-          subtitle: '4.1 Service Disclaimer',
-          text: 'THE SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED. WE DISCLAIM ALL WARRANTIES INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.'
-        },
-        {
-          subtitle: '4.2 Limitation of Damages',
-          text: 'IN NO EVENT SHALL WE BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES, INCLUDING BUT NOT LIMITED TO LOSS OF PROFITS, DATA, OR USE, ARISING FROM YOUR USE OF THE SERVICE.'
-        },
-        {
-          subtitle: '4.3 Maximum Liability',
-          text: 'OUR TOTAL LIABILITY TO YOU FOR ANY CLAIMS ARISING FROM OR RELATING TO THE SERVICE SHALL NOT EXCEED THE AMOUNT YOU PAID FOR THE SERVICE IN THE TWELVE MONTHS PRECEDING THE CLAIM.'
+          subtitle: '2.3 Content Standards',
+          text: 'All uploaded images must comply with legal standards and must not contain: explicit sexual content, violence, hate speech, illegal activities, or content that violates third-party rights. We reserve the right to refuse processing of any content.'
         }
       ]
     },
     {
       id: 'intellectual-property',
       icon: Shield,
-      title: '5. Intellectual Property',
+      title: '3. Intellectual Property',
       content: [
         {
-          subtitle: '5.1 Service Ownership',
-          text: 'The Service, including its technology, algorithms, and user interface, is owned by us and protected by intellectual property laws. You receive a limited license to use the Service according to these Terms.'
+          subtitle: '3.1 Your Content',
+          text: 'You retain all rights to the images you upload to Prompt Sherlock. By using the Service, you grant us a temporary license to process your images solely for the purpose of generating prompts, after which all content is immediately deleted.'
         },
         {
-          subtitle: '5.2 User Content',
-          text: 'You retain ownership of images you upload. By using the Service, you grant us a temporary license to process your images solely for providing analysis results. This license expires when processing is complete.'
+          subtitle: '3.2 Generated Prompts',
+          text: 'The prompts generated by our Service are provided to you for your use. You own the generated prompts and may use them for any lawful purpose, including commercial applications.'
         },
         {
-          subtitle: '5.3 Analysis Results',
-          text: 'Analysis results generated by the Service are provided to you for your use. We do not claim ownership of analysis results, though the underlying AI technology remains our intellectual property.'
+          subtitle: '3.3 Service Technology',
+          text: 'The Prompt Sherlock platform, including its AI technology, algorithms, and user interface, remains our intellectual property. You may not copy, modify, or create derivative works of the Service.'
+        }
+      ]
+    },
+    {
+      id: 'privacy-data',
+      icon: Lock,
+      title: '4. Privacy and Data Handling',
+      content: [
+        {
+          subtitle: '4.1 Immediate Deletion',
+          text: 'All uploaded images are automatically and permanently deleted from our servers immediately upon completion of the prompt generation process. We do not retain any user content.'
+        },
+        {
+          subtitle: '4.2 No Personal Data Collection',
+          text: 'Prompt Sherlock operates on a completely anonymous basis. We do not collect, store, or process personal information, user accounts, or tracking data.'
+        },
+        {
+          subtitle: '4.3 Privacy Policy',
+          text: 'Our comprehensive privacy practices are detailed in our Privacy Policy, which forms an integral part of these Terms of Service.'
+        }
+      ]
+    },
+    {
+      id: 'limitation-liability',
+      icon: AlertTriangle,
+      title: '5. Limitation of Liability',
+      content: [
+        {
+          subtitle: '5.1 Service Disclaimer',
+          text: 'Prompt Sherlock is provided "as is" without warranties of any kind. We do not guarantee the accuracy, completeness, or usefulness of generated prompts, nor do we warrant that the Service will be error-free or uninterrupted.'
+        },
+        {
+          subtitle: '5.2 Limitation of Damages',
+          text: 'To the maximum extent permitted by law, we shall not be liable for any indirect, incidental, special, consequential, or punitive damages, including but not limited to loss of profits, data, or business opportunities.'
+        },
+        {
+          subtitle: '5.3 Maximum Liability',
+          text: 'Our total liability for any claims arising from your use of Prompt Sherlock shall not exceed the amount paid by you for the Service in the twelve months preceding the claim, or $100, whichever is less.'
         }
       ]
     },
@@ -172,11 +174,11 @@ const Terms = () => {
       content: [
         {
           subtitle: '6.1 Termination Rights',
-          text: 'We may suspend or terminate your access to the Service at any time for violation of these Terms, illegal activity, or conduct that harms the Service or other users.'
+          text: 'Either party may terminate access to the Service at any time. We may suspend or terminate your access immediately if you violate these Terms or engage in prohibited activities.'
         },
         {
           subtitle: '6.2 Effect of Termination',
-          text: 'Upon termination, your right to use the Service ceases immediately. Since we do not store user data, termination does not affect previously downloaded analysis results.'
+          text: 'Upon termination, your right to use the Service ceases immediately. Since we do not store user data, termination does not affect previously downloaded prompt results.'
         },
         {
           subtitle: '6.3 Survival',
@@ -239,18 +241,24 @@ const Terms = () => {
           >
             <Scale className="w-10 h-10 text-blue-400" />
           </motion.div>
-          <h1 className="gradient-text text-4xl md:text-5xl font-bold">
-            Terms of Service
-          </h1>
+          <div className="text-left">
+            <h1 className="gradient-text text-4xl md:text-5xl font-bold">
+              Terms of Service
+            </h1>
+            <p className="text-blue-300 text-lg mt-2 flex items-center">
+              <Search className="w-5 h-5 mr-2" />
+              Prompt Sherlock
+            </p>
+          </div>
         </div>
         
         <p className="text-blue-200 text-lg md:text-xl max-w-3xl mx-auto mb-4">
-          Legal terms and conditions governing your use of ImageAnalyzer services.
+          Legal terms and conditions governing your use of Prompt Sherlock services.
         </p>
         
         <div className="flex items-center justify-center space-x-2 text-gray-400 text-sm">
           <Calendar className="w-4 h-4" />
-          <span>Effective date: {new Date().toLocaleDateString()}</span>
+          <span>Last updated: {new Date().toLocaleDateString()}</span>
         </div>
       </div>
     </motion.div>
@@ -264,19 +272,15 @@ const Terms = () => {
       {importantNotices.map((notice, index) => (
         <motion.div
           key={notice.title}
-          className={`glass-effect p-6 rounded-xl border-l-4 hover:bg-white/15 transition-all duration-300 ${
-            notice.type === 'warning' ? 'border-yellow-500' :
-            notice.type === 'success' ? 'border-green-500' :
-            'border-blue-500'
-          }`}
+          className="glass-effect p-6 rounded-xl text-center hover:bg-white/15 transition-all duration-300"
           variants={itemVariants}
-          whileHover={{ scale: 1.02 }}
+          whileHover={{ scale: 1.05 }}
         >
           <motion.div
-            className={`p-3 rounded-full w-fit mb-4 ${
-              notice.type === 'warning' ? 'bg-yellow-500/20' :
-              notice.type === 'success' ? 'bg-green-500/20' :
-              'bg-blue-500/20'
+            className={`p-3 rounded-full w-fit mx-auto mb-4 bg-gradient-to-r ${
+              notice.type === 'warning' ? 'from-yellow-500/20 to-orange-500/20' :
+              notice.type === 'success' ? 'from-green-500/20 to-blue-500/20' :
+              'from-blue-500/20 to-purple-500/20'
             }`}
             whileHover={{ rotate: 360 }}
             transition={{ duration: 0.6 }}
@@ -364,35 +368,33 @@ const Terms = () => {
         </h3>
         <div className="space-y-3 text-gray-300">
           <p>
-            These Terms are governed by and construed in accordance with applicable laws. 
-            Any disputes will be resolved through appropriate legal channels.
+            These Terms are governed by and construed in accordance with applicable laws.
           </p>
           <div className="space-y-2 text-sm">
-            <p>• Terms subject to local jurisdiction</p>
-            <p>• Disputes resolved through mediation first</p>
-            <p>• Applicable consumer protection laws apply</p>
+            <p>• Disputes will be resolved through binding arbitration</p>
+            <p>• Class action lawsuits are waived</p>
+            <p>• Jurisdiction determined by user location</p>
           </div>
         </div>
       </motion.div>
 
-      {/* Contact for Legal Issues */}
+      {/* Contact Information */}
       <motion.div
         className="glass-effect p-6 rounded-xl"
         variants={itemVariants}
       >
         <h3 className="text-xl font-semibold text-white mb-4 flex items-center">
-          <FileText className="w-5 h-5 mr-2 text-purple-400" />
-          Legal Contact
+          <Info className="w-5 h-5 mr-2 text-purple-400" />
+          Contact & Support
         </h3>
         <div className="space-y-3 text-gray-300">
           <p>
-            For legal questions about these Terms or to report violations, 
-            please contact our legal team.
+            Questions about these Terms? We're here to help clarify any concerns.
           </p>
           <div className="space-y-2 text-sm">
-            <p>Email: legal@imageanalyzer.app</p>
-            <p>Response time: Within 5 business days</p>
-            <p>Include: Detailed description of issue</p>
+            <p>• Legal inquiries handled within 72 hours</p>
+            <p>• Support available for service issues</p>
+            <p>• Feedback welcomed on terms and policies</p>
           </div>
         </div>
       </motion.div>
@@ -421,7 +423,7 @@ const Terms = () => {
           {/* Main Terms Sections */}
           {renderTermsSections()}
 
-          {/* Additional Legal Information */}
+          {/* Additional Information */}
           {renderAdditionalInfo()}
 
           {/* Bottom Navigation */}
@@ -431,12 +433,12 @@ const Terms = () => {
           >
             <div className="space-y-4">
               <p className="text-gray-400">
-                Learn about our privacy practices and data protection
+                Learn more about our privacy practices and data protection
               </p>
               <div className="flex justify-center space-x-4">
                 <Link 
                   to="/privacy"
-                  className="text-green-400 hover:text-green-300 transition-colors"
+                  className="text-blue-400 hover:text-blue-300 transition-colors"
                 >
                   Privacy Policy →
                 </Link>
