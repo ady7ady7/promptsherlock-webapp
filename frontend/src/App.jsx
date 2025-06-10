@@ -219,7 +219,7 @@ function App() {
         variants={subtitleVariants}
       >
         <p className="text-white text-base md:text-lg leading-relaxed mb-6">
-          Upload up to 10 images and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, expertly tailored for the world's top visual AI engines: Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
+          Upload up to 10 images and let Prompt Sherlock instantly "investigate" every detail: style, mood, characters, composition, and more. Get ready-to-use prompts, expertly tailored for the world's top visual AI engines: Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
@@ -230,8 +230,8 @@ function App() {
             </h3>
             <ul className="text-gray-300 space-y-2 text-sm">
               <li><strong>Instant Inspiration:</strong> Found an image you love? Sherlock reverse-engineers it into a prompt you can use right now.</li>
-              <li><strong>Tool-Optimized Prompts:</strong> Get prompts fine-tuned for the exact AI engine you use—no more trial and error.</li>
-              <li><strong>Style & Character Consistency:</strong> Maintain your unique look across projects.</li>
+              <li><strong>Tool-Optimized Prompts:</strong> Get prompts fine-tuned for the exact AI engine you use. No more trial and error!</li>
+              <li><strong>Style Consistency:</strong> Maintain your unique look across projects.</li>
               <li><strong>Save Hours:</strong> Skip manual prompt crafting and focus on creating.</li>
               <li><strong>Interactive Refinement:</strong> Tweak, remix, and perfect your prompts with our intuitive editor. (SOON)</li>
             </ul>
@@ -243,7 +243,7 @@ function App() {
               Who's it for?
             </h3>
             <p className="text-gray-300 text-sm">
-              Digital artists, designers, marketers, content creators, AI enthusiasts—anyone who wants to turn inspiration into creation, faster than ever.
+              Digital artists, designers, marketers, content creators, AI enthusiasts, anyone who wants to turn inspiration into creation, faster than ever.
             </p>
             
             <div className="mt-6">
