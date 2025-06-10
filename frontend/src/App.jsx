@@ -145,8 +145,8 @@ function App() {
   const features = [
     {
       icon: Search,
-      title: 'AI Detective Analysis',
-      description: 'Sherlock "investigates" every image, extracting style, mood, composition, and subject matter.'
+      title: 'AI Analysis',
+      description: 'Sherlock "investigates" your images, extracting style, mood, composition, and subject matter.'
     },
     {
       icon: Zap,
@@ -205,7 +205,7 @@ function App() {
         variants={subtitleVariants}
       >
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
-          Uncover. Create. Repeat.
+          Uncover. Create. Repeat.<br />
           Turn any image into the perfect AI art prompt—no guesswork, no wasted time.
         </p>
       </motion.div>
