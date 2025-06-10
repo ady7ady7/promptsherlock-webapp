@@ -330,7 +330,7 @@ function App() {
         </motion.div>
         
         {/* Dot Indicators */}
-        <div className="flex justify-center space-x-2 mt-6">
+        <div className="flex justify-center space-x-2 mt-6 pb-2">
           {Array.from({ length: features.length - 2 }).map((_, index) => (
             <button
               key={index}
