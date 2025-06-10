@@ -1,6 +1,5 @@
 // frontend/src/components/AnalysisForm.jsx - FIXED VERSION
 // Key fix: Ensure API path is constructed correctly
-
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -17,6 +16,7 @@ import {
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 import ImageUploader from './ImageUploader';
+import AnalysisResultsFormatter from './AnalysisResultsFormatter';
 
 /**
  * Main Analysis Form Component - Fixed API path construction
@@ -481,103 +481,96 @@ const AnalysisForm = ({
     );
   };
 
-  const renderResults = () => {
-    if (!formState.results) return null;
-    
-    const { analysis, metadata } = formState.results;
-    
-    return (
-      <motion.div
-        ref={resultsRef}
-        className="space-y-6"
-        variants={resultsVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <div className="glass-effect p-6 rounded-lg">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center space-x-3">
-              <CheckCircle className="w-6 h-6 text-green-400" />
-              <h2 className="gradient-text text-2xl font-bold">
-                Analysis Complete
-              </h2>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={handleCopyResults}
-                className="btn-ghost p-2"
-                title="Copy to clipboard"
-              >
-                <Copy className="w-4 h-4" />
-              </button>
-              <button
-                onClick={handleDownloadResults}
-                className="btn-ghost p-2"
-                title="Download as text file"
-              >
-                <Download className="w-4 h-4" />
-              </button>
-            </div>
+const renderResults = () => {
+  if (!formState.results) return null;
+  
+  const { analysis, metadata } = formState.results;
+  
+  return (
+    <motion.div
+      ref={resultsRef}
+      id="analysis-results"
+      className="space-y-6"
+      variants={resultsVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* Quick Stats Header */}
+      <div className="glass-effect p-6 rounded-lg">
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center space-x-3">
+            <CheckCircle className="w-6 h-6 text-green-400" />
+            <h2 className="gradient-text text-2xl font-bold">
+              Analysis Complete
+            </h2>
           </div>
           
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-            <div className="text-center">
-              <div className="text-blue-400 font-semibold">Images</div>
-              <div className="text-white">{metadata?.processedImages || formState.images.length}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-blue-400 font-semibold">Processing Time</div>
-              <div className="text-white">
-                {metadata?.totalProcessingTimeMs 
-                  ? `${(metadata.totalProcessingTimeMs / 1000).toFixed(1)}s`
-                  : 'N/A'
-                }
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-blue-400 font-semibold">AI Model</div>
-              <div className="text-white">{metadata?.aiModel || 'Gemini'}</div>
-            </div>
-            <div className="text-center">
-              <div className="text-blue-400 font-semibold">Analysis Length</div>
-              <div className="text-white">{analysis?.length || 0} chars</div>
-            </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={handleCopyResults}
+              className="btn-ghost p-2"
+              title="Copy to clipboard"
+            >
+              <Copy className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleDownloadResults}
+              className="btn-ghost p-2"
+              title="Download as text file"
+            >
+              <Download className="w-4 h-4" />
+            </button>
           </div>
         </div>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+          <div className="text-center">
+            <div className="text-blue-400 font-semibold">Images</div>
+            <div className="text-white">{metadata?.processedImages || formState.images.length}</div>
+          </div>
+          <div className="text-center">
+            <div className="text-blue-400 font-semibold">Processing Time</div>
+            <div className="text-white">
+              {metadata?.totalProcessingTimeMs 
+                ? `${(metadata.totalProcessingTimeMs / 1000).toFixed(1)}s`
+                : 'N/A'
+              }
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-blue-400 font-semibold">Service</div>
+            <div className="text-white">Prompt Sherlock</div>
+          </div>
+          <div className="text-center">
+            <div className="text-blue-400 font-semibold">Analysis Length</div>
+            <div className="text-white">{analysis?.length || 0} chars</div>
+          </div>
+        </div>
+      </div>
 
-        <div className="glass-effect p-6 rounded-lg">
-          <div className="flex items-center space-x-2 mb-4">
-            <FileText className="w-5 h-5 text-blue-400" />
-            <h3 className="text-xl font-semibold text-white">AI Analysis</h3>
-          </div>
-          
-          <div className="prose prose-invert max-w-none">
-            <div className="text-gray-300 leading-relaxed whitespace-pre-wrap">
-              {analysis}
-            </div>
-          </div>
-        </div>
+      {/* Beautiful Formatted Analysis Results */}
+      <AnalysisResultsFormatter analysisText={analysis} />
 
-        <div className="flex justify-center space-x-4">
-          <button
-            onClick={handleReset}
-            className="glow-button-secondary flex items-center space-x-2"
-          >
-            <Sparkles className="w-4 h-4" />
-            <span>Analyze New Images</span>
-          </button>
-          
-          <button
-            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="btn-outline"
-          >
-            Back to Top
-          </button>
-        </div>
-      </motion.div>
-    );
-  };
+      {/* Action Buttons */}
+      <div className="flex justify-center space-x-4">
+        <button
+          onClick={handleReset}
+          className="glow-button-secondary flex items-center space-x-2"
+        >
+          <Sparkles className="w-4 h-4" />
+          <span>Analyze New Images</span>
+        </button>
+        
+        <button
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="btn-outline"
+        >
+          Back to Top
+        </button>
+      </div>
+    </motion.div>
+  );
+};
 
   // =============================================================================
   // MAIN RENDER

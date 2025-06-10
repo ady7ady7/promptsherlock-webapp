@@ -180,7 +180,7 @@ function App() {
     },
     {
       icon: Clock,
-      title: 'Save Hours',
+      title: 'Save Time',
       description: 'Skip manual prompt writing, focus on creating.'
     }
   ];
