@@ -159,7 +159,7 @@ function App() {
     },
     {
       icon: Zap,
-      title: 'Instant, Tool-Specific Prompts',
+      title: 'Engine Specific Prompts',
       description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)'
     },
     {
