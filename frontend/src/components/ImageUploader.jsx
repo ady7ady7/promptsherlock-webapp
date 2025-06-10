@@ -1,3 +1,6 @@
+// frontend/src/components/ImageUploader.jsx - FIXED VERSION
+// CRITICAL FIX: Added type="button" to prevent form submission
+
 import React, { useState, useCallback, useMemo } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -5,25 +8,9 @@ import { Upload, X, FileImage, AlertCircle, CheckCircle } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 /**
- * Sophisticated Image Uploader Component with drag-and-drop functionality
+ * Image Uploader Component - FIXED to prevent automatic form submission
  * 
- * Features:
- * - Drag and drop with visual feedback
- * - Image preview grid with responsive layout
- * - Individual image removal
- * - File validation (type and size)
- * - Framer Motion animations
- * - Glass morphism design
- * - Upload progress indication
- * 
- * @param {Object} props - Component props
- * @param {Function} props.onImagesChange - Callback when images change
- * @param {Array} props.initialImages - Initial images to display
- * @param {number} props.maxFiles - Maximum number of files (default: 10)
- * @param {number} props.maxFileSize - Maximum file size in bytes (default: 10MB)
- * @param {boolean} props.disabled - Whether the uploader is disabled
- * @param {boolean} props.loading - Whether upload is in progress
- * @param {string} props.className - Additional CSS classes
+ * CRITICAL FIX: Added type="button" to all buttons to prevent form submission
  */
 const ImageUploader = ({
   onImagesChange,
@@ -62,18 +49,14 @@ const ImageUploader = ({
   
   /**
    * Validates a single file
-   * @param {File} file - File to validate
-   * @returns {Object} Validation result
    */
   const validateFile = useCallback((file) => {
     const errors = [];
     
-    // Check file type
     if (!Object.keys(acceptedFileTypes).includes(file.type)) {
       errors.push(`${file.name}: Invalid file type. Only images are allowed.`);
     }
     
-    // Check file size
     if (file.size > maxFileSize) {
       errors.push(`${file.name}: File too large. Maximum size is ${maxFileSizeMB}MB.`);
     }
@@ -86,8 +69,6 @@ const ImageUploader = ({
 
   /**
    * Creates preview object for an image file
-   * @param {File} file - Image file
-   * @returns {Object} Image preview object
    */
   const createImagePreview = useCallback((file) => {
     return {
@@ -102,10 +83,11 @@ const ImageUploader = ({
   }, []);
 
   /**
-   * Handles image removal
-   * @param {string} imageId - ID of image to remove
+   * FIXED: Handles image removal - NO FORM SUBMISSION
    */
   const handleRemoveImage = useCallback((imageId) => {
+    console.log('🗑️ Removing image:', imageId);
+    
     setImages(prevImages => {
       const updatedImages = prevImages.filter(img => img.id !== imageId);
       
@@ -123,12 +105,12 @@ const ImageUploader = ({
     
     // Clear errors if any
     setErrors([]);
+    
+    console.log('✅ Image removed - NO FORM SUBMISSION');
   }, [onImagesChange]);
 
   /**
    * Handles new file drops/selections
-   * @param {File[]} acceptedFiles - Array of accepted files
-   * @param {File[]} rejectedFiles - Array of rejected files
    */
   const handleFileDrop = useCallback((acceptedFiles, rejectedFiles) => {
     const newErrors = [];
@@ -227,87 +209,61 @@ const ImageUploader = ({
   // COMPUTED VALUES
   // =============================================================================
   
-  const remainingSlots = maxFiles - images.length;
-  const isMaxReached = images.length >= maxFiles;
   const hasImages = images.length > 0;
-  const hasErrors = errors.length > 0;
+  const canAddMore = images.length < maxFiles;
+  const remainingSlots = maxFiles - images.length;
 
-  // Determine dropzone state classes
-  const dropzoneClasses = useMemo(() => {
-    const baseClasses = 'dropzone transition-all duration-300';
+  const dropzoneClassName = useMemo(() => {
+    const baseClasses = 'dropzone min-h-[200px] flex flex-col items-center justify-center p-8 text-center transition-all duration-300';
     
     if (disabled || loading) {
       return `${baseClasses} opacity-50 cursor-not-allowed`;
     }
     
+    if (isDragReject) {
+      return `${baseClasses} dropzone-reject`;
+    }
+    
+    if (isDragAccept) {
+      return `${baseClasses} dropzone-accept`;
+    }
+    
     if (isDragActive) {
-      if (isDragAccept) {
-        return `${baseClasses} dropzone-accept scale-[1.02]`;
-      }
-      if (isDragReject) {
-        return `${baseClasses} dropzone-reject scale-[0.98]`;
-      }
-      return `${baseClasses} dropzone-active scale-[1.01]`;
+      return `${baseClasses} dropzone-active`;
     }
     
-    if (isMaxReached) {
-      return `${baseClasses} opacity-60 cursor-not-allowed`;
-    }
-    
-    return `${baseClasses} hover:border-blue-400 hover:bg-blue-500/10 cursor-pointer`;
-  }, [disabled, loading, isDragActive, isDragAccept, isDragReject, isMaxReached]);
+    return baseClasses;
+  }, [disabled, loading, isDragActive, isDragAccept, isDragReject]);
 
   // =============================================================================
   // ANIMATION VARIANTS
   // =============================================================================
   
   const containerVariants = {
-    hidden: { opacity: 0, y: 20 },
+    hidden: { opacity: 0 },
     visible: {
       opacity: 1,
-      y: 0,
       transition: {
-        duration: 0.6,
-        ease: 'easeOut',
         staggerChildren: 0.1
       }
     }
   };
 
-  const itemVariants = {
-    hidden: { opacity: 0, scale: 0.8, y: 20 },
+  const imageVariants = {
+    hidden: { opacity: 0, scale: 0.8 },
     visible: {
       opacity: 1,
       scale: 1,
-      y: 0,
       transition: {
-        duration: 0.4,
+        duration: 0.3,
         ease: 'easeOut'
       }
     },
     exit: {
       opacity: 0,
       scale: 0.8,
-      y: -20,
-      transition: {
-        duration: 0.3,
-        ease: 'easeIn'
-      }
-    }
-  };
-
-  const imageVariants = {
-    hover: {
-      scale: 1.05,
       transition: {
         duration: 0.2,
-        ease: 'easeOut'
-      }
-    },
-    tap: {
-      scale: 0.95,
-      transition: {
-        duration: 0.1,
         ease: 'easeIn'
       }
     }
@@ -322,6 +278,14 @@ const ImageUploader = ({
         duration: 0.2,
         ease: 'easeOut'
       }
+    },
+    exit: {
+      opacity: 0,
+      scale: 0.8,
+      transition: {
+        duration: 0.1,
+        ease: 'easeIn'
+      }
     }
   };
 
@@ -329,226 +293,196 @@ const ImageUploader = ({
   // RENDER HELPERS
   // =============================================================================
   
-  /**
-   * Renders the upload dropzone area
-   */
   const renderDropzone = () => (
     <motion.div
       {...getRootProps()}
-      className={`${dropzoneClasses} ${className}`}
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5, ease: 'easeOut' }}
-      whileHover={!disabled && !loading && !isMaxReached ? { scale: 1.01 } : {}}
-      whileTap={!disabled && !loading && !isMaxReached ? { scale: 0.99 } : {}}
+      className={dropzoneClassName}
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      data-testid="dropzone"
     >
-      <input {...getInputProps()} />
+      <input {...getInputProps()} data-testid="file-input" />
       
-      <div className="text-center p-8">
-        {/* Upload Icon */}
-        <motion.div
-          className="mx-auto mb-6"
-          animate={isDragActive ? { scale: 1.2, rotate: 5 } : { scale: 1, rotate: 0 }}
-          transition={{ duration: 0.3, ease: 'easeOut' }}
-        >
-          {loading ? (
-            <div className="spinner-glow w-16 h-16 mx-auto"></div>
-          ) : isDragActive ? (
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ duration: 0.3, ease: 'backOut' }}
-            >
-              <CheckCircle className="w-16 h-16 text-green-400" />
-            </motion.div>
-          ) : (
-            <Upload className={`w-16 h-16 mx-auto transition-colors duration-300 ${
-              isMaxReached ? 'text-gray-500' : 'text-blue-400'
-            }`} />
+      <motion.div
+        className="flex flex-col items-center space-y-4"
+        initial={{ scale: 0.9 }}
+        animate={{ scale: 1 }}
+        transition={{ duration: 0.3, delay: 0.2 }}
+      >
+        <div className="relative">
+          <Upload className="w-12 h-12 text-blue-400 mx-auto" />
+          {loading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="spinner w-6 h-6 border-2 border-blue-400"></div>
+            </div>
           )}
-        </motion.div>
-
-        {/* Upload Text */}
-        <motion.div
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2, duration: 0.4 }}
-        >
-          <h3 className={`text-2xl font-bold mb-3 transition-colors duration-300 ${
-            isMaxReached ? 'text-gray-400' : 'gradient-text'
-          }`}>
-            {loading ? 'Uploading Images...' :
-             isDragActive ? 'Drop Images Here' :
-             isMaxReached ? 'Maximum Files Reached' :
-             hasImages ? 'Add More Images' : 'Upload Your Images'}
+        </div>
+        
+        <div className="space-y-2">
+          <h3 className="text-xl font-semibold text-white">
+            {loading ? 'Uploading Images...' : 'Upload Your Images'}
           </h3>
           
-          <p className={`text-lg mb-4 transition-colors duration-300 ${
-            isMaxReached ? 'text-gray-500' : 'text-gray-300'
-          }`}>
-            {loading ? `Progress: ${uploadProgress}%` :
-             isMaxReached ? `${maxFiles} files maximum` :
-             isDragActive ? 'Release to upload' :
-             'Drag and drop images here, or click to browse'}
+          <p className="text-gray-300">
+            {loading 
+              ? `Processing ${uploadProgress}%...`
+              : isDragActive
+                ? 'Drop your images here...'
+                : 'Drag and drop images here, or click to browse'
+            }
           </p>
-
-          {!isMaxReached && (
-            <motion.div
-              className="text-sm text-gray-400 space-y-1"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4, duration: 0.4 }}
-            >
-              <p>Up to {remainingSlots} more file{remainingSlots !== 1 ? 's' : ''}</p>
-              <p>JPEG, PNG, GIF, WebP • Max {maxFileSizeMB}MB each</p>
-            </motion.div>
-          )}
-        </motion.div>
-
-        {/* Upload Progress Bar */}
-        {loading && uploadProgress > 0 && (
-          <motion.div
-            className="mt-6 w-full bg-white/20 rounded-full h-2 overflow-hidden"
-            initial={{ opacity: 0, scaleX: 0 }}
-            animate={{ opacity: 1, scaleX: 1 }}
-            transition={{ duration: 0.4 }}
-          >
-            <motion.div
-              className="h-full bg-gradient-to-r from-blue-500 to-purple-600 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${uploadProgress}%` }}
-              transition={{ duration: 0.3, ease: 'easeOut' }}
-            />
-          </motion.div>
-        )}
-      </div>
-    </motion.div>
-  );
-
-  /**
-   * Renders individual image preview
-   */
-  const renderImagePreview = (image, index) => (
-    <motion.div
-      key={image.id}
-      className="relative group"
-      variants={itemVariants}
-      initial="hidden"
-      animate="visible"
-      exit="exit"
-      layout
-      layoutId={image.id}
-      custom={index}
-    >
-      <motion.div
-        className="relative overflow-hidden rounded-xl glass-effect p-2"
-        variants={imageVariants}
-        whileHover="hover"
-        whileTap="tap"
-      >
-        {/* Image */}
-        <div className="relative aspect-square overflow-hidden rounded-lg">
-          <img
-            src={image.preview}
-            alt={image.name}
-            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
-            loading="lazy"
-          />
           
-          {/* Overlay on hover */}
-          <motion.div
-            className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            initial={false}
-          >
-            <div className="text-center text-white p-2">
-              <FileImage className="w-8 h-8 mx-auto mb-2" />
-              <p className="text-xs font-medium truncate">{image.name}</p>
-              <p className="text-xs text-gray-300">
-                {(image.size / 1024 / 1024).toFixed(1)}MB
-              </p>
-            </div>
-          </motion.div>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-sm text-gray-400">
+            <span>
+              {canAddMore ? `Up to ${remainingSlots} more file${remainingSlots !== 1 ? 's' : ''}` : 'Maximum files reached'}
+            </span>
+            <span className="hidden sm:inline">•</span>
+            <span>Max {maxFileSizeMB}MB each</span>
+          </div>
         </div>
-
-        {/* Remove Button */}
-        <AnimatePresence>
+        
+        {!disabled && !loading && (
           <motion.button
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            variants={removeButtonVariants}
-            initial="hidden"
-            animate="visible"
-            exit="hidden"
+            type="button" // CRITICAL FIX: Prevent form submission
             onClick={(e) => {
               e.stopPropagation();
-              handleRemoveImage(image.id);
+              open();
             }}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            aria-label={`Remove ${image.name}`}
+            className="glass-button px-6 py-3 text-sm font-medium"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            <X className="w-3 h-3" />
+            Choose Files
           </motion.button>
-        </AnimatePresence>
-
-        {/* Upload Progress (if applicable) */}
-        {image.uploadProgress > 0 && image.uploadProgress < 100 && (
-          <motion.div
-            className="absolute bottom-2 left-2 right-2 bg-white/20 rounded-full h-1 overflow-hidden"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-          >
-            <motion.div
-              className="h-full bg-blue-500 rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: `${image.uploadProgress}%` }}
-              transition={{ duration: 0.3 }}
-            />
-          </motion.div>
         )}
       </motion.div>
     </motion.div>
   );
 
-  /**
-   * Renders error messages
-   */
-  const renderErrors = () => (
-    hasErrors && (
+  const renderErrors = () => {
+    if (errors.length === 0) return null;
+    
+    return (
       <motion.div
         className="glass-effect border-red-400/50 bg-red-500/10 p-4 rounded-lg"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
         transition={{ duration: 0.3 }}
       >
         <div className="flex items-start space-x-3">
           <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <h4 className="text-red-400 font-medium mb-2">Upload Errors:</h4>
+            <h4 className="text-red-400 font-medium mb-2">Upload Errors</h4>
             <ul className="space-y-1">
               {errors.map((error, index) => (
-                <motion.li
-                  key={index}
-                  className="text-sm text-red-300"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                >
+                <li key={index} className="text-red-300 text-sm">
                   • {error}
-                </motion.li>
+                </li>
               ))}
             </ul>
           </div>
-          <button
+          <motion.button
+            type="button" // CRITICAL FIX: Prevent form submission
             onClick={() => setErrors([])}
             className="text-red-400 hover:text-red-300 transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             aria-label="Dismiss errors"
           >
             <X className="w-4 h-4" />
-          </button>
+          </motion.button>
         </div>
       </motion.div>
-    )
+    );
+  };
+
+  const renderImagePreview = (image, index) => (
+    <motion.div
+      key={image.id}
+      className="relative group"
+      variants={imageVariants}
+      initial="hidden"
+      animate="visible"
+      exit="exit"
+      layout
+    >
+      <div className="relative aspect-square rounded-lg overflow-hidden glass-effect">
+        <img
+          src={image.preview}
+          alt={image.name}
+          className="w-full h-full object-cover"
+          onLoad={() => URL.revokeObjectURL(image.preview)}
+        />
+        
+        {/* Overlay on hover */}
+        <motion.div
+          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          initial={false}
+        >
+          <div className="text-center text-white p-2">
+            <FileImage className="w-8 h-8 mx-auto mb-2" />
+            <p className="text-xs font-medium truncate">{image.name}</p>
+            <p className="text-xs text-gray-300">
+              {(image.size / 1024 / 1024).toFixed(1)}MB
+            </p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* FIXED: Remove Button with type="button" */}
+      <AnimatePresence>
+        <motion.button
+          type="button" // 🔥 CRITICAL FIX: This prevents form submission!
+          className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+          variants={removeButtonVariants}
+          initial="hidden"
+          animate="visible"
+          exit="hidden"
+          onClick={(e) => {
+            e.preventDefault(); // Extra protection
+            e.stopPropagation();
+            console.log('🗑️ X button clicked - should NOT submit form');
+            handleRemoveImage(image.id);
+          }}
+          whileHover={{ scale: 1.1 }}
+          whileTap={{ scale: 0.9 }}
+          aria-label={`Remove ${image.name}`}
+        >
+          <X className="w-3 h-3" />
+        </motion.button>
+      </AnimatePresence>
+
+      {/* Upload Progress (if applicable) */}
+      {image.uploadProgress > 0 && image.uploadProgress < 100 && (
+        <motion.div
+          className="absolute bottom-2 left-2 right-2 bg-white/20 rounded-full h-1 overflow-hidden"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+        >
+          <motion.div
+            className="h-full bg-blue-500"
+            initial={{ width: 0 }}
+            animate={{ width: `${image.uploadProgress}%` }}
+            transition={{ duration: 0.3 }}
+          />
+        </motion.div>
+      )}
+
+      {/* Upload Success Indicator */}
+      {image.uploaded && (
+        <motion.div
+          className="absolute top-2 left-2 w-6 h-6 bg-green-500 rounded-full flex items-center justify-center"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          transition={{ type: 'spring', duration: 0.5 }}
+        >
+          <CheckCircle className="w-4 h-4 text-white" />
+        </motion.div>
+      )}
+    </motion.div>
   );
 
   // =============================================================================
@@ -556,7 +490,7 @@ const ImageUploader = ({
   // =============================================================================
   
   return (
-    <div className="space-y-6">
+    <div className={`space-y-6 ${className}`}>
       {/* Dropzone */}
       {renderDropzone()}
 
@@ -586,8 +520,11 @@ const ImageUploader = ({
               </h3>
               {images.length > 0 && (
                 <motion.button
+                  type="button" // CRITICAL FIX: Prevent form submission
                   className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault(); // Extra protection
+                    console.log('🗑️ Clear All clicked - should NOT submit form');
                     // Clean up all preview URLs
                     images.forEach(img => {
                       if (img.preview) URL.revokeObjectURL(img.preview);
@@ -608,6 +545,7 @@ const ImageUploader = ({
             <motion.div
               className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4"
               layout
+              data-testid="image-grid"
             >
               <AnimatePresence mode="popLayout">
                 {images.map((image, index) => renderImagePreview(image, index))}
