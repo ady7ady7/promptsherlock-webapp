@@ -216,7 +216,7 @@ function App() {
         variants={subtitleVariants}
       >
         <p className="text-white text-lg md:text-xl leading-relaxed mb-8 text-center">
-          <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, expertly tailored for top AI engines like Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
+          <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, tailored for top AI engines like Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
         </p>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
@@ -391,7 +391,7 @@ function App() {
               Powered By
             </h4>
             <div className="space-y-1 text-gray-400 text-sm">
-              <p>Claude 3.5 Sonnet</p>
+              <p>Google Gemini</p>
               <p>React & Tailwind CSS</p>
               <p>Framer Motion</p>
             </div>
