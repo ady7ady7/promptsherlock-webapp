@@ -151,12 +151,12 @@ function App() {
     {
       icon: Zap,
       title: 'Instant, Tool-Specific Prompts',
-      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (SOON)'
+      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)'
     },
     {
       icon: Palette,
       title: 'Style & Character Profiles',
-      description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (SOON)'
+      description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (Coming soon)'
     }
   ];
 
@@ -205,9 +205,7 @@ function App() {
         variants={subtitleVariants}
       >
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
-          Uncover. Create. Repeat. Instantly turn inspiration into AI art prompts, tailored for your favorite tools.
-        </p>
-        <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto font-semibold">
+          Uncover. Create. Repeat.
           Turn any image into the perfect AI art prompt—no guesswork, no wasted time.
         </p>
       </motion.div>
