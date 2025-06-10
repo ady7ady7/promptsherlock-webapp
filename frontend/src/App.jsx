@@ -345,10 +345,6 @@ function App() {
           ))}
         </div>
         
-        {/* Drag hint */}
-        <p className="text-center text-gray-400 text-sm mt-4">
-          ← Drag to explore more features →
-        </p>
       </motion.div>
     </motion.header>
   );
