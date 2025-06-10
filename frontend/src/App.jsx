@@ -206,7 +206,7 @@ function App() {
       >
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
           Uncover. Create. Repeat.<br />
-          Turn any image into the perfect AI art prompt: no guesswork, no wasted time.
+          Turn any image into the perfect AI art prompt.
         </p>
       </motion.div>
 
