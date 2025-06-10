@@ -145,7 +145,7 @@ function App() {
   const features = [
     {
       icon: Search,
-      title: 'AI Analysis',
+      title: 'AI Detective Analysis',
       description: 'Sherlock "investigates" every image, extracting style, mood, composition, and subject matter.'
     },
     {
@@ -205,56 +205,84 @@ function App() {
         variants={subtitleVariants}
       >
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
-          Uncover. Create. Repeat.
+          Uncover. Create. Repeat. Instantly turn inspiration into AI art prompts, tailored for your favorite tools.
         </p>
         <p className="text-gray-400 text-base md:text-lg max-w-2xl mx-auto font-semibold">
-          Instantly turn inspiration into AI art prompts, tailored for your favorite tools. 
-          No guesswork, no wasted time.
+          Turn any image into the perfect AI art prompt—no guesswork, no wasted time.
         </p>
       </motion.div>
 
-      {/* Marketing Description */}
+      {/* Marketing Description - Optimized */}
       <motion.div
         className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
         variants={subtitleVariants}
       >
-        <p className="text-white text-base md:text-lg leading-relaxed mb-6">
-          Upload up to 10 images and let Prompt Sherlock instantly "investigate" every detail: style, mood, characters, composition, and more. Get ready-to-use prompts, expertly tailored for the world's top visual AI engines: Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
+        <p className="text-white text-lg md:text-xl leading-relaxed mb-8 text-center">
+          <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, expertly tailored for top AI engines like Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
         </p>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-left">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 text-left">
           <div>
-            <h3 className="text-blue-300 font-semibold mb-3 flex items-center">
-              <Wand2 className="w-5 h-5 mr-2" />
+            <h3 className="text-blue-300 font-bold text-xl mb-4 flex items-center">
+              <Wand2 className="w-6 h-6 mr-3" />
               Why Prompt Sherlock?
             </h3>
-            <ul className="text-gray-300 space-y-2 text-sm">
-              <li><strong>Instant Inspiration:</strong> Found an image you love? Sherlock reverse-engineers it into a prompt you can use right now.</li>
-              <li><strong>Tool-Optimized Prompts:</strong> Get prompts fine-tuned for the exact AI engine you use. No more trial and error!</li>
-              <li><strong>Style Consistency:</strong> Maintain your unique look across projects.</li>
-              <li><strong>Save Hours:</strong> Skip manual prompt crafting and focus on creating.</li>
-              <li><strong>Interactive Refinement:</strong> Tweak, remix, and perfect your prompts with our intuitive editor. (SOON)</li>
+            <ul className="text-gray-300 space-y-3">
+              <li className="flex items-start">
+                <span className="text-blue-400 mr-3">•</span>
+                <div>
+                  <strong className="text-white">Instant Inspiration:</strong> Turn any image into a perfect AI prompt—no guesswork.
+                </div>
+              </li>
+              <li className="flex items-start">
+                <span className="text-blue-400 mr-3">•</span>
+                <div>
+                  <strong className="text-white">Tool-Optimized:</strong> Prompts fine-tuned for your favorite AI engine.
+                </div>
+              </li>
+              <li className="flex items-start">
+                <span className="text-blue-400 mr-3">•</span>
+                <div>
+                  <strong className="text-white">Style Consistency:</strong> Keep your unique look across projects.
+                </div>
+              </li>
+              <li className="flex items-start">
+                <span className="text-blue-400 mr-3">•</span>
+                <div>
+                  <strong className="text-white">Save Hours:</strong> Skip manual prompt writing—focus on creating.
+                </div>
+              </li>
+              <li className="flex items-start">
+                <span className="text-purple-400 mr-3">•</span>
+                <div>
+                  <strong className="text-white">Interactive Refinement:</strong> Tweak and perfect prompts with our editor. <span className="text-purple-300 text-sm italic">(Coming soon)</span>
+                </div>
+              </li>
             </ul>
           </div>
           
           <div>
-            <h3 className="text-purple-300 font-semibold mb-3 flex items-center">
-              <Users className="w-5 h-5 mr-2" />
+            <h3 className="text-purple-300 font-bold text-xl mb-4 flex items-center">
+              <Users className="w-6 h-6 mr-3" />
               Who's it for?
             </h3>
-            <p className="text-gray-300 text-sm">
-              Digital artists, designers, marketers, content creators, AI enthusiasts, anyone who wants to turn inspiration into creation, faster than ever.
+            <p className="text-gray-300 leading-relaxed mb-6">
+              <strong className="text-white">Digital artists, designers, marketers, AI creators</strong>—anyone who wants to transform inspiration into stunning AI art, fast.
             </p>
             
-            <div className="mt-6">
+            <div className="space-y-4">
               <motion.button
-                className="glass-button w-full py-3 text-white font-semibold bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300"
+                className="glass-button w-full py-4 text-white font-bold text-lg bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300 border border-blue-400/30"
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => document.querySelector('#upload-section')?.scrollIntoView({ behavior: 'smooth' })}
               >
-                Try Prompt Sherlock Free—Turn Your Inspiration into Creation Today!
+                Get Started Now
               </motion.button>
+              
+              <p className="text-center text-sm text-gray-400">
+                Upload Your First Image—See Sherlock in Action!
+              </p>
             </div>
           </div>
         </div>
@@ -382,7 +410,7 @@ function App() {
             whileHover={{ scale: 1.05 }}
             transition={{ duration: 0.2 }}
           >
-            Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the community
+            Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the creative community
           </motion.p>
           <p className="text-gray-600 text-xs mt-2">
             © 2024 Prompt Sherlock. Privacy-focused AI prompt generation.
