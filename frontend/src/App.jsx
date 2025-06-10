@@ -263,7 +263,7 @@ function App() {
 
       {/* Smooth Draggable Feature Carousel - 6 boxes total */}
       <motion.div
-        className="max-w-7xl mx-auto overflow-hidden"
+        className="max-w-7xl mx-auto overflow-hidden px-4 py-4"
         variants={featureVariants}
         initial="hidden"
         animate="visible"
