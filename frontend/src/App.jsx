@@ -36,7 +36,7 @@ function App() {
   
   const [hasAnalysis, setHasAnalysis] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [dragConstraints, setDragConstraints] = useState({ left: 0, right: 0 });
+  const [currentSlide, setCurrentSlide] = useState(0);
 
   // =============================================================================
   // EVENT HANDLERS
@@ -50,6 +50,10 @@ function App() {
         behavior: 'smooth' 
       });
     }, 100);
+  };
+
+  const goToSlide = (slideIndex) => {
+    setCurrentSlide(slideIndex);
   };
 
   // =============================================================================
@@ -271,10 +275,21 @@ function App() {
             left: -(features.length - 3) * 320, // Approximate width per card + gap
             right: 0
           }}
-          dragElastic={0.1}
-          dragMomentum={false}
+          dragElastic={0.2}
+          dragMomentum={true}
+          dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
           onDragStart={() => setIsDragging(true)}
-          onDragEnd={() => setIsDragging(false)}
+          onDragEnd={(event, info) => {
+            setIsDragging(false);
+            // Calculate which slide we're closest to based on drag distance
+            const dragDistance = info.offset.x;
+            const slideWidth = 320;
+            const slidesFromStart = Math.round(-dragDistance / slideWidth);
+            const newSlide = Math.max(0, Math.min(features.length - 3, slidesFromStart));
+            setCurrentSlide(newSlide);
+          }}
+          animate={{ x: -currentSlide * 320 }}
+          transition={{ type: "spring", stiffness: 300, damping: 30 }}
           style={{ width: `${features.length * 320}px` }}
         >
           {features.map((feature, index) => (
@@ -313,6 +328,22 @@ function App() {
             </motion.div>
           ))}
         </motion.div>
+        
+        {/* Dot Indicators */}
+        <div className="flex justify-center space-x-2 mt-6">
+          {Array.from({ length: features.length - 2 }).map((_, index) => (
+            <button
+              key={index}
+              onClick={() => goToSlide(index)}
+              className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                index === currentSlide 
+                  ? 'bg-blue-400 scale-125' 
+                  : 'bg-white/30 hover:bg-white/50'
+              }`}
+              aria-label={`Go to slide ${index + 1}`}
+            />
+          ))}
+        </div>
         
         {/* Drag hint */}
         <p className="text-center text-gray-400 text-sm mt-4">
