@@ -1,12 +1,11 @@
-// backend/routes/analyze.js - CLEAN VERSION
-// Consistent snake_case throughout, no mapping nonsense
+// backend/routes/analyze.js - FINAL CLEAN VERSION
+// Returns ONLY the final prompt/analysis - no markdown, no verbose explanations
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { uploadMiddleware, validateUpload, cleanupFiles } from '../middleware/upload.js';
 import sharp from 'sharp';
-import fs from 'fs-extra';
-import path from 'path';
+import promptLoader from '../utils/promptLoader.js';
 
 const router = express.Router();
 
@@ -16,149 +15,12 @@ const router = express.Router();
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-/**
- * CLEAN PROMPT ENGINEERING SYSTEM
- * Uses consistent snake_case naming throughout
- */
-class PromptEngineering {
-  
-  /**
-   * Core prompt templates based on analysis goals
-   */
-  static getBasePromptByGoal(goal, imageCount, customPrompt = '') {
-    const templates = {
-      'find_common_features': `Analyze ${imageCount === 1 ? 'this image' : `these ${imageCount} images`} and identify all key visual elements, features, and characteristics. Provide a comprehensive analysis focusing on:
-
-• Visual composition and layout
-• Colors, lighting, and atmosphere  
-• Objects, subjects, and their positioning
-• Style and artistic techniques
-• Mood and emotional impact
-• Technical aspects (if applicable)
-
-${customPrompt ? `\nSpecial focus requested: ${customPrompt}` : ''}
-
-Please provide clear, natural language descriptions without using markdown formatting symbols (no ###, ***, etc.). Write in flowing paragraphs that read naturally.`,
-
-      'copy_image': `Create a detailed prompt that would allow someone to recreate or generate a very similar image ${imageCount > 1 ? 'to these images' : 'to this image'}. Focus on capturing:
-
-• Exact visual style and artistic approach
-• Composition and framing details  
-• Color palette and lighting setup
-• Subject positioning and proportions
-• Environmental details and background
-• Camera angle or artistic perspective
-• Texture and material qualities
-
-${customPrompt ? `\nAdditional requirements: ${customPrompt}` : ''}
-
-Format this as a clear, detailed generation prompt without markdown symbols.`,
-
-      'copy_character': `Analyze ${imageCount === 1 ? 'the character shown in this image' : `the characters shown in these ${imageCount} images`} and create a detailed character description prompt focusing on:
-
-• Physical appearance and features
-• Clothing style and accessories
-• Pose, expression, and body language  
-• Age, gender, and distinctive characteristics
-• Hair style, color, and texture
-• Facial features and expressions
-• Overall style and artistic treatment
-
-${customPrompt ? `\nSpecial character focus: ${customPrompt}` : ''}
-
-Provide this as a natural, flowing description suitable for character generation.`,
-
-      'copy_style': `Analyze the artistic style ${imageCount === 1 ? 'of this image' : `across these ${imageCount} images`} and create a comprehensive style guide focusing on:
-
-• Artistic technique and medium
-• Color palette and color relationships
-• Brushwork, texture, and surface treatment
-• Composition and design principles
-• Lighting approach and mood
-• Level of detail and abstraction
-• Cultural or artistic movement influences
-
-${customPrompt ? `\nStyle-specific focus: ${customPrompt}` : ''}
-
-Present this as a cohesive style description without technical formatting symbols.`
-    };
-
-    return templates[goal] || templates.find_common_features;
-  }
-
-  /**
-   * Engine-specific prompt optimization
-   */
-  static optimizeForEngine(baseAnalysis, engine, goal) {
-    if (!engine || goal === 'find_common_features') {
-      return baseAnalysis; // No engine optimization needed for feature analysis
-    }
-
-    const engineOptimizations = {
-      'midjourney': {
-        prefix: 'MIDJOURNEY OPTIMIZED PROMPT:\n\n',
-        style: 'Format as a Midjourney prompt with descriptive keywords, style modifiers, and parameter suggestions. Focus on visual elements that work well with Midjourney\'s strengths.',
-        suffix: '\n\nOptional Midjourney parameters to consider: --ar 16:9, --style, --chaos, --quality, --seed'
-      },
-      
-      'dalle': {
-        prefix: 'DALL-E 3 OPTIMIZED PROMPT:\n\n',
-        style: 'Format as a DALL-E prompt emphasizing clear, descriptive language and specific visual details. Focus on photorealistic or artistic elements that DALL-E handles well.',
-        suffix: '\n\nOptimized for DALL-E 3\'s natural language understanding and photorealistic capabilities.'
-      },
-      
-      'stable_diffusion': {
-        prefix: 'STABLE DIFFUSION OPTIMIZED PROMPT:\n\n',
-        style: 'Format as a Stable Diffusion prompt with emphasis on keywords, artistic styles, and quality modifiers. Include both positive prompt elements and suggested negative prompts.',
-        suffix: '\n\nSuggested negative prompt elements: blurry, low quality, distorted, watermark'
-      },
-      
-      'gemini_imagen': {
-        prefix: 'GEMINI IMAGEN OPTIMIZED PROMPT:\n\n',
-        style: 'Format as a Gemini Imagen prompt emphasizing natural language descriptions and photorealistic details. Focus on clear, conversational descriptions.',
-        suffix: '\n\nOptimized for Gemini Imagen\'s natural language processing and high-quality image generation.'
-      },
-      
-      'flux': {
-        prefix: 'FLUX OPTIMIZED PROMPT:\n\n',
-        style: 'Format as a Flux prompt with emphasis on artistic styles, creative concepts, and detailed visual descriptions. Focus on creative and artistic elements.',
-        suffix: '\n\nOptimized for Flux\'s creative and artistic generation capabilities.'
-      },
-
-      'leonardo': {
-        prefix: 'LEONARDO AI OPTIMIZED PROMPT:\n\n',
-        style: 'Format as a Leonardo AI prompt with emphasis on professional quality and creative control. Focus on detailed descriptions suitable for professional content creation.',
-        suffix: '\n\nOptimized for Leonardo AI\'s professional-grade generation and fine-tuned control.'
-      }
-    };
-
-    const optimization = engineOptimizations[engine];
-    if (!optimization) return baseAnalysis;
-
-    return `${optimization.prefix}${baseAnalysis}\n\n${optimization.suffix}`;
-  }
-
-  /**
-   * Main prompt generation method
-   */
-  static generatePrompt(goal, engine, imageCount, customPrompt = '') {
-    const basePrompt = this.getBasePromptByGoal(goal, imageCount, customPrompt);
-    const optimizedPrompt = this.optimizeForEngine(basePrompt, engine, goal);
-    
-    return optimizedPrompt;
-  }
-}
-
 // =============================================================================
 // IMAGE PROCESSING UTILITIES
 // =============================================================================
 
-/**
- * Convert image to base64 for AI processing
- */
 async function convertImageToBase64(imagePath) {
   try {
-    // Use Sharp to optimize image before sending to AI
     const optimizedBuffer = await sharp(imagePath)
       .resize(1024, 1024, { 
         fit: 'inside', 
@@ -174,9 +36,6 @@ async function convertImageToBase64(imagePath) {
   }
 }
 
-/**
- * Process multiple images for AI analysis
- */
 async function processImagesForAI(imageFiles) {
   const processedImages = [];
   
@@ -199,18 +58,50 @@ async function processImagesForAI(imageFiles) {
 }
 
 // =============================================================================
-// MAIN ANALYSIS ENDPOINT
+// CLEAN OUTPUT PROCESSOR
 // =============================================================================
 
 /**
- * POST /api/analyze - Clean implementation with consistent naming
+ * Clean AI output to remove ALL markdown and formatting
+ * Returns ONLY the final prompt/analysis
  */
+function cleanFinalOutput(text) {
+  return text
+    // Remove ALL markdown headers
+    .replace(/#{1,6}\s*[^#\n]*\*\*[^*]*\*\*[^#\n]*/g, '')
+    .replace(/#{1,6}\s*/g, '')
+    
+    // Remove ALL bold/italic markers
+    .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1')
+    
+    // Remove ALL code blocks and inline code
+    .replace(/`{1,3}([^`]+)`{1,3}/g, '$1')
+    
+    // Remove ALL bullet points and list markers
+    .replace(/^\s*[-*+•]\s*/gm, '')
+    .replace(/^\s*\d+\.\s*/gm, '')
+    
+    // Remove ALL emoji headers and special markers
+    .replace(/🔍|🎨|🏞️|🔧|📝|💭|⭐|🔗|🎯|📋|✨/g, '')
+    
+    // Remove section labels and special formatting
+    .replace(/Visual Description:|Composition & Aesthetics:|Context & Environment:|Technical Analysis:|Text & Readable Content:|Interpretation & Insights:|Notable Features:|Multi-Image Analysis|Special Focus Area:|DALL-E 3 Prompt|Midjourney Prompt|Stable Diffusion Prompt/gi, '')
+    
+    // Clean up extra whitespace and line breaks
+    .replace(/\n\s*\n\s*\n/g, '\n\n')
+    .replace(/^\s+|\s+$/gm, '')
+    .trim();
+}
+
+// =============================================================================
+// MAIN ANALYSIS ENDPOINT
+// =============================================================================
+
 router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
   const startTime = Date.now();
   let uploadedFiles = [];
 
   try {
-    // Extract request data - clean parameter names
     const {
       prompt = '',
       goal = 'find_common_features',
@@ -223,8 +114,7 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
       imageCount: uploadedFiles.length,
       goal: goal,
       engine: engine,
-      hasCustomPrompt: Boolean(prompt),
-      customPromptLength: prompt.length
+      hasCustomPrompt: Boolean(prompt)
     });
 
     // Validate goal
@@ -238,17 +128,15 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
       });
     }
 
-    // Engine is required for generation goals, but not for find_common_features
+    // Engine validation for generation goals
     if (goal !== 'find_common_features' && !engine) {
       return res.status(400).json({
         success: false,
         error: 'Generation engine required for prompt creation goals',
-        code: 'ENGINE_REQUIRED',
-        suggestion: 'Please select an AI generation engine for prompt optimization'
+        code: 'ENGINE_REQUIRED'
       });
     }
 
-    // Validate engine if provided
     const validEngines = ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo'];
     if (engine && !validEngines.includes(engine)) {
       return res.status(400).json({
@@ -262,46 +150,33 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
     // Process images for AI analysis
     const aiImages = await processImagesForAI(uploadedFiles);
 
-    // Generate optimized prompt using our prompt engineering system
-    const optimizedPrompt = PromptEngineering.generatePrompt(
-      goal,
-      engine,
-      uploadedFiles.length,
-      prompt
-    );
+    // Get clean prompt from prompts.env
+    const basePrompt = promptLoader.getPrompt(goal, engine);
+    const finalPrompt = promptLoader.addCustomInstructions(basePrompt, prompt);
 
-    console.log('🧠 Generated optimized prompt for', goal, 'with', engine || 'no engine');
+    console.log('🧠 Using prompt template for', goal, 'with', engine || 'no engine');
 
     // Prepare AI request
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const aiRequest = [finalPrompt, ...aiImages];
 
-    const aiRequest = [
-      optimizedPrompt,
-      ...aiImages
-    ];
-
-    // Send to AI for analysis
+    // Get AI response
     console.log('🤖 Sending request to Gemini AI...');
     const result = await model.generateContent(aiRequest);
-    const analysisText = result.response.text();
+    const rawAnalysis = result.response.text();
 
-    // Clean up analysis text (remove any markdown symbols for clean display)
-    const cleanAnalysis = analysisText
-      .replace(/#{1,6}\s*/g, '') // Remove heading markers
-      .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1') // Remove bold/italic markers
-      .replace(/`{1,3}([^`]+)`{1,3}/g, '$1') // Remove code markers
-      .replace(/^\s*[-*+]\s*/gm, '') // Remove bullet points
-      .replace(/^\s*\d+\.\s*/gm, '') // Remove numbered lists
-      .trim();
+    // Clean the output - REMOVE ALL FORMATTING
+    const cleanAnalysis = cleanFinalOutput(rawAnalysis);
 
     const processingTime = Date.now() - startTime;
 
-    console.log('✅ Analysis completed successfully:', {
+    console.log('✅ Clean analysis completed:', {
       goal: goal,
       engine: engine || 'none',
       imageCount: uploadedFiles.length,
       processingTime: `${processingTime}ms`,
-      analysisLength: cleanAnalysis.length
+      outputLength: cleanAnalysis.length,
+      isClean: !cleanAnalysis.includes('###') && !cleanAnalysis.includes('**')
     });
 
     // Return clean response
@@ -309,7 +184,6 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
       success: true,
       analysis: cleanAnalysis,
       
-      // Enhanced metadata
       metadata: {
         image_count: uploadedFiles.length,
         goal: goal,
@@ -318,10 +192,11 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
         processing_time: `${processingTime}ms`,
         timestamp: new Date().toISOString(),
         analysis_length: cleanAnalysis.length,
-        optimized_for: engine || 'general analysis'
+        optimized_for: engine || 'general analysis',
+        output_type: goal === 'find_common_features' ? 'analysis' : 'prompt'
       },
 
-      // Legacy fields for backward compatibility
+      // Legacy compatibility
       processedImages: uploadedFiles.length,
       processingTime: `${processingTime}ms`
     });
@@ -331,12 +206,10 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
     
     console.error('❌ Analysis error:', {
       message: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       processingTime: `${processingTime}ms`,
       imageCount: uploadedFiles.length
     });
 
-    // Determine error type and provide helpful message
     let errorMessage = 'Analysis failed';
     let errorCode = 'ANALYSIS_FAILED';
 
@@ -363,7 +236,6 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
     });
 
   } finally {
-    // Always clean up uploaded files for privacy
     await cleanupFiles(uploadedFiles);
   }
 });
@@ -372,18 +244,14 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
 // UTILITY ENDPOINTS
 // =============================================================================
 
-/**
- * GET /api/analyze/health - Service health check
- */
 router.get('/health', async (req, res) => {
   try {
-    // Test AI service connectivity
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const testResult = await model.generateContent('Test connection');
     
     res.json({
       status: 'healthy',
-      service: 'Enhanced Image Analysis API',
+      service: 'Clean Image Analysis API',
       ai: {
         provider: 'Google Gemini',
         model: 'gemini-1.5-flash',
@@ -392,27 +260,22 @@ router.get('/health', async (req, res) => {
       features: {
         goals: ['find_common_features', 'copy_image', 'copy_character', 'copy_style'],
         engines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo'],
-        prompt_engineering: true,
-        batch_processing: true
+        clean_output: true,
+        external_prompts: true
       },
       timestamp: new Date().toISOString()
     });
     
   } catch (error) {
     console.error('Health check failed:', error);
-    
     res.status(503).json({
       status: 'unhealthy',
       error: 'AI service unavailable',
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       timestamp: new Date().toISOString()
     });
   }
 });
 
-/**
- * GET /api/analyze/config - Service configuration
- */
 router.get('/config', async (req, res) => {
   try {
     const { getUploadConfig } = await import('../middleware/upload.js');
@@ -420,8 +283,8 @@ router.get('/config', async (req, res) => {
     
     res.json({
       success: true,
-      service: 'Enhanced AI Image Analyzer',
-      version: '2.0.0',
+      service: 'Clean AI Image Analyzer',
+      version: '3.0.0',
       config: {
         upload: {
           max_file_size: config.maxFileSize,
@@ -434,21 +297,22 @@ router.get('/config', async (req, res) => {
           max_prompt_length: 2000,
           ai_provider: 'Google Gemini',
           model: 'gemini-1.5-flash',
-          prompt_engineering: true
+          clean_output: true,
+          external_prompts: true
         },
         goals: {
-          find_common_features: 'Comprehensive visual analysis and feature identification',
-          copy_image: 'Generate prompts to recreate similar images',
-          copy_character: 'Create character-focused generation prompts',
-          copy_style: 'Extract and describe artistic style elements'
+          find_common_features: 'Clean visual analysis without formatting',
+          copy_image: 'Engine-optimized recreation prompts',
+          copy_character: 'Character-focused generation prompts', 
+          copy_style: 'Style extraction and replication prompts'
         },
         engines: {
-          midjourney: 'Optimized for Midjourney v6+ prompting style',
-          dalle: 'Optimized for DALL-E 3 natural language prompts',
-          stable_diffusion: 'Optimized for Stable Diffusion keyword-based prompts',
+          midjourney: 'Optimized for Midjourney v6+ prompting',
+          dalle: 'Optimized for DALL-E 3 natural language',
+          stable_diffusion: 'Optimized for Stable Diffusion keywords',
           gemini_imagen: 'Optimized for Gemini Imagen natural language',
-          flux: 'Optimized for Flux creative and artistic generation',
-          leonardo: 'Optimized for Leonardo AI professional content creation'
+          flux: 'Optimized for Flux creative generation',
+          leonardo: 'Optimized for Leonardo AI professional content'
         },
         privacy: {
           data_retention: 'none',
@@ -462,13 +326,23 @@ router.get('/config', async (req, res) => {
     
   } catch (error) {
     console.error('❌ Config endpoint error:', error);
-    
     res.status(500).json({
       success: false,
-      error: 'Failed to get configuration',
-      details: 'Unable to retrieve current service configuration'
+      error: 'Failed to get configuration'
     });
   }
 });
+
+// Endpoint to reload prompts (development only)
+if (process.env.NODE_ENV === 'development') {
+  router.post('/reload-prompts', (req, res) => {
+    promptLoader.reload();
+    res.json({
+      success: true,
+      message: 'Prompts reloaded from prompts.env',
+      timestamp: new Date().toISOString()
+    });
+  });
+}
 
 export default router;
