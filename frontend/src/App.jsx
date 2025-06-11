@@ -158,7 +158,7 @@ function App() {
     {
       icon: Zap,
       title: 'Engine Specific Prompts',
-      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)',
+      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results.',
       bgGradient: 'from-yellow-500/10 to-orange-500/10',
       bgPattern: '⚡'
     },
