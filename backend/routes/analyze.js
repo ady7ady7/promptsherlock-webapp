@@ -3,7 +3,7 @@
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { uploadMiddleware, validateUpload } from '../middleware/upload.js';
+import { uploadMiddleware } from '../middleware/upload.js';
 import { cleanupFiles } from '../utils/cleanup.js';
 import sharp from 'sharp';
 import promptLoader from '../utils/promptLoader.js';
@@ -98,7 +98,7 @@ function cleanFinalOutput(text) {
 // MAIN ANALYSIS ENDPOINT
 // =============================================================================
 
-router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
+router.post('/', uploadMiddleware, async (req, res) => {
   const startTime = Date.now();
   let uploadedFiles = [];
 
