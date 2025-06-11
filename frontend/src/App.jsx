@@ -256,7 +256,7 @@ function App() {
           </motion.button>
           
           <p className="text-gray-400 text-sm mt-4">
-            Upload Your First Image—See Sherlock in Action!
+            Upload Your First Image and See Sherlock in Action!
           </p>
         </div>
       </motion.div>
