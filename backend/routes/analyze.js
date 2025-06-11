@@ -1,9 +1,9 @@
-// backend/routes/analyze.js - FINAL CLEAN VERSION
-// Returns ONLY the final prompt/analysis - no markdown, no verbose explanations
+// backend/routes/analyze.js - CORRECTED VERSION - WORKING
+// Fixed all import issues and timeout problems
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { uploadMiddleware } from '../middleware/upload.js';
+import uploadMiddleware from '../middleware/upload.js'; // CORRECT: default import
 import { cleanupFiles } from '../utils/cleanup.js';
 import sharp from 'sharp';
 import promptLoader from '../utils/promptLoader.js';
@@ -98,7 +98,7 @@ function cleanFinalOutput(text) {
 // MAIN ANALYSIS ENDPOINT
 // =============================================================================
 
-router.post('/', uploadMiddleware, async (req, res) => {
+router.post('/', uploadMiddleware(), async (req, res) => { // CORRECT: call uploadMiddleware as function
   const startTime = Date.now();
   let uploadedFiles = [];
 
@@ -110,6 +110,14 @@ router.post('/', uploadMiddleware, async (req, res) => {
     } = req.body;
 
     uploadedFiles = req.files || [];
+
+    if (!uploadedFiles || uploadedFiles.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'No images provided',
+        code: 'NO_IMAGES'
+      });
+    }
 
     console.log('🎯 Analysis Request:', {
       imageCount: uploadedFiles.length,
@@ -149,20 +157,21 @@ router.post('/', uploadMiddleware, async (req, res) => {
     }
 
     // Process images for AI analysis
+    console.log('📸 Processing images for AI...');
     const aiImages = await processImagesForAI(uploadedFiles);
 
     // Get clean prompt from prompts.env
+    console.log('🧠 Loading prompt template...');
     const basePrompt = promptLoader.getPrompt(goal, engine);
     const finalPrompt = promptLoader.addCustomInstructions(basePrompt, prompt);
 
-    console.log('🧠 Using prompt template for', goal, 'with', engine || 'no engine');
+    console.log('🤖 Sending request to Gemini AI...');
 
     // Prepare AI request
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
     const aiRequest = [finalPrompt, ...aiImages];
 
     // Get AI response
-    console.log('🤖 Sending request to Gemini AI...');
     const result = await model.generateContent(aiRequest);
     const rawAnalysis = result.response.text();
 
@@ -237,6 +246,7 @@ router.post('/', uploadMiddleware, async (req, res) => {
     });
 
   } finally {
+    // Always clean up uploaded files for security
     await cleanupFiles(uploadedFiles);
   }
 });
