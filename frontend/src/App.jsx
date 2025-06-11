@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useState, useRef, useEffect } from 'react';
+import { motion, useMotionValue, useTransform } from 'framer-motion';
 import { 
   Search, 
   Zap, 
@@ -27,7 +27,7 @@ import Navigation from './components/Navigation';
  * - Framer Motion animations
  * - Responsive layout
  * - AI-powered prompt generation branding
- * - Smooth draggable carousel
+ * - Infinite draggable carousel with belt indicator
  */
 function App() {
   // =============================================================================
@@ -36,7 +36,8 @@ function App() {
   
   const [hasAnalysis, setHasAnalysis] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
-  const [currentSlide, setCurrentSlide] = useState(0);
+  const dragX = useMotionValue(0);
+  const carouselRef = useRef(null);
 
   // =============================================================================
   // EVENT HANDLERS
@@ -50,10 +51,6 @@ function App() {
         behavior: 'smooth' 
       });
     }, 100);
-  };
-
-  const goToSlide = (slideIndex) => {
-    setCurrentSlide(slideIndex);
   };
 
   // =============================================================================
@@ -147,50 +144,154 @@ function App() {
   };
 
   // =============================================================================
-  // FEATURE DATA - Original 3 + New 3
+  // FEATURE DATA - Enhanced with background elements
   // =============================================================================
 
   const features = [
-    // Original 3 boxes (keeping exactly as they were)
     {
       icon: Search,
       title: 'AI Analysis',
-      description: 'Sherlock "investigates" your images, extracting style, mood, composition, and subject matter.'
+      description: 'Sherlock "investigates" your images, extracting style, mood, composition, and subject matter.',
+      bgGradient: 'from-blue-500/10 to-cyan-500/10',
+      bgPattern: '🔍'
     },
     {
       icon: Zap,
       title: 'Engine Specific Prompts',
-      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)'
+      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)',
+      bgGradient: 'from-yellow-500/10 to-orange-500/10',
+      bgPattern: '⚡'
     },
     {
       icon: Palette,
       title: 'Style & Character Profiles',
-      description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (Coming soon)'
+      description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (Coming soon)',
+      bgGradient: 'from-purple-500/10 to-pink-500/10',
+      bgPattern: '🎨'
     },
-    // New 3 boxes
     {
       icon: Lightbulb,
       title: 'Instant Inspiration',
-      description: 'Turn any image into a perfect AI prompt—no guesswork.'
+      description: 'Turn any image into a perfect AI prompt—no guesswork.',
+      bgGradient: 'from-green-500/10 to-emerald-500/10',
+      bgPattern: '💡'
     },
     {
       icon: Target,
       title: 'Style Consistency',
-      description: 'Keep your unique look across projects.'
+      description: 'Keep your unique look across projects.',
+      bgGradient: 'from-red-500/10 to-rose-500/10',
+      bgPattern: '🎯'
     },
     {
       icon: Clock,
       title: 'Save Time',
-      description: 'Skip manual prompt writing, focus on creating.'
+      description: 'Skip manual prompt writing, focus on creating.',
+      bgGradient: 'from-indigo-500/10 to-violet-500/10',
+      bgPattern: '⏰'
     }
   ];
+
+  // Create infinite loop by duplicating features
+  const infiniteFeatures = [...features, ...features, ...features];
+
+  // Transform for belt indicator
+  const beltProgress = useTransform(dragX, [-1000, 0], [0, 100]);
+
+  // =============================================================================
+  // INFINITE CAROUSEL LOGIC
+  // =============================================================================
+
+  const CARD_WIDTH = 320; // width + gap
+  const TOTAL_WIDTH = features.length * CARD_WIDTH;
+
+  const handleDragEnd = (event, info) => {
+    setIsDragging(false);
+    
+    // Get current drag position
+    const currentX = dragX.get();
+    
+    // Implement infinite scroll logic
+    if (currentX > 0) {
+      // Dragged too far right, snap to end of first set
+      dragX.set(-TOTAL_WIDTH + (currentX % CARD_WIDTH));
+    } else if (currentX < -TOTAL_WIDTH * 2) {
+      // Dragged too far left, snap to start of second set  
+      dragX.set(-TOTAL_WIDTH + (currentX % CARD_WIDTH));
+    }
+  };
+
+  // Auto-snap to create seamless infinite effect
+  useEffect(() => {
+    const unsubscribe = dragX.onChange((x) => {
+      // Seamlessly loop when reaching boundaries
+      if (x > CARD_WIDTH / 2) {
+        dragX.set(x - TOTAL_WIDTH);
+      } else if (x < -TOTAL_WIDTH * 2 + CARD_WIDTH / 2) {
+        dragX.set(x + TOTAL_WIDTH);
+      }
+    });
+
+    return unsubscribe;
+  }, [dragX, TOTAL_WIDTH, CARD_WIDTH]);
 
   // =============================================================================
   // RENDER COMPONENTS
   // =============================================================================
 
   /**
-   * Renders the main header section with Prompt Sherlock branding
+   * Renders the belt-style progress indicator
+   */
+  const renderBeltIndicator = () => (
+    <div className="relative w-full max-w-md mx-auto mt-8 mb-4">
+      {/* Belt Background */}
+      <div className="h-3 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/20">
+        {/* Animated Belt Pattern */}
+        <motion.div
+          className="h-full bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 rounded-full relative overflow-hidden"
+          style={{
+            background: 'repeating-linear-gradient(90deg, rgba(59,130,246,0.3) 0px, rgba(147,51,234,0.3) 20px, rgba(236,72,153,0.3) 40px)'
+          }}
+          animate={{
+            x: [-40, 0]
+          }}
+          transition={{
+            duration: 3,
+            repeat: Infinity,
+            ease: "linear"
+          }}
+        />
+        
+        {/* Progress Indicator */}
+        <motion.div
+          className="absolute top-0 left-0 h-full w-1 bg-white rounded-full shadow-lg"
+          style={{
+            x: useTransform(dragX, [-TOTAL_WIDTH, 0], [0, 100])
+          }}
+        />
+      </div>
+      
+      {/* Belt Labels */}
+      <div className="flex justify-between items-center mt-2 px-2">
+        <span className="text-xs text-gray-400 flex items-center">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+            className="mr-1"
+          >
+            🔄
+          </motion.div>
+          Drag to explore
+        </span>
+        <span className="text-xs text-gray-400">
+          Infinite scroll
+        </span>
+      </div>
+    </div>
+  );
+
+  /**
+   * Renders the main header section with infinite carousel
    */
   const renderHeader = () => (
     <motion.header
@@ -235,7 +336,7 @@ function App() {
         </p>
       </motion.div>
 
-      {/* Simplified Marketing Description - Only intro + button */}
+      {/* Simplified Marketing Description */}
       <motion.div
         className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
         variants={subtitleVariants}
@@ -261,89 +362,92 @@ function App() {
         </div>
       </motion.div>
 
-      {/* Smooth Draggable Feature Carousel - 6 boxes total */}
+      {/* Infinite Draggable Feature Carousel */}
       <motion.div
         className="max-w-7xl mx-auto overflow-hidden px-4 py-4"
         variants={featureVariants}
         initial="hidden"
         animate="visible"
       >
-        <motion.div
-          className="flex space-x-6 cursor-grab active:cursor-grabbing"
-          drag="x"
-          dragConstraints={{
-            left: -(features.length - 3) * 320, // Approximate width per card + gap
-            right: 0
-          }}
-          dragElastic={0.2}
-          dragMomentum={true}
-          dragTransition={{ bounceStiffness: 600, bounceDamping: 20 }}
-          onDragStart={() => setIsDragging(true)}
-          onDragEnd={(event, info) => {
-            setIsDragging(false);
-            // Calculate which slide we're closest to based on drag distance
-            const dragDistance = info.offset.x;
-            const slideWidth = 320;
-            const slidesFromStart = Math.round(-dragDistance / slideWidth);
-            const newSlide = Math.max(0, Math.min(features.length - 3, slidesFromStart));
-            setCurrentSlide(newSlide);
-          }}
-          animate={{ x: -currentSlide * 320 }}
-          transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          style={{ width: `${features.length * 320}px` }}
-        >
-          {features.map((feature, index) => (
+        <div className="relative">
+          {/* Background Pattern Layer */}
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5" />
             <motion.div
-              key={feature.title}
-              className="glass-effect p-6 rounded-xl hover:bg-white/15 transition-all duration-300 flex-shrink-0"
-              style={{ width: '300px' }}
-              whileHover={!isDragging ? { 
-                scale: 1.05,
-                boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)'
-              } : {}}
-              whileTap={!isDragging ? { scale: 0.95 } : {}}
-            >
-              <motion.div
-                className="flex flex-col items-center text-center space-y-3"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 + index * 0.1, duration: 0.5 }}
-              >
-                <motion.div
-                  className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full"
-                  whileHover={!isDragging ? { rotate: 360 } : {}}
-                  transition={{ duration: 0.6 }}
-                >
-                  <feature.icon className="w-6 h-6 text-blue-400" />
-                </motion.div>
-                
-                <h3 className="text-white font-semibold text-lg">
-                  {feature.title}
-                </h3>
-                
-                <p className="text-gray-300 text-sm">
-                  {feature.description}
-                </p>
-              </motion.div>
-            </motion.div>
-          ))}
-        </motion.div>
-        
-        {/* Dot Indicators */}
-        <div className="flex justify-center space-x-2 mt-6 pb-2">
-          {Array.from({ length: features.length - 2 }).map((_, index) => (
-            <button
-              key={index}
-              onClick={() => goToSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                index === currentSlide 
-                  ? 'bg-blue-400 scale-125' 
-                  : 'bg-white/30 hover:bg-white/50'
-              }`}
-              aria-label={`Go to slide ${index + 1}`}
+              className="absolute inset-0 opacity-10"
+              animate={{
+                backgroundPosition: ['0% 0%', '100% 100%']
+              }}
+              transition={{
+                duration: 20,
+                repeat: Infinity,
+                ease: "linear"
+              }}
+              style={{
+                backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(59,130,246,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(147,51,234,0.3) 0%, transparent 50%)',
+                backgroundSize: '200% 200%'
+              }}
             />
-          ))}
+          </div>
+
+          {/* Carousel Container */}
+          <motion.div
+            ref={carouselRef}
+            className="flex space-x-6 cursor-grab active:cursor-grabbing"
+            style={{ x: dragX }}
+            drag="x"
+            dragElastic={0.1}
+            dragMomentum={false}
+            onDragStart={() => setIsDragging(true)}
+            onDragEnd={handleDragEnd}
+          >
+            {infiniteFeatures.map((feature, index) => (
+              <motion.div
+                key={`${feature.title}-${index}`}
+                className="glass-effect p-6 rounded-xl hover:bg-white/15 transition-all duration-300 flex-shrink-0 relative overflow-hidden"
+                style={{ width: '300px' }}
+                whileHover={!isDragging ? { 
+                  scale: 1.05,
+                  boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)'
+                } : {}}
+                whileTap={!isDragging ? { scale: 0.95 } : {}}
+              >
+                {/* Background Pattern */}
+                <div className={`absolute inset-0 bg-gradient-to-br ${feature.bgGradient} opacity-50`} />
+                <div className="absolute top-2 right-2 text-4xl opacity-20">
+                  {feature.bgPattern}
+                </div>
+                
+                {/* Content */}
+                <motion.div
+                  className="relative z-10 flex flex-col items-center text-center space-y-3"
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.8 + (index % features.length) * 0.1, duration: 0.5 }}
+                >
+                  <motion.div
+                    className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full backdrop-blur-sm"
+                    whileHover={!isDragging ? { rotate: 360 } : {}}
+                    transition={{ duration: 0.6 }}
+                  >
+                    <feature.icon className="w-6 h-6 text-blue-400" />
+                  </motion.div>
+                  
+                  <h3 className="text-white font-semibold text-lg">
+                    {feature.title}
+                  </h3>
+                  
+                  <p className="text-gray-300 text-sm">
+                    {feature.description}
+                  </p>
+                </motion.div>
+              </motion.div>
+            ))}
+          </motion.div>
         </div>
+        
+        {/* Belt Indicator */}
+        {renderBeltIndicator()}
         
       </motion.div>
     </motion.header>
