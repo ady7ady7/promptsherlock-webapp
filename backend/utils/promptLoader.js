@@ -1,5 +1,5 @@
 // backend/utils/promptLoader.js
-// Utility to load prompts from prompts.env file
+// Updated to work with Render Secret Files
 
 import fs from 'fs';
 import path from 'path';
@@ -9,44 +9,114 @@ import { dirname } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-/**
- * Load and parse prompts from prompts.env file
- */
 class PromptLoader {
   constructor() {
     this.prompts = {};
     this.loadPrompts();
   }
 
-  /**
-   * Load prompts from prompts.env file
-   */
   loadPrompts() {
     try {
-      const promptsPath = path.join(__dirname, '../../prompts.env');
-      
-      if (!fs.existsSync(promptsPath)) {
-        console.warn('⚠️ prompts.env file not found, using default prompts');
-        this.loadDefaultPrompts();
+      // PRODUCTION: Try Render Secret Files first
+      if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
+        console.log('🔒 Loading prompts from Render Secret Files (production)');
+        if (this.loadFromRenderSecretFiles()) {
+          return;
+        }
+        console.log('⚠️ Render Secret Files not found, trying environment variables');
+        this.loadFromEnvironment();
         return;
       }
 
-      const content = fs.readFileSync(promptsPath, 'utf8');
-      this.parsePromptsContent(content);
+      // DEVELOPMENT: Try local prompts.env file
+      const promptsPath = path.join(__dirname, '../../prompts.env');
       
-      console.log('✅ Loaded prompts from prompts.env');
+      if (fs.existsSync(promptsPath)) {
+        console.log('📝 Loading prompts from local prompts.env file (development)');
+        const content = fs.readFileSync(promptsPath, 'utf8');
+        this.parsePromptsContent(content);
+      } else {
+        console.warn('⚠️ Local prompts.env file not found, using defaults');
+        this.loadDefaultPrompts();
+      }
       
     } catch (error) {
-      console.error('❌ Error loading prompts.env:', error.message);
+      console.error('❌ Error loading prompts:', error.message);
       this.loadDefaultPrompts();
     }
   }
 
   /**
-   * Parse prompts content and extract variables
+   * Load prompts from Render Secret Files (PRODUCTION)
+   * Render mounts secret files to /etc/secrets/
+   */
+  loadFromRenderSecretFiles() {
+    try {
+      const secretFilePath = '/etc/secrets/prompts.env';
+      
+      if (fs.existsSync(secretFilePath)) {
+        console.log('✅ Found Render Secret File at:', secretFilePath);
+        const content = fs.readFileSync(secretFilePath, 'utf8');
+        this.parsePromptsContent(content);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Error reading Render Secret File:', error.message);
+      return false;
+    }
+  }
+
+  /**
+   * Load prompts from environment variables (FALLBACK)
+   */
+  loadFromEnvironment() {
+    const promptEnvVars = [
+      'PROMPT_FIND_COMMON_FEATURES',
+      'PROMPT_COPY_IMAGE_MIDJOURNEY',
+      'PROMPT_COPY_IMAGE_DALLE',
+      'PROMPT_COPY_IMAGE_STABLE_DIFFUSION',
+      'PROMPT_COPY_IMAGE_GEMINI_IMAGEN',
+      'PROMPT_COPY_IMAGE_FLUX',
+      'PROMPT_COPY_IMAGE_LEONARDO',
+      'PROMPT_COPY_CHARACTER_MIDJOURNEY',
+      'PROMPT_COPY_CHARACTER_DALLE',
+      'PROMPT_COPY_CHARACTER_STABLE_DIFFUSION',
+      'PROMPT_COPY_CHARACTER_GEMINI_IMAGEN',
+      'PROMPT_COPY_CHARACTER_FLUX',
+      'PROMPT_COPY_CHARACTER_LEONARDO',
+      'PROMPT_COPY_STYLE_MIDJOURNEY',
+      'PROMPT_COPY_STYLE_DALLE',
+      'PROMPT_COPY_STYLE_STABLE_DIFFUSION',
+      'PROMPT_COPY_STYLE_GEMINI_IMAGEN',
+      'PROMPT_COPY_STYLE_FLUX',
+      'PROMPT_COPY_STYLE_LEONARDO'
+    ];
+
+    let loadedCount = 0;
+    
+    for (const envVar of promptEnvVars) {
+      if (process.env[envVar]) {
+        this.prompts[envVar] = process.env[envVar];
+        loadedCount++;
+      }
+    }
+
+    if (loadedCount === 0) {
+      console.warn('⚠️ No prompt environment variables found, using defaults');
+      this.loadDefaultPrompts();
+    } else {
+      console.log(`✅ Loaded ${loadedCount} prompts from environment variables`);
+    }
+  }
+
+  /**
+   * Parse prompts content from file
    */
   parsePromptsContent(content) {
     const lines = content.split('\n');
+    let loadedCount = 0;
     
     for (const line of lines) {
       // Skip comments and empty lines
@@ -59,12 +129,15 @@ class PromptLoader {
       if (match) {
         const [, key, value] = match;
         this.prompts[key] = value;
+        loadedCount++;
       }
     }
+    
+    console.log(`✅ Loaded ${loadedCount} prompts from file`);
   }
 
   /**
-   * Fallback default prompts if file not found
+   * Fallback default prompts
    */
   loadDefaultPrompts() {
     this.prompts = {
@@ -72,24 +145,18 @@ class PromptLoader {
       
       PROMPT_COPY_IMAGE_MIDJOURNEY: "Create a detailed Midjourney prompt to recreate this image. Focus on: exact visual style, composition and framing, color palette, subject positioning, environmental details, camera angle, textures and materials. Format as a clean, single paragraph optimized for Midjourney v6+ without any markdown symbols or formatting.",
       
-      PROMPT_COPY_IMAGE_DALLE: "Create a detailed DALL-E 3 prompt to recreate this image. Focus on: photorealistic details, exact composition, precise color descriptions, subject positioning and proportions, environmental context, lighting conditions, camera perspective. Write as a natural language description optimized for DALL-E 3's understanding, in a single clean paragraph without any formatting symbols.",
-      
-      // Add other default prompts here...
+      PROMPT_COPY_IMAGE_DALLE: "Create a detailed DALL-E 3 prompt to recreate this image. Focus on: photorealistic details, exact composition, precise color descriptions, subject positioning and proportions, environmental context, lighting conditions, camera perspective. Write as a natural language description optimized for DALL-E 3's understanding, in a single clean paragraph without any formatting symbols."
     };
     
-    console.log('📝 Using default prompts');
+    console.log('📝 Using default fallback prompts');
   }
 
-  /**
-   * Get prompt by goal and engine
-   */
   getPrompt(goal, engine = null) {
     let promptKey;
     
     if (goal === 'find_common_features') {
       promptKey = 'PROMPT_FIND_COMMON_FEATURES';
     } else {
-      // Build prompt key: PROMPT_{GOAL}_{ENGINE}
       const goalPart = goal.toUpperCase();
       const enginePart = engine ? engine.toUpperCase() : 'MIDJOURNEY';
       promptKey = `PROMPT_${goalPart}_${enginePart}`;
@@ -105,9 +172,6 @@ class PromptLoader {
     return prompt;
   }
 
-  /**
-   * Add custom instructions to prompt
-   */
   addCustomInstructions(basePrompt, customPrompt) {
     if (!customPrompt || !customPrompt.trim()) {
       return basePrompt;
@@ -116,21 +180,14 @@ class PromptLoader {
     return `${basePrompt}\n\nAdditional focus: ${customPrompt.trim()}`;
   }
 
-  /**
-   * Get all available prompts (for debugging)
-   */
   getAllPrompts() {
     return this.prompts;
   }
 
-  /**
-   * Reload prompts from file (useful for development)
-   */
   reload() {
     this.prompts = {};
     this.loadPrompts();
   }
 }
 
-// Export singleton instance
 export default new PromptLoader();
