@@ -11,7 +11,8 @@ import {
   CheckCircle,
   XCircle,
   Info,
-  Search
+  Search,
+  Lock
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -252,9 +253,21 @@ const Terms = () => {
           </div>
         </div>
         
-        <p className="text-blue-200 text-lg md:text-xl max-w-3xl mx-auto mb-4">
+        <p className="text-blue-200 text-lg md:text-xl max-w-3xl mx-auto mb-6">
           Legal terms and conditions governing your use of Prompt Sherlock services.
         </p>
+        
+        {/* ADDED: Trademark Disclaimer */}
+        <motion.div
+          className="bg-slate-800/30 border border-slate-600/50 rounded-lg p-4 mb-6 max-w-4xl mx-auto"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.5 }}
+        >
+          <p className="text-gray-400 text-xs leading-relaxed">
+            <strong className="text-gray-300">Disclaimer:</strong> All product names, logos, and brands are property of their respective owners. Prompt Sherlock is not affiliated with or endorsed by Midjourney, OpenAI (DALL·E), Stability AI (Stable Diffusion), Google (Gemini Imagen), or any other mentioned entities. All company, product, and service names used in this website are for identification purposes only.
+          </p>
+        </motion.div>
         
         <div className="flex items-center justify-center space-x-2 text-gray-400 text-sm">
           <Calendar className="w-4 h-4" />
