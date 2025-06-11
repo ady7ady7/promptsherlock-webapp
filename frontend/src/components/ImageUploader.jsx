@@ -350,12 +350,12 @@ const ImageUploader = ({
               open();
             }}
             className={`
-    px-6 py-3 text-base font-semibold rounded-lg transition-all duration-300
-    bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
-    text-white border-2 border-blue-400/30 hover:border-blue-400/50
-    shadow-lg hover:shadow-xl hover:shadow-blue-500/25
-    ${isDragActive ? 'scale-105 shadow-blue-500/40' : ''}
-  `}
+              px-6 py-3 text-base font-semibold rounded-lg transition-all duration-300
+              bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700
+              text-white border border-blue-400/50 hover:border-blue-300/60
+              shadow-lg hover:shadow-xl hover:shadow-blue-500/25
+              ${isDragActive ? 'scale-105 shadow-blue-500/40' : ''}
+            `}
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
