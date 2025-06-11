@@ -57,7 +57,8 @@ const CustomPromptInput = ({
     const baseTips = [
       "Be specific about what you want to focus on",
       "Mention important details that might be missed",
-      "Use descriptive language for better results"
+      "Use descriptive language for better results",
+      "Include technical aspects if relevant (lighting, composition, etc.)"
     ];
 
     const goalTips = {
@@ -83,26 +84,13 @@ const CustomPromptInput = ({
       ]
     };
 
-    const engineTips = {
-      midjourney: ["Use artistic and creative language", "Mention aesthetic preferences"],
-      dalle: ["Be precise and literal", "Include specific details"],
-      stable_diffusion: ["Technical terms work well", "Mention specific parameters"],
-      gemini_imagen: ["Focus on realistic details", "Describe photographic aspects"],
-      flux: ["Modern terminology is effective", "Be specific about quality"],
-      leonardo: ["Professional terminology preferred", "Mention output requirements"]
-    };
-
     let tips = [...baseTips];
     
     if (selectedGoal && goalTips[selectedGoal]) {
       tips = [...tips, ...goalTips[selectedGoal]];
     }
-    
-    if (selectedEngine && engineTips[selectedEngine]) {
-      tips = [...tips, ...engineTips[selectedEngine]];
-    }
 
-    return tips.slice(0, 4); // Limit to 4 tips
+    return tips.slice(0, 5); // Limit to 5 tips
   };
 
   const handleActivate = () => {
@@ -224,7 +212,7 @@ const CustomPromptInput = ({
                 variants={placeholderVariants}
                 initial="visible"
                 exit="hidden"
-                className="absolute inset-0 flex items-center justify-center cursor-pointer bg-white/5 rounded-lg border-2 border-dashed border-gray-500 hover:border-gray-400 transition-colors"
+                className="absolute inset-0 flex items-center justify-center cursor-pointer bg-white/5 rounded-lg border-2 border-dashed border-gray-500 hover:border-gray-400 transition-colors min-h-[120px]"
                 onClick={handleActivate}
               >
                 <div className="text-center space-y-2">
@@ -266,6 +254,17 @@ const CustomPromptInput = ({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* Always show the input area with proper height, even when inactive */}
+          {!isActive && !value && (
+            <div className="min-h-[120px] opacity-0 pointer-events-none">
+              <textarea 
+                className="form-textarea min-h-[120px] w-full" 
+                disabled 
+                readOnly 
+              />
+            </div>
+          )}
         </div>
 
         {/* Footer Info */}
@@ -325,11 +324,6 @@ const CustomPromptInput = ({
               >
                 <div className="text-xs text-blue-200">
                   <strong>For {selectedGoal.replace('_', ' ')}:</strong> Be specific about what makes your images unique and what you want to capture or analyze.
-                  {selectedEngine && (
-                    <span className="block mt-1">
-                      <strong>{selectedEngine.replace('_', ' ')} works best with:</strong> Clear, descriptive language that matches the engine's strengths.
-                    </span>
-                  )}
                 </div>
               </motion.div>
             )}
