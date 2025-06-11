@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   FileText, 
@@ -29,6 +29,10 @@ import { Link } from 'react-router-dom';
  * - Updated branding for Prompt Sherlock
  */
 const Terms = () => {
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   // =============================================================================
   // ANIMATION VARIANTS
   // =============================================================================
@@ -43,6 +47,8 @@ const Terms = () => {
       }
     }
   };
+
+
 
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
