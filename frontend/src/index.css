@@ -31,16 +31,8 @@
 }
 
 html, body {
-  height: 100%;
+  height: auto; /* Change from 100% to auto */
   overflow-x: hidden;
-  overflow-y: auto; /* Ensure proper vertical scrolling */
-}
-
-/* Fix for the black zone issue */
-#root {
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 body {
