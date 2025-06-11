@@ -1,4 +1,3 @@
-// frontend/src/components/EngineSelection.jsx
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -35,7 +34,6 @@ const EngineSelection = ({
       category: 'Creative',
       strengths: ['Artistic style', 'Composition', 'Creativity'],
       color: 'purple',
-      popularity: 5,
       bestFor: 'Artistic and stylized images'
     },
     {
@@ -46,7 +44,6 @@ const EngineSelection = ({
       category: 'Versatile',
       strengths: ['Prompt accuracy', 'Text rendering', 'Consistency'],
       color: 'green',
-      popularity: 5,
       bestFor: 'Precise prompt following'
     },
     {
@@ -57,7 +54,6 @@ const EngineSelection = ({
       category: 'Technical',
       strengths: ['Customization', 'Speed', 'Community'],
       color: 'blue',
-      popularity: 4,
       bestFor: 'Technical and customizable generation'
     },
     {
@@ -68,7 +64,6 @@ const EngineSelection = ({
       category: 'Photorealistic',
       strengths: ['Photorealism', 'Detail', 'Quality'],
       color: 'orange',
-      popularity: 4,
       bestFor: 'Photorealistic images'
     },
     {
@@ -79,7 +74,6 @@ const EngineSelection = ({
       category: 'Next-Gen',
       strengths: ['Innovation', 'Speed', 'Quality'],
       color: 'cyan',
-      popularity: 4,
       bestFor: 'Latest AI capabilities'
     },
     {
@@ -90,7 +84,6 @@ const EngineSelection = ({
       category: 'Professional',
       strengths: ['Professional quality', 'Control', 'Consistency'],
       color: 'indigo',
-      popularity: 3,
       bestFor: 'Professional content creation'
     }
   ];
@@ -271,13 +264,7 @@ const EngineSelection = ({
                   {engine.description}
                 </p>
 
-                {/* Popularity */}
-                <div className="flex items-center space-x-1 mb-3">
-                  {renderPopularityStars(engine.popularity)}
-                  <span className="text-xs text-gray-400 ml-1">
-                    {engine.popularity}/5
-                  </span>
-                </div>
+
 
                 {/* Best For */}
                 <div className={`text-xs p-2 rounded ${colorClasses.bg} border ${colorClasses.border} mb-3`}>
