@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Shield, 
@@ -40,6 +40,10 @@ const Privacy = () => {
     }
   };
 
+    useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const itemVariants = {
     hidden: { opacity: 0, y: 20 },
     visible: {
@@ -51,6 +55,8 @@ const Privacy = () => {
       }
     }
   };
+
+
 
   const headerVariants = {
     hidden: { opacity: 0, y: -30 },
