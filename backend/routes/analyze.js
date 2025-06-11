@@ -3,7 +3,8 @@
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { uploadMiddleware, validateUpload, cleanupFiles } from '../middleware/upload.js';
+import { uploadMiddleware, validateUpload } from '../middleware/upload.js';
+import { cleanupFiles } from '../utils/cleanup.js';
 import sharp from 'sharp';
 import promptLoader from '../utils/promptLoader.js';
 
