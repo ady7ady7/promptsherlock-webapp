@@ -1,562 +1,444 @@
+// backend/routes/analyze.js - ENHANCED VERSION
+// Updated to work with existing frontend goal/engine names
+
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { uploadMiddleware } from '../middleware/upload.js';
-import { cleanupFiles } from '../utils/cleanup.js';
-import fs from 'fs/promises';
+import { uploadMiddleware, validateUpload, cleanupFiles } from '../middleware/upload.js';
+import sharp from 'sharp';
+import fs from 'fs-extra';
+import path from 'path';
 
 const router = express.Router();
 
-// Initialize AI service
+// =============================================================================
+// AI SERVICE INITIALIZATION
+// =============================================================================
+
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Get AI model with enhanced configuration
-const model = genAI.getGenerativeModel({ 
-  model: process.env.AI_MODEL || 'gemini-1.5-flash',
-  generationConfig: {
-    maxOutputTokens: parseInt(process.env.AI_MAX_TOKENS) || 8192,
-    temperature: parseFloat(process.env.AI_TEMPERATURE) || 0.1,
-    topP: 0.8,
-    topK: 40,
-  },
-  safetySettings: [
-    {
-      category: 'HARM_CATEGORY_HARASSMENT',
-      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-    },
-    {
-      category: 'HARM_CATEGORY_HATE_SPEECH',
-      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-    },
-    {
-      category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
-      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-    },
-    {
-      category: 'HARM_CATEGORY_DANGEROUS_CONTENT',
-      threshold: 'BLOCK_MEDIUM_AND_ABOVE',
-    },
-  ],
-});
-
-// =============================================================================
-// UTILITY FUNCTIONS
-// =============================================================================
-
 /**
- * Convert file to AI-compatible format
- * SECURITY: Validates file exists and is readable before processing
- * 
- * @param {string} filePath - Path to the uploaded file
- * @param {string} mimeType - MIME type of the file
- * @returns {Promise<Object>} AI-compatible file object
+ * ENHANCED PROMPT ENGINEERING SYSTEM
+ * Works with existing frontend goal and engine naming conventions
  */
-async function fileToGenerativePart(filePath, mimeType) {
-  try {
-    // Security check: Verify file exists and is readable
-    await fs.access(filePath, fs.constants.R_OK);
-    
-    // Read file data
-    const data = await fs.readFile(filePath);
-    
-    // Validate file size (additional check beyond multer)
-    const maxSize = parseInt(process.env.MAX_FILE_SIZE) || 10 * 1024 * 1024;
-    if (data.length > maxSize) {
-      throw new Error(`File too large: ${data.length} bytes`);
+class PromptEngineering {
+  
+  /**
+   * Map frontend goal names to backend processing
+   */
+  static mapGoalName(frontendGoal) {
+    const goalMap = {
+      'find_common_features': 'findFeatures',
+      'copy_image': 'copyImage', 
+      'copy_character': 'copyCharacter',
+      'copy_style': 'copyStyle'
+    };
+    return goalMap[frontendGoal] || frontendGoal;
+  }
+
+  /**
+   * Map frontend engine names to backend processing
+   */
+  static mapEngineName(frontendEngine) {
+    const engineMap = {
+      'stable_diffusion': 'stableDiffusion',
+      'gemini_imagen': 'geminiImagen',
+      'leonardo': 'leonardo'
+    };
+    return engineMap[frontendEngine] || frontendEngine;
+  }
+
+  /**
+   * Core prompt templates based on analysis goals
+   */
+  static getBasePromptByGoal(goal, imageCount, customPrompt = '') {
+    const templates = {
+      'findFeatures': `Analyze ${imageCount === 1 ? 'this image' : `these ${imageCount} images`} and identify all key visual elements, features, and characteristics. Provide a comprehensive analysis focusing on:
+
+• Visual composition and layout
+• Colors, lighting, and atmosphere  
+• Objects, subjects, and their positioning
+• Style and artistic techniques
+• Mood and emotional impact
+• Technical aspects (if applicable)
+
+${customPrompt ? `\nSpecial focus requested: ${customPrompt}` : ''}
+
+Please provide clear, natural language descriptions without using markdown formatting symbols (no ###, ***, etc.). Write in flowing paragraphs that read naturally.`,
+
+      'copyImage': `Create a detailed prompt that would allow someone to recreate or generate a very similar image ${imageCount > 1 ? 'to these images' : 'to this image'}. Focus on capturing:
+
+• Exact visual style and artistic approach
+• Composition and framing details  
+• Color palette and lighting setup
+• Subject positioning and proportions
+• Environmental details and background
+• Camera angle or artistic perspective
+• Texture and material qualities
+
+${customPrompt ? `\nAdditional requirements: ${customPrompt}` : ''}
+
+Format this as a clear, detailed generation prompt without markdown symbols.`,
+
+      'copyCharacter': `Analyze ${imageCount === 1 ? 'the character shown in this image' : `the characters shown in these ${imageCount} images`} and create a detailed character description prompt focusing on:
+
+• Physical appearance and features
+• Clothing style and accessories
+• Pose, expression, and body language  
+• Age, gender, and distinctive characteristics
+• Hair style, color, and texture
+• Facial features and expressions
+• Overall style and artistic treatment
+
+${customPrompt ? `\nSpecial character focus: ${customPrompt}` : ''}
+
+Provide this as a natural, flowing description suitable for character generation.`,
+
+      'copyStyle': `Analyze the artistic style ${imageCount === 1 ? 'of this image' : `across these ${imageCount} images`} and create a comprehensive style guide focusing on:
+
+• Artistic technique and medium
+• Color palette and color relationships
+• Brushwork, texture, and surface treatment
+• Composition and design principles
+• Lighting approach and mood
+• Level of detail and abstraction
+• Cultural or artistic movement influences
+
+${customPrompt ? `\nStyle-specific focus: ${customPrompt}` : ''}
+
+Present this as a cohesive style description without technical formatting symbols.`
+    };
+
+    return templates[goal] || templates.findFeatures;
+  }
+
+  /**
+   * Engine-specific prompt optimization (using your existing engine names)
+   */
+  static optimizeForEngine(baseAnalysis, engine, goal) {
+    if (!engine || goal === 'findFeatures') {
+      return baseAnalysis; // No engine optimization needed for feature analysis
     }
-    
-    // Convert to base64 for AI analysis
-    const base64Data = data.toString('base64');
-    
-    console.log(`📄 File processed for analysis (${base64Data.length} chars)`);
-    
-    return {
-      inlineData: {
-        data: base64Data,
-        mimeType: mimeType
+
+    const engineOptimizations = {
+      'midjourney': {
+        prefix: 'MIDJOURNEY OPTIMIZED PROMPT:\n\n',
+        style: 'Format as a Midjourney prompt with descriptive keywords, style modifiers, and parameter suggestions. Focus on visual elements that work well with Midjourney\'s strengths.',
+        suffix: '\n\nOptional Midjourney parameters to consider: --ar 16:9, --style, --chaos, --quality, --seed'
+      },
+      
+      'dalle': {
+        prefix: 'DALL-E 3 OPTIMIZED PROMPT:\n\n',
+        style: 'Format as a DALL-E prompt emphasizing clear, descriptive language and specific visual details. Focus on photorealistic or artistic elements that DALL-E handles well.',
+        suffix: '\n\nOptimized for DALL-E 3\'s natural language understanding and photorealistic capabilities.'
+      },
+      
+      'stableDiffusion': {
+        prefix: 'STABLE DIFFUSION OPTIMIZED PROMPT:\n\n',
+        style: 'Format as a Stable Diffusion prompt with emphasis on keywords, artistic styles, and quality modifiers. Include both positive prompt elements and suggested negative prompts.',
+        suffix: '\n\nSuggested negative prompt elements: blurry, low quality, distorted, watermark'
+      },
+      
+      'geminiImagen': {
+        prefix: 'GEMINI IMAGEN OPTIMIZED PROMPT:\n\n',
+        style: 'Format as a Gemini Imagen prompt emphasizing natural language descriptions and photorealistic details. Focus on clear, conversational descriptions.',
+        suffix: '\n\nOptimized for Gemini Imagen\'s natural language processing and high-quality image generation.'
+      },
+      
+      'flux': {
+        prefix: 'FLUX OPTIMIZED PROMPT:\n\n',
+        style: 'Format as a Flux prompt with emphasis on artistic styles, creative concepts, and detailed visual descriptions. Focus on creative and artistic elements.',
+        suffix: '\n\nOptimized for Flux\'s creative and artistic generation capabilities.'
+      },
+
+      'leonardo': {
+        prefix: 'LEONARDO AI OPTIMIZED PROMPT:\n\n',
+        style: 'Format as a Leonardo AI prompt with emphasis on professional quality and creative control. Focus on detailed descriptions suitable for professional content creation.',
+        suffix: '\n\nOptimized for Leonardo AI\'s professional-grade generation and fine-tuned control.'
       }
     };
-  } catch (error) {
-    console.error('❌ Error processing file:', error);
-    throw new Error(`Failed to process image file: ${error.message}`);
-  }
-}
 
-/**
- * Generate Prompt Sherlock's analysis prompt
- * 
- * @param {number} imageCount - Number of images to analyze
- * @param {string} customPrompt - User's custom analysis request
- * @returns {string} Formatted analysis prompt
- */
-function generatePromptSherlockAnalysis(imageCount, customPrompt = '') {
-  return `You are Prompt Sherlock, an AI assistant specialized in analyzing images to create perfect AI art prompts. Your mission is to analyze the ${imageCount === 1 ? 'image' : `${imageCount} images`} and generate detailed, actionable prompts that can be used with AI art generation tools like Midjourney, DALL·E, Stable Diffusion, and Gemini Imagen.
+    const optimization = engineOptimizations[engine];
+    if (!optimization) return baseAnalysis;
 
-## 🔍 **IMAGE ANALYSIS FRAMEWORK**
-
-### **Visual Content Analysis**
-- Analyze all visual elements in detail
-- Document the primary subjects, objects, and scenes
-- Identify people, animals, objects, and environmental details
-- Note any text, logos, or readable content
-
-### **Style & Composition Analysis**
-- Analyze artistic style, technique, and medium
-- Document color palettes, lighting conditions, and mood
-- Note photographic techniques: composition, framing, perspective
-- Assess visual balance, focal points, and artistic approach
-
-### **Environmental Context**
-- Analyze the setting, location, and environmental context
-- Note time period indicators, architectural styles, or geographical features
-- Document weather, season, or temporal elements
-- Identify any cultural or historical significance
-
-### **Technical Characteristics**
-- Assess image quality, resolution, and technical aspects
-- Note camera angles, depth of field, and photographic style
-- Identify any special effects, filters, or post-processing
-
-${imageCount > 1 ? `
-### **Multi-Image Analysis** (for ${imageCount} images)
-- Compare and contrast visual patterns across images
-- Identify recurring themes, styles, or subject matter
-- Note relationships, sequences, or progressions
-- Analyze the collection for cohesive elements and variations
-` : ''}
-
-## 🎯 **PROMPT GENERATION**
-
-Based on your analysis, generate **ready-to-use AI art prompts** that include:
-
-### **Core Prompt Components**
-1. **Subject Description**: Clear, detailed description of main subjects
-2. **Style Specifications**: Artistic style, medium, and technique descriptors
-3. **Mood & Atmosphere**: Emotional tone and ambiance keywords
-4. **Technical Parameters**: Camera angles, lighting, composition notes
-5. **Quality Enhancers**: Terms that improve AI generation quality
-
-### **Platform-Optimized Variations**
-- **Midjourney-style**: Concise, keyword-rich format with artistic descriptors
-- **DALL·E format**: Natural language descriptions with specific details
-- **Stable Diffusion**: Technical parameters and quality tags
-- **Universal prompt**: Works well across multiple AI platforms
-
-### **Style & Character Consistency**
-- Identify recurring visual elements for brand consistency
-- Note character descriptions for character consistency
-- Document style elements for maintaining visual coherence
-
-${customPrompt ? `
-### **Custom Focus**
-User's specific request: "${customPrompt}"
-Pay particular attention to this aspect while maintaining comprehensive analysis.
-` : ''}
-
-## 📋 **RESPONSE FORMAT**
-
-Present your findings in a well-structured format:
-
-1. **OVERVIEW**: Brief summary of what you found
-2. **DETAILED ANALYSIS**: Comprehensive breakdown of visual elements
-3. **PROMPT RECOMMENDATIONS**: Ready-to-use prompts for different AI tools
-4. **STYLE GUIDE**: Consistent elements for future use
-5. **ADDITIONAL INSIGHTS**: Any unique or notable findings
-
-Make your analysis thorough, actionable, and focused on helping the user create amazing AI art with the generated prompts. Your goal is to transform visual inspiration into practical, usable prompts.`;
-}
-
-/**
- * Validate and sanitize analysis results
- * 
- * @param {string} analysis - Raw AI analysis text
- * @returns {string} Validated and formatted analysis
- */
-function validateAnalysisResult(analysis) {
-  if (!analysis || typeof analysis !== 'string') {
-    throw new Error('Invalid analysis result format');
+    return `${optimization.prefix}${baseAnalysis}\n\n${optimization.suffix}`;
   }
 
-  const trimmed = analysis.trim();
-  
-  if (trimmed.length === 0) {
-    throw new Error('Analysis result is empty');
+  /**
+   * Main prompt generation method
+   */
+  static generatePrompt(goal, engine, imageCount, customPrompt = '') {
+    const basePrompt = this.getBasePromptByGoal(goal, imageCount, customPrompt);
+    const optimizedPrompt = this.optimizeForEngine(basePrompt, engine, goal);
+    
+    return optimizedPrompt;
   }
-
-  if (trimmed.length < 50) {
-    throw new Error('Analysis result too short - may indicate an error');
-  }
-
-  // Check for common error patterns
-  const errorPatterns = [
-    /I cannot|I am unable|I can't/i,
-    /error|failed|invalid/i,
-    /safety|blocked|restricted/i
-  ];
-
-  for (const pattern of errorPatterns) {
-    if (pattern.test(trimmed.substring(0, 200))) {
-      console.warn('⚠️ Potential issue in analysis result');
-      break;
-    }
-  }
-
-  return trimmed;
 }
 
 // =============================================================================
-// ROUTE HANDLERS
+// IMAGE PROCESSING UTILITIES
 // =============================================================================
 
 /**
- * POST /api/analyze
- * Analyze uploaded images and generate AI art prompts
- * 
- * Security: Uses secure upload middleware with comprehensive validation
- * Rate limiting: Applied at server level
- * File cleanup: Automatic cleanup after processing
+ * Convert image to base64 for AI processing
  */
-router.post('/', uploadMiddleware('images', 10), async (req, res) => {
-  const uploadedFiles = req.files || [];
-  const customPrompt = req.body.prompt || '';
-  const requestId = Date.now().toString(36) + Math.random().toString(36).substr(2);
-  
-  console.log(`🔍 [${requestId}] Prompt Sherlock analyzing: ${uploadedFiles.length} files`);
-  
+async function convertImageToBase64(imagePath) {
   try {
-    // Validate request
-    if (!uploadedFiles || uploadedFiles.length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No images uploaded. Please select at least one image for analysis.',
-        details: 'Upload 1-10 images to get started with prompt generation.',
-        code: 'NO_FILES_UPLOADED'
-      });
-    }
+    // Use Sharp to optimize image before sending to AI
+    const optimizedBuffer = await sharp(imagePath)
+      .resize(1024, 1024, { 
+        fit: 'inside', 
+        withoutEnlargement: true 
+      })
+      .jpeg({ quality: 85 })
+      .toBuffer();
 
-    // Additional security validation
-    if (uploadedFiles.length > 10) {
-      console.warn(`⚠️ [${requestId}] Too many files: ${uploadedFiles.length}`);
-      await cleanupFiles(uploadedFiles);
-      return res.status(400).json({
-        success: false,
-        error: 'Too many images',
-        details: `Maximum 10 images allowed per request. You uploaded ${uploadedFiles.length} images.`,
-        code: 'TOO_MANY_FILES'
-      });
-    }
+    return optimizedBuffer.toString('base64');
+  } catch (error) {
+    console.error('Error converting image to base64:', error);
+    throw new Error('Failed to process image for analysis');
+  }
+}
 
-    // Log file details for monitoring
-    const fileDetails = uploadedFiles.map(file => ({
-      filename: file.filename,
-      originalName: file.originalname,
-      size: file.size,
-      mimetype: file.mimetype,
-      path: file.path
-    }));
-    
-    console.log(`📋 [${requestId}] Processing files:`, fileDetails);
-
-    // Validate custom prompt
-    if (customPrompt && customPrompt.length > 1000) {
-      await cleanupFiles(uploadedFiles);
-      return res.status(400).json({
-        success: false,
-        error: 'Custom prompt too long',
-        details: 'Please keep your custom prompt under 1000 characters.',
-        code: 'PROMPT_TOO_LONG'
-      });
-    }
-
-    // Process files for AI analysis
-    const imageParts = [];
-    const processedFiles = [];
-    const processingStartTime = Date.now();
-
-    console.log(`🔄 [${requestId}] Processing ${uploadedFiles.length} files...`);
-
-    for (let i = 0; i < uploadedFiles.length; i++) {
-      const file = uploadedFiles[i];
-      try {
-        console.log(`📄 [${requestId}] Processing file ${i + 1}/${uploadedFiles.length}: ${file.originalname}`);
-        
-        const imagePart = await fileToGenerativePart(file.path, file.mimetype);
-        imageParts.push(imagePart);
-        
-        processedFiles.push({
-          index: i + 1,
-          filename: file.filename,
-          originalName: file.originalname,
-          size: file.size,
-          mimetype: file.mimetype,
-          processed: true
-        });
-        
-        console.log(`✅ [${requestId}] File ${i + 1} processed successfully`);
-        
-      } catch (error) {
-        console.error(`❌ [${requestId}] Failed to process file ${i + 1} (${file.originalname}):`, error.message);
-        
-        // Cleanup all files and return error
-        await cleanupFiles(uploadedFiles);
-        
-        return res.status(500).json({
-          success: false,
-          error: `Failed to process image: ${file.originalname}`,
-          details: 'The image file may be corrupted, too large, or in an unsupported format.',
-          code: 'FILE_PROCESSING_ERROR',
-          fileIndex: i + 1
-        });
-      }
-    }
-
-    const processingTime = Date.now() - processingStartTime;
-    console.log(`⚡ [${requestId}] File processing completed in ${processingTime}ms`);
-
-    // Generate analysis prompt
-    const analysisPrompt = generatePromptSherlockAnalysis(imageParts.length, customPrompt);
-    
-    // Prepare content for AI analysis
-    const content = [analysisPrompt, ...imageParts];
-
-    console.log(`🤖 [${requestId}] Starting AI analysis...`);
-    const aiStartTime = Date.now();
-
-    // Call AI service for analysis
-    let result, response, analysis;
-    
+/**
+ * Process multiple images for AI analysis
+ */
+async function processImagesForAI(imageFiles) {
+  const processedImages = [];
+  
+  for (const file of imageFiles) {
     try {
-      result = await model.generateContent(content);
-      response = await result.response;
-      analysis = response.text();
-      
-      // Validate the response
-      if (!analysis) {
-        throw new Error('Empty response from AI service');
-      }
-      
-    } catch (apiError) {
-      console.error(`❌ [${requestId}] AI analysis error:`, apiError);
-      
-      // Cleanup files before returning error
-      await cleanupFiles(uploadedFiles);
-      
-      // Handle specific API errors with user-friendly messages
-      if (apiError.message?.includes('API key') || apiError.message?.includes('auth')) {
-        return res.status(500).json({
-          success: false,
-          error: 'AI service temporarily unavailable',
-          details: 'Our analysis service is experiencing technical difficulties. Please try again later.',
-          code: 'SERVICE_UNAVAILABLE'
-        });
-      }
-      
-      if (apiError.message?.includes('quota') || apiError.message?.includes('limit')) {
-        return res.status(429).json({
-          success: false,
-          error: 'Service temporarily overloaded',
-          details: 'Too many requests in progress. Please try again in a few minutes.',
-          code: 'RATE_LIMIT_EXCEEDED'
-        });
-      }
-      
-      if (apiError.message?.includes('safety') || apiError.message?.includes('blocked')) {
-        return res.status(400).json({
-          success: false,
-          error: 'Content cannot be analyzed',
-          details: 'The uploaded images contain content that cannot be processed due to safety restrictions.',
-          code: 'CONTENT_BLOCKED'
-        });
-      }
-      
-      if (apiError.message?.includes('file size') || apiError.message?.includes('too large')) {
-        return res.status(400).json({
-          success: false,
-          error: 'Images too large for analysis',
-          details: 'One or more images exceed the maximum size limit. Please try smaller images.',
-          code: 'FILE_SIZE_ERROR'
-        });
-      }
-      
-      // Generic API error
-      return res.status(500).json({
-        success: false,
-        error: 'Analysis failed',
-        details: 'The AI service encountered an error while processing your images. Please try again.',
-        code: 'ANALYSIS_ERROR'
-      });
-    }
-
-    const aiProcessingTime = Date.now() - aiStartTime;
-    console.log(`🧠 [${requestId}] AI analysis completed in ${aiProcessingTime}ms`);
-
-    // Validate and sanitize the analysis result
-    try {
-      analysis = validateAnalysisResult(analysis);
-    } catch (validationError) {
-      console.error(`❌ [${requestId}] Analysis validation failed:`, validationError.message);
-      
-      await cleanupFiles(uploadedFiles);
-      
-      return res.status(500).json({
-        success: false,
-        error: 'Invalid analysis result',
-        details: 'The AI service returned an incomplete response. Please try again.',
-        code: 'INVALID_ANALYSIS'
-      });
-    }
-
-    // Cleanup uploaded files immediately after successful processing
-    const cleanupStartTime = Date.now();
-    await cleanupFiles(uploadedFiles);
-    const cleanupTime = Date.now() - cleanupStartTime;
-    
-    console.log(`🗑️ [${requestId}] Files cleaned up in ${cleanupTime}ms`);
-
-    // Calculate total processing time
-    const totalProcessingTime = Date.now() - processingStartTime;
-
-    // Prepare success response
-    const responseData = {
-      success: true,
-      analysis: analysis,
-      metadata: {
-        requestId: requestId,
-        processedImages: processedFiles.length,
-        totalProcessingTimeMs: totalProcessingTime,
-        breakdown: {
-          fileProcessingMs: processingTime,
-          aiAnalysisMs: aiProcessingTime,
-          cleanupMs: cleanupTime
-        },
-        service: 'Prompt Sherlock',
-        customPrompt: customPrompt || null,
-        files: processedFiles,
-        timestamp: new Date().toISOString(),
-        privacy: {
-          filesValidated: true,
-          immediateCleanup: true,
-          secureProcessing: true,
-          noDataRetention: true
+      const base64Data = await convertImageToBase64(file.path);
+      processedImages.push({
+        inlineData: {
+          data: base64Data,
+          mimeType: file.mimetype
         }
-      }
-    };
+      });
+    } catch (error) {
+      console.error(`Error processing ${file.filename}:`, error);
+      throw new Error(`Failed to process image: ${file.filename}`);
+    }
+  }
 
-    console.log(`✅ [${requestId}] Analysis completed successfully - ${analysis.length} characters, ${totalProcessingTime}ms total`);
+  return processedImages;
+}
 
-    // Return successful response
-    res.json(responseData);
+// =============================================================================
+// MAIN ANALYSIS ENDPOINT (Enhanced to work with existing frontend)
+// =============================================================================
 
-  } catch (error) {
-    console.error(`🚨 [${requestId}] Unexpected error:`, error);
+/**
+ * POST /api/analyze - Enhanced to work with existing GoalSelection and EngineSelection components
+ */
+router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
+  const startTime = Date.now();
+  let uploadedFiles = [];
 
-    // Emergency cleanup of files
-    if (uploadedFiles && uploadedFiles.length > 0) {
-      try {
-        await cleanupFiles(uploadedFiles);
-        console.log(`🗑️ [${requestId}] Emergency cleanup completed`);
-      } catch (cleanupError) {
-        console.error(`❌ [${requestId}] Emergency cleanup failed:`, cleanupError);
-      }
+  try {
+    // Extract request data (supporting both old and new parameter names)
+    const {
+      prompt: legacyPrompt = '',           // existing parameter name
+      customAnalysisPrompt = '',           // new parameter name
+      outputGoal = '',                     // new parameter name
+      generationEngine = '',               // new parameter name
+      selectedGoal = '',                   // from existing frontend
+      selectedEngine = ''                  // from existing frontend
+    } = req.body;
+
+    uploadedFiles = req.files || [];
+
+    // Use new parameters if available, fall back to existing ones
+    const customPrompt = customAnalysisPrompt || legacyPrompt;
+    const goal = PromptEngineering.mapGoalName(outputGoal || selectedGoal);
+    const engine = PromptEngineering.mapEngineName(generationEngine || selectedEngine);
+
+    console.log('🎯 Enhanced Analysis Request:', {
+      imageCount: uploadedFiles.length,
+      goal: goal,
+      engine: engine,
+      hasCustomPrompt: Boolean(customPrompt),
+      customPromptLength: customPrompt.length
+    });
+
+    // If no goal specified, default to feature analysis
+    const finalGoal = goal || 'findFeatures';
+
+    // Validate goal
+    const validGoals = ['findFeatures', 'copyImage', 'copyCharacter', 'copyStyle'];
+    if (!validGoals.includes(finalGoal)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid analysis goal',
+        code: 'INVALID_GOAL',
+        validGoals
+      });
     }
 
-    // Return generic error response
-    const isDevelopment = process.env.NODE_ENV === 'development';
+    // Engine is required for generation goals, but not for findFeatures
+    if (finalGoal !== 'findFeatures' && !engine) {
+      return res.status(400).json({
+        success: false,
+        error: 'Generation engine required for prompt creation goals',
+        code: 'ENGINE_REQUIRED',
+        suggestion: 'Please select an AI generation engine for prompt optimization'
+      });
+    }
+
+    // Process images for AI analysis
+    const aiImages = await processImagesForAI(uploadedFiles);
+
+    // Generate optimized prompt using our prompt engineering system
+    const optimizedPrompt = PromptEngineering.generatePrompt(
+      finalGoal,
+      engine,
+      uploadedFiles.length,
+      customPrompt
+    );
+
+    console.log('🧠 Generated optimized prompt for', finalGoal, 'with', engine || 'no engine');
+
+    // Prepare AI request
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+    const aiRequest = [
+      optimizedPrompt,
+      ...aiImages
+    ];
+
+    // Send to AI for analysis
+    console.log('🤖 Sending request to Gemini AI...');
+    const result = await model.generateContent(aiRequest);
+    const analysisText = result.response.text();
+
+    // Clean up analysis text (remove any markdown symbols for clean display)
+    const cleanAnalysis = analysisText
+      .replace(/#{1,6}\s*/g, '') // Remove heading markers
+      .replace(/\*{1,3}([^*]+)\*{1,3}/g, '$1') // Remove bold/italic markers
+      .replace(/`{1,3}([^`]+)`{1,3}/g, '$1') // Remove code markers
+      .replace(/^\s*[-*+]\s*/gm, '') // Remove bullet points
+      .replace(/^\s*\d+\.\s*/gm, '') // Remove numbered lists
+      .trim();
+
+    const processingTime = Date.now() - startTime;
+
+    console.log('✅ Analysis completed successfully:', {
+      goal: finalGoal,
+      engine: engine || 'none',
+      imageCount: uploadedFiles.length,
+      processingTime: `${processingTime}ms`,
+      analysisLength: cleanAnalysis.length
+    });
+
+    // Return enhanced response (compatible with existing frontend)
+    res.json({
+      success: true,
+      analysis: cleanAnalysis,
+      
+      // Enhanced metadata for new features
+      metadata: {
+        imageCount: uploadedFiles.length,
+        outputGoal: finalGoal,
+        generationEngine: engine,
+        hasCustomPrompt: Boolean(customPrompt),
+        processingTime: `${processingTime}ms`,
+        timestamp: new Date().toISOString(),
+        analysisLength: cleanAnalysis.length,
+        optimizedFor: engine || 'general analysis'
+      },
+
+      // Legacy fields for existing frontend compatibility
+      processedImages: uploadedFiles.length,
+      goal: finalGoal,
+      engine: engine
+    });
+
+  } catch (error) {
+    const processingTime = Date.now() - startTime;
     
+    console.error('❌ Enhanced analysis error:', {
+      message: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      processingTime: `${processingTime}ms`,
+      imageCount: uploadedFiles.length
+    });
+
+    // Determine error type and provide helpful message
+    let errorMessage = 'Analysis failed';
+    let errorCode = 'ANALYSIS_FAILED';
+
+    if (error.message.includes('API key')) {
+      errorMessage = 'AI service configuration error';
+      errorCode = 'API_KEY_ERROR';
+    } else if (error.message.includes('quota') || error.message.includes('rate limit')) {
+      errorMessage = 'Service temporarily unavailable due to high demand';
+      errorCode = 'RATE_LIMIT_ERROR';
+    } else if (error.message.includes('image')) {
+      errorMessage = 'Failed to process uploaded images';
+      errorCode = 'IMAGE_PROCESSING_ERROR';
+    }
+
     res.status(500).json({
       success: false,
-      error: 'Internal server error',
-      details: isDevelopment 
-        ? `Server error: ${error.message}` 
-        : 'An unexpected error occurred. Please try again.',
-      code: 'INTERNAL_ERROR',
-      requestId: requestId,
-      ...(isDevelopment && { stack: error.stack })
+      error: errorMessage,
+      code: errorCode,
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      metadata: {
+        processingTime: `${processingTime}ms`,
+        timestamp: new Date().toISOString()
+      }
     });
+
+  } finally {
+    // Always clean up uploaded files for privacy
+    await cleanupFiles(uploadedFiles);
   }
 });
 
+// =============================================================================
+// UTILITY ENDPOINTS (Enhanced)
+// =============================================================================
+
 /**
- * GET /api/analyze/health
- * Health check for the analysis service
+ * GET /api/analyze/health - Service health check
  */
 router.get('/health', async (req, res) => {
   try {
-    const { getUploadConfig, validateUploadDirectory } = await import('../middleware/upload.js');
-    
-    // Get upload configuration
-    const uploadConfig = getUploadConfig();
-    
-    // Validate upload directory
-    const directoryStatus = await validateUploadDirectory();
-    
     // Test AI service connectivity
-    let aiStatus = 'unknown';
-    try {
-      const testModel = genAI.getGenerativeModel({ model: process.env.AI_MODEL || 'gemini-1.5-flash' });
-      const testResult = await testModel.generateContent('Test connection - respond with "OK"');
-      const testResponse = await testResult.response;
-      aiStatus = testResponse.text().includes('OK') ? 'available' : 'limited';
-    } catch (aiError) {
-      aiStatus = 'unavailable';
-      console.warn('⚠️ AI service health check failed:', aiError.message);
-    }
-
+    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const testResult = await model.generateContent('Test connection');
+    
     res.json({
-      status: 'OK',
-      service: 'Prompt Sherlock Analysis Service',
-      timestamp: new Date().toISOString(),
-      version: '1.0.0',
-      
-      aiService: {
-        status: aiStatus,
-        capabilities: ['Image Analysis', 'Prompt Generation', 'Style Analysis', 'Multi-Image Processing']
+      status: 'healthy',
+      service: 'Enhanced Image Analysis API',
+      ai: {
+        provider: 'Google Gemini',
+        model: 'gemini-1.5-flash',
+        status: testResult ? 'connected' : 'error'
       },
-      
-      uploadConfig: {
-        maxFileSize: uploadConfig.maxFileSizeMB + 'MB',
-        maxFiles: uploadConfig.maxFiles,
-        allowedTypes: uploadConfig.allowedExtensions,
-        securityValidation: 'enabled'
+      features: {
+        goals: ['find_common_features', 'copy_image', 'copy_character', 'copy_style'],
+        engines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo'],
+        promptEngineering: true,
+        batchProcessing: true,
+        legacyCompatibility: true
       },
-      
-      storage: {
-        directory: directoryStatus.path,
-        exists: directoryStatus.exists,
-        writable: directoryStatus.writable,
-        ...(directoryStatus.error && { error: directoryStatus.error })
-      },
-      
-      privacy: {
-        dataRetention: 'none',
-        immediateCleanup: 'enabled',
-        secureProcessing: 'enabled',
-        noTracking: true
-      },
-      
-      supportedPlatforms: [
-        'Midjourney',
-        'DALL·E',
-        'Stable Diffusion',
-        'Gemini Imagen'
-      ]
+      timestamp: new Date().toISOString()
     });
     
   } catch (error) {
-    console.error('❌ Health check error:', error);
+    console.error('Health check failed:', error);
     
-    res.status(500).json({
-      status: 'ERROR',
-      service: 'Prompt Sherlock Analysis Service',
-      timestamp: new Date().toISOString(),
-      error: 'Health check failed',
-      details: process.env.NODE_ENV === 'development' ? error.message : 'Service unavailable'
+    res.status(503).json({
+      status: 'unhealthy',
+      error: 'AI service unavailable',
+      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
+      timestamp: new Date().toISOString()
     });
   }
 });
 
 /**
- * GET /api/analyze/config
- * Get current service configuration and capabilities
+ * GET /api/analyze/config - Enhanced service configuration
  */
 router.get('/config', async (req, res) => {
   try {
@@ -565,7 +447,8 @@ router.get('/config', async (req, res) => {
     
     res.json({
       success: true,
-      service: 'Prompt Sherlock',
+      service: 'Enhanced AI Image Analyzer',
+      version: '2.0.0',
       config: {
         upload: {
           maxFileSize: config.maxFileSize,
@@ -575,21 +458,31 @@ router.get('/config', async (req, res) => {
           allowedExtensions: config.allowedExtensions
         },
         analysis: {
-          maxPromptLength: 1000,
-          supportedFeatures: ['Style Analysis', 'Multi-Platform Prompts', 'Batch Processing', 'Custom Focus']
+          maxPromptLength: 2000,
+          aiProvider: 'Google Gemini',
+          model: 'gemini-1.5-flash',
+          promptEngineering: true,
+          legacySupport: true
+        },
+        goals: {
+          find_common_features: 'Comprehensive visual analysis and feature identification',
+          copy_image: 'Generate prompts to recreate similar images',
+          copy_character: 'Create character-focused generation prompts',
+          copy_style: 'Extract and describe artistic style elements'
+        },
+        engines: {
+          midjourney: 'Optimized for Midjourney v6+ prompting style',
+          dalle: 'Optimized for DALL-E 3 natural language prompts',
+          stable_diffusion: 'Optimized for Stable Diffusion keyword-based prompts',
+          gemini_imagen: 'Optimized for Gemini Imagen natural language',
+          flux: 'Optimized for Flux creative and artistic generation',
+          leonardo: 'Optimized for Leonardo AI professional content creation'
         },
         privacy: {
           dataRetention: 'none',
           immediateCleanup: true,
           secureProcessing: true,
           noTracking: true
-        },
-        outputFormats: {
-          midjourneyPrompts: true,
-          dallePrompts: true,
-          stableDiffusionPrompts: true,
-          universalPrompts: true,
-          styleGuides: true
         }
       },
       timestamp: new Date().toISOString()

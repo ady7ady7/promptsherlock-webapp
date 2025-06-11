@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Eye,
@@ -10,18 +10,40 @@ import {
   Star,
   Image as ImageIcon,
   Layers,
-  Target
+  Target,
+  Copy,
+  Download,
+  RotateCcw,
+  CheckCircle,
+  Clock,
+  Zap,
+  Sparkles
 } from 'lucide-react';
+import PropTypes from 'prop-types';
 
 /**
- * AnalysisResultsFormatter Component
+ * Enhanced AnalysisResultsFormatter Component
  * 
  * Transforms raw AI analysis text into a beautiful, structured format
- * with proper sections, icons, and professional styling
+ * with proper sections, icons, professional styling, and enhanced output controls
  */
-const AnalysisResultsFormatter = ({ analysisText }) => {
+const AnalysisResultsFormatter = ({ 
+  analysisText,
+  metadata = null,           // NEW: Enhanced metadata from API
+  onCopy = null,             // NEW: Callback for copy action
+  onClear = null,            // NEW: Callback for clear action
+  onNewAnalysis = null,      // NEW: Callback for new analysis
+  showControls = true,       // NEW: Whether to show copy/clear buttons
+  showRawOutput = false      // NEW: Whether to show raw textarea
+}) => {
   // =============================================================================
-  // PARSING LOGIC
+  // STATE MANAGEMENT
+  // =============================================================================
+  
+  const [copyStatus, setCopyStatus] = useState('idle'); // idle, copying, success, error
+
+  // =============================================================================
+  // PARSING LOGIC (Enhanced)
   // =============================================================================
 
   const parseAnalysis = (text) => {
@@ -69,6 +91,66 @@ const AnalysisResultsFormatter = ({ analysisText }) => {
       .replace(/🔍|🎨|🏞️|🔧|📝|💭|⭐|🔗/g, '') // Remove emoji headers
       .replace(/\n\s*\n/g, '\n\n') // Clean up extra whitespace
       .trim();
+  };
+
+  // =============================================================================
+  // ENHANCED OUTPUT FUNCTIONALITY
+  // =============================================================================
+
+  /**
+   * Handle copying analysis to clipboard
+   */
+  const handleCopyToClipboard = async () => {
+    if (!analysisText) return;
+
+    setCopyStatus('copying');
+
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(analysisText);
+      } else {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = analysisText;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+
+      setCopyStatus('success');
+      
+      // Notify parent component if callback provided
+      onCopy?.();
+      
+      // Reset status after delay
+      setTimeout(() => setCopyStatus('idle'), 3000);
+
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      setCopyStatus('error');
+      setTimeout(() => setCopyStatus('idle'), 3000);
+    }
+  };
+
+  /**
+   * Handle download
+   */
+  const handleDownload = () => {
+    const blob = new Blob([analysisText], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `analysis-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   // =============================================================================
@@ -178,9 +260,124 @@ const AnalysisResultsFormatter = ({ analysisText }) => {
   };
 
   // =============================================================================
+  // UTILITY FUNCTIONS
+  // =============================================================================
+
+  /**
+   * Format goal name for display
+   */
+  const formatGoalName = (goal) => {
+    const goalNames = {
+      'find_common_features': 'Feature Analysis',
+      'findFeatures': 'Feature Analysis',
+      'copy_image': 'Image Recreation Prompt',
+      'copyImage': 'Image Recreation Prompt',
+      'copy_character': 'Character Generation Prompt',
+      'copyCharacter': 'Character Generation Prompt',
+      'copy_style': 'Style Guide Creation',
+      'copyStyle': 'Style Guide Creation'
+    };
+    return goalNames[goal] || goal?.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim() || 'Analysis';
+  };
+
+  /**
+   * Format engine name for display
+   */
+  const formatEngineName = (engine) => {
+    const engineNames = {
+      'midjourney': 'Midjourney',
+      'dalle': 'DALL-E 3',
+      'stable_diffusion': 'Stable Diffusion',
+      'stableDiffusion': 'Stable Diffusion',
+      'gemini_imagen': 'Gemini Imagen',
+      'geminiImagen': 'Gemini Imagen',
+      'flux': 'Flux',
+      'leonardo': 'Leonardo AI'
+    };
+    return engineNames[engine] || engine?.replace(/_/g, ' ') || '';
+  };
+
+  // =============================================================================
   // RENDER COMPONENTS
   // =============================================================================
 
+  /**
+   * Render enhanced metadata section
+   */
+  const renderEnhancedMetadata = () => {
+    if (!metadata) return null;
+
+    return (
+      <motion.div 
+        className="mb-8 p-6 glass-effect rounded-xl border border-white/10"
+        variants={sectionVariants}
+      >
+        <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+          <Target className="w-5 h-5 mr-2 text-blue-400" />
+          Analysis Details
+        </h4>
+        
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
+          {metadata.imageCount && (
+            <div className="text-center">
+              <div className="text-2xl font-bold text-blue-400 mb-1">
+                {metadata.imageCount}
+              </div>
+              <div className="text-gray-400">
+                Image{metadata.imageCount !== 1 ? 's' : ''}
+              </div>
+            </div>
+          )}
+          
+          {(metadata.outputGoal || metadata.goal) && (
+            <div className="text-center">
+              <div className="text-lg font-semibold text-purple-400 mb-1">
+                {formatGoalName(metadata.outputGoal || metadata.goal)}
+              </div>
+              <div className="text-gray-400">
+                Analysis Type
+              </div>
+            </div>
+          )}
+          
+          {(metadata.generationEngine || metadata.engine) && (
+            <div className="text-center">
+              <div className="text-lg font-semibold text-green-400 mb-1">
+                {formatEngineName(metadata.generationEngine || metadata.engine)}
+              </div>
+              <div className="text-gray-400">
+                Optimized For
+              </div>
+            </div>
+          )}
+          
+          {metadata.processingTime && (
+            <div className="text-center">
+              <div className="text-lg font-semibold text-orange-400 mb-1">
+                {metadata.processingTime}
+              </div>
+              <div className="text-gray-400">
+                Processing Time
+              </div>
+            </div>
+          )}
+        </div>
+        
+        {(metadata.hasCustomPrompt || metadata.customPrompt) && (
+          <div className="mt-4 pt-4 border-t border-white/10 text-center">
+            <span className="inline-flex items-center text-sm text-yellow-300 font-medium">
+              <Sparkles className="w-4 h-4 mr-1" />
+              Enhanced with custom instructions
+            </span>
+          </div>
+        )}
+      </motion.div>
+    );
+  };
+
+  /**
+   * Render analysis section
+   */
   const renderSection = (config) => {
     const content = sections[config.key];
     if (!content || content.length < 10) return null;
@@ -229,6 +426,9 @@ const AnalysisResultsFormatter = ({ analysisText }) => {
     );
   };
 
+  /**
+   * Render summary section
+   */
   const renderSummary = () => {
     if (!sections.summary || sections.summary.length < 10) return null;
     
@@ -269,6 +469,140 @@ const AnalysisResultsFormatter = ({ analysisText }) => {
     );
   };
 
+  /**
+   * Render raw output section
+   */
+  const renderRawOutput = () => {
+    if (!showRawOutput) return null;
+
+    return (
+      <motion.div 
+        className="space-y-4"
+        variants={sectionVariants}
+      >
+        <h4 className="text-lg font-semibold text-white flex items-center">
+          <FileText className="w-5 h-5 mr-2 text-blue-400" />
+          Raw Analysis Output
+        </h4>
+        
+        <textarea
+          value={analysisText}
+          readOnly
+          className="w-full p-4 bg-black/20 border border-white/10 rounded-lg text-white resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+          style={{
+            minHeight: '200px',
+            fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+            fontSize: '14px',
+            lineHeight: '1.6'
+          }}
+        />
+        
+        <div className="text-xs text-gray-400 text-right">
+          {analysisText?.length || 0} characters
+        </div>
+      </motion.div>
+    );
+  };
+
+  /**
+   * Render enhanced control buttons
+   */
+  const renderEnhancedControls = () => {
+    if (!showControls) return null;
+
+    return (
+      <motion.div 
+        className="flex flex-wrap gap-3 pt-6 border-t border-white/10"
+        variants={sectionVariants}
+      >
+        {/* Copy Button */}
+        <motion.button
+          onClick={handleCopyToClipboard}
+          disabled={copyStatus === 'copying'}
+          className={`
+            flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300
+            ${copyStatus === 'success' 
+              ? 'bg-green-600 text-white' 
+              : copyStatus === 'error'
+              ? 'bg-red-600 text-white'
+              : 'glass-button bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-white'
+            }
+            disabled:opacity-50 disabled:cursor-not-allowed
+          `}
+          whileHover={copyStatus === 'idle' ? { scale: 1.05 } : {}}
+          whileTap={copyStatus === 'idle' ? { scale: 0.95 } : {}}
+        >
+          {copyStatus === 'copying' && (
+            <>
+              <motion.div
+                animate={{ rotate: 360 }}
+                transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+              >
+                <Copy className="w-4 h-4" />
+              </motion.div>
+              <span>Copying...</span>
+            </>
+          )}
+          {copyStatus === 'success' && (
+            <>
+              <CheckCircle className="w-4 h-4" />
+              <span>Copied!</span>
+            </>
+          )}
+          {copyStatus === 'error' && (
+            <>
+              <Copy className="w-4 h-4" />
+              <span>Failed</span>
+            </>
+          )}
+          {copyStatus === 'idle' && (
+            <>
+              <Copy className="w-4 h-4" />
+              <span>Copy Analysis</span>
+            </>
+          )}
+        </motion.button>
+
+        {/* Download Button */}
+        <motion.button
+          onClick={handleDownload}
+          className="glass-button px-6 py-3 text-white font-semibold bg-gradient-to-r from-green-500/20 to-blue-500/20 hover:from-green-500/30 hover:to-blue-500/30 transition-all duration-300"
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+        >
+          <Download className="w-4 h-4 mr-2" />
+          Download Report
+        </motion.button>
+
+        {/* Clear Button (if callback provided) */}
+        {onClear && (
+          <motion.button
+            onClick={onClear}
+            className="glass-button px-6 py-3 text-white font-semibold bg-gradient-to-r from-gray-500/20 to-slate-500/20 hover:from-gray-500/30 hover:to-slate-500/30 transition-all duration-300"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <RotateCcw className="w-4 h-4 mr-2" />
+            Clear
+          </motion.button>
+        )}
+
+        {/* New Analysis Button (if callback provided) */}
+        {onNewAnalysis && (
+          <motion.button
+            onClick={onNewAnalysis}
+            className="glass-button px-6 py-3 text-white font-semibold bg-gradient-to-r from-purple-500/20 to-pink-500/20 hover:from-purple-500/30 hover:to-pink-500/30 transition-all duration-300"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Sparkles className="w-4 h-4 mr-2" />
+            New Analysis
+          </motion.button>
+        )}
+      </motion.div>
+    );
+  };
+
   // =============================================================================
   // MAIN RENDER
   // =============================================================================
@@ -289,18 +623,31 @@ const AnalysisResultsFormatter = ({ analysisText }) => {
       initial="hidden"
       animate="visible"
     >
-      {/* Header */}
+      {/* Success Header */}
       <motion.div
         className="text-center mb-8"
         variants={sectionVariants}
       >
+        <motion.div
+          className="inline-flex items-center justify-center w-16 h-16 bg-green-500/20 rounded-full mb-4"
+          initial={{ scale: 0, rotate: -180 }}
+          animate={{ scale: 1, rotate: 0 }}
+          transition={{ duration: 0.6, type: "spring" }}
+        >
+          <CheckCircle className="w-8 h-8 text-green-400" />
+        </motion.div>
+        
         <h2 className="text-3xl font-bold gradient-text mb-2">
-          AI Analysis Results
+          Analysis Complete!
         </h2>
+        
         <p className="text-gray-400">
-          Comprehensive image analysis by Prompt Sherlock
+          {metadata?.optimizedFor ? `Optimized for ${formatEngineName(metadata.optimizedFor)}` : 'Comprehensive AI-powered analysis'}
         </p>
       </motion.div>
+
+      {/* Enhanced metadata display */}
+      {renderEnhancedMetadata()}
 
       {/* Analysis Sections */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -310,42 +657,50 @@ const AnalysisResultsFormatter = ({ analysisText }) => {
       {/* Summary Section */}
       {renderSummary()}
 
-      {/* Footer Actions */}
-      <motion.div
-        className="flex justify-center space-x-4 pt-6"
-        variants={sectionVariants}
-      >
-        <motion.button
-          className="glass-button px-6 py-3 text-white font-semibold bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            navigator.clipboard.writeText(analysisText);
-            // Could add toast notification here
-          }}
+      {/* Raw Output Section */}
+      {renderRawOutput()}
+
+      {/* Enhanced Control Buttons */}
+      {renderEnhancedControls()}
+
+      {/* Pro Tips */}
+      {metadata && (
+        <motion.div 
+          className="glass-effect p-4 rounded-lg border border-white/10"
+          variants={sectionVariants}
         >
-          Copy Analysis
-        </motion.button>
-        
-        <motion.button
-          className="glass-button px-6 py-3 text-white font-semibold bg-gradient-to-r from-green-500/20 to-blue-500/20 hover:from-green-500/30 hover:to-blue-500/30 transition-all duration-300"
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => {
-            const blob = new Blob([analysisText], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'prompt-sherlock-analysis.txt';
-            a.click();
-            URL.revokeObjectURL(url);
-          }}
-        >
-          Download Report
-        </motion.button>
-      </motion.div>
+          <h4 className="text-sm font-semibold text-white mb-2 flex items-center">
+            <Sparkles className="w-4 h-4 mr-2 text-yellow-400" />
+            Pro Tips
+          </h4>
+          <div className="text-xs text-gray-300 space-y-1">
+            {(metadata.outputGoal === 'find_common_features' || metadata.outputGoal === 'findFeatures') ? (
+              <>
+                <p>• Use this analysis to better understand your image composition and elements</p>
+                <p>• Look for insights that might improve future photography or design work</p>
+              </>
+            ) : (
+              <>
+                <p>• Copy this prompt and paste it into {formatEngineName(metadata.generationEngine || metadata.engine) || 'your chosen AI generator'} for best results</p>
+                <p>• You may need to adjust parameters based on your specific use case</p>
+                <p>• Experiment with variations to achieve your desired output</p>
+              </>
+            )}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
   );
+};
+
+AnalysisResultsFormatter.propTypes = {
+  analysisText: PropTypes.string.isRequired,
+  metadata: PropTypes.object,
+  onCopy: PropTypes.func,
+  onClear: PropTypes.func,
+  onNewAnalysis: PropTypes.func,
+  showControls: PropTypes.bool,
+  showRawOutput: PropTypes.bool
 };
 
 export default AnalysisResultsFormatter;

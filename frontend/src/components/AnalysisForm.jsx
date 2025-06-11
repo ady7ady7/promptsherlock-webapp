@@ -1,6 +1,3 @@
-// frontend/src/components/AnalysisForm.jsx - ENHANCED VERSION
-// Implements the new goal-based user flow with separate components
-
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
@@ -13,11 +10,15 @@ import {
   Copy,
   RefreshCw,
   Sparkles,
-  ArrowRight
+  ArrowRight,
+  FileText,
+  Target,
+  Zap,
+  RotateCcw
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
-// Import the new components
+// Import the components
 import ImageUploader from './ImageUploader';
 import GoalSelection from './GoalSelection';
 import EngineSelection from './EngineSelection';
@@ -26,12 +27,12 @@ import CustomPromptInput from './CustomPromptInput';
 /**
  * Enhanced Analysis Form Component with Goal-Based User Flow
  * 
- * New Flow:
+ * Enhanced Flow:
  * 1. Image Upload
  * 2. Goal Selection (appears after images uploaded)
  * 3. Engine Selection (conditional, for prompt generation goals)
  * 4. Custom Prompt Input (enhanced with contextual tips)
- * 5. Final Analysis with tailored prompts
+ * 5. Final Analysis with tailored prompts and enhanced output
  */
 const AnalysisForm = ({
   apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000',
@@ -61,6 +62,12 @@ const AnalysisForm = ({
     prompt: { isValid: true, message: '' }
   });
 
+  // Enhanced output state
+  const [outputState, setOutputState] = useState({
+    copyStatus: 'idle', // idle, copying, success, error
+    showRawOutput: false
+  });
+
   // Refs for form elements
   const resultsRef = useRef(null);
 
@@ -79,6 +86,98 @@ const AnalysisForm = ({
     
     return `${baseUrl}${cleanEndpoint}`;
   }, [apiUrl]);
+
+  // =============================================================================
+  // ENHANCED OUTPUT FUNCTIONALITY
+  // =============================================================================
+
+  /**
+   * Handle copying analysis to clipboard
+   */
+  const handleCopyToClipboard = async () => {
+    if (!formState.results?.analysis) return;
+
+    setOutputState(prev => ({ ...prev, copyStatus: 'copying' }));
+
+    try {
+      // Try modern clipboard API first
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(formState.results.analysis);
+      } else {
+        // Fallback for older browsers or non-HTTPS
+        const textArea = document.createElement('textarea');
+        textArea.value = formState.results.analysis;
+        textArea.style.position = 'fixed';
+        textArea.style.left = '-999999px';
+        textArea.style.top = '-999999px';
+        document.body.appendChild(textArea);
+        textArea.focus();
+        textArea.select();
+        document.execCommand('copy');
+        textArea.remove();
+      }
+
+      setOutputState(prev => ({ ...prev, copyStatus: 'success' }));
+      
+      // Reset status after delay
+      setTimeout(() => {
+        setOutputState(prev => ({ ...prev, copyStatus: 'idle' }));
+      }, 3000);
+
+    } catch (error) {
+      console.error('Failed to copy to clipboard:', error);
+      setOutputState(prev => ({ ...prev, copyStatus: 'error' }));
+      setTimeout(() => {
+        setOutputState(prev => ({ ...prev, copyStatus: 'idle' }));
+      }, 3000);
+    }
+  };
+
+  /**
+   * Clear results and return to form
+   */
+  const handleClearResults = () => {
+    setFormState(prev => ({
+      ...prev,
+      results: null,
+      error: null,
+      isSubmitted: false
+    }));
+    
+    setOutputState({
+      copyStatus: 'idle',
+      showRawOutput: false
+    });
+  };
+
+  /**
+   * Start new analysis (reset form)
+   */
+  const handleNewAnalysis = () => {
+    setFormState({
+      images: [],
+      selectedGoal: '',
+      selectedEngine: '',
+      customPrompt: '',
+      isLoading: false,
+      results: null,
+      error: null,
+      isSubmitted: false,
+      showEngineSelection: false
+    });
+
+    setValidation({
+      images: { isValid: true, message: '' },
+      goal: { isValid: true, message: '' },
+      engine: { isValid: true, message: '' },
+      prompt: { isValid: true, message: '' }
+    });
+    
+    setOutputState({
+      copyStatus: 'idle',
+      showRawOutput: false
+    });
+  };
 
   // =============================================================================
   // PROMPT GENERATION LOGIC
@@ -274,7 +373,7 @@ Provide a style guide that can be used to create new images in the same artistic
   }, [formState]);
 
   // =============================================================================
-  // FORM SUBMISSION
+  // FORM SUBMISSION (Enhanced for new API)
   // =============================================================================
   
   const handleSubmit = useCallback(async (e) => {
@@ -309,14 +408,24 @@ Provide a style guide that can be used to create new images in the same artistic
         formData.append('images', image.file);
       });
       
-      // Add the tailored prompt
-      formData.append('prompt', tailoredPrompt);
+      // Enhanced API parameters (supporting both old and new backend)
+      formData.append('prompt', tailoredPrompt); // Legacy parameter
+      formData.append('customAnalysisPrompt', formState.customPrompt); // New parameter
+      formData.append('selectedGoal', formState.selectedGoal); // For new backend mapping
+      formData.append('selectedEngine', formState.selectedEngine); // For new backend mapping
       
       // Add metadata for backend processing
       formData.append('goal', formState.selectedGoal);
       if (formState.selectedEngine) {
         formData.append('engine', formState.selectedEngine);
       }
+
+      console.log('🚀 Sending enhanced analysis request:', {
+        imageCount: formState.images.length,
+        goal: formState.selectedGoal,
+        engine: formState.selectedEngine,
+        hasCustomPrompt: Boolean(formState.customPrompt)
+      });
 
       // Submit to API
       const response = await axios.post(
@@ -330,6 +439,7 @@ Provide a style guide that can be used to create new images in the same artistic
         }
       );
 
+      // Handle both old and new API response formats
       const results = {
         ...response.data,
         goal: formState.selectedGoal,
@@ -337,8 +447,24 @@ Provide a style guide that can be used to create new images in the same artistic
         customPrompt: formState.customPrompt,
         tailoredPrompt: tailoredPrompt,
         submittedAt: new Date().toISOString(),
-        imageCount: formState.images.length
+        imageCount: formState.images.length,
+        // Enhanced metadata from new API
+        metadata: response.data.metadata || {
+          imageCount: formState.images.length,
+          outputGoal: formState.selectedGoal,
+          generationEngine: formState.selectedEngine,
+          hasCustomPrompt: Boolean(formState.customPrompt),
+          processingTime: response.data.processingTime,
+          timestamp: new Date().toISOString()
+        }
       };
+
+      console.log('✅ Analysis completed successfully:', {
+        goal: results.goal,
+        engine: results.engine,
+        hasMetadata: Boolean(results.metadata),
+        analysisLength: results.analysis?.length
+      });
 
       setFormState(prev => ({
         ...prev,
@@ -389,24 +515,7 @@ Provide a style guide that can be used to create new images in the same artistic
   // =============================================================================
   
   const handleReset = useCallback(() => {
-    setFormState({
-      images: [],
-      selectedGoal: '',
-      selectedEngine: '',
-      customPrompt: '',
-      isLoading: false,
-      results: null,
-      error: null,
-      isSubmitted: false,
-      showEngineSelection: false
-    });
-
-    setValidation({
-      images: { isValid: true, message: '' },
-      goal: { isValid: true, message: '' },
-      engine: { isValid: true, message: '' },
-      prompt: { isValid: true, message: '' }
-    });
+    handleNewAnalysis();
   }, []);
 
   // =============================================================================
@@ -499,8 +608,14 @@ Provide a style guide that can be used to create new images in the same artistic
     );
   };
 
-  const renderResults = () => {
+  // =============================================================================
+  // ENHANCED RESULTS RENDERING
+  // =============================================================================
+
+  const renderEnhancedResults = () => {
     if (!formState.results) return null;
+
+    const { analysis, metadata } = formState.results;
 
     return (
       <motion.div
@@ -508,72 +623,160 @@ Provide a style guide that can be used to create new images in the same artistic
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="glass-effect p-6 rounded-lg space-y-6"
+        className="space-y-6"
       >
         {/* Success Header */}
-        <div className="flex items-center space-x-3 text-green-400">
-          <CheckCircle className="w-6 h-6" />
-          <h3 className="text-2xl font-bold">Analysis Complete!</h3>
+        <div className="text-center space-y-2">
+          <motion.div
+            className="inline-flex items-center justify-center w-16 h-16 bg-green-500/20 rounded-full mb-4"
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ duration: 0.6, type: "spring" }}
+          >
+            <CheckCircle className="w-8 h-8 text-green-400" />
+          </motion.div>
+          
+          <h2 className="text-2xl font-bold gradient-text">
+            Analysis Complete!
+          </h2>
+          
+          <p className="text-gray-300">
+            Your {metadata?.imageCount || formState.images.length} image{metadata?.imageCount !== 1 ? 's' : ''} 
+            {metadata?.imageCount === 1 ? ' has' : ' have'} been analyzed successfully.
+          </p>
         </div>
 
-        {/* Analysis Metadata */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-          <div className="bg-blue-500/10 p-3 rounded-lg">
-            <span className="text-blue-300 font-medium">Goal:</span>
-            <p className="text-white mt-1 capitalize">
-              {formState.results.goal?.replace('_', ' ') || 'Analysis'}
-            </p>
+        {/* Enhanced Metadata Display */}
+        <div className="glass-effect p-4 rounded-lg border border-white/10">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div className="flex items-center space-x-2 text-blue-300">
+              <FileText className="w-4 h-4" />
+              <span>Images: {metadata?.imageCount || formState.images.length}</span>
+            </div>
+            
+            {(metadata?.outputGoal || formState.selectedGoal) && (
+              <div className="flex items-center space-x-2 text-purple-300">
+                <Target className="w-4 h-4" />
+                <span>Goal: {(metadata?.outputGoal || formState.selectedGoal).replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}</span>
+              </div>
+            )}
+            
+            {(metadata?.generationEngine || formState.selectedEngine) && (
+              <div className="flex items-center space-x-2 text-green-300">
+                <Zap className="w-4 h-4" />
+                <span>Engine: {(metadata?.generationEngine || formState.selectedEngine).replace(/_/g, ' ')}</span>
+              </div>
+            )}
+            
+            {(metadata?.processingTime || formState.results.processingTime) && (
+              <div className="flex items-center space-x-2 text-gray-300">
+                <Clock className="w-4 h-4" />
+                <span>{metadata?.processingTime || formState.results.processingTime}</span>
+              </div>
+            )}
           </div>
-          <div className="bg-purple-500/10 p-3 rounded-lg">
-            <span className="text-purple-300 font-medium">Images:</span>
-            <p className="text-white mt-1">{formState.results.imageCount}</p>
-          </div>
-          {formState.results.engine && (
-            <div className="bg-green-500/10 p-3 rounded-lg">
-              <span className="text-green-300 font-medium">Engine:</span>
-              <p className="text-white mt-1 capitalize">
-                {formState.results.engine.replace('_', ' ')}
-              </p>
+          
+          {(metadata?.hasCustomPrompt || formState.customPrompt) && (
+            <div className="mt-3 pt-3 border-t border-white/10">
+              <span className="text-xs text-yellow-300 font-medium">
+                ✨ Enhanced with custom prompt
+              </span>
             </div>
           )}
-          <div className="bg-orange-500/10 p-3 rounded-lg">
-            <span className="text-orange-300 font-medium">Processing Time:</span>
-            <p className="text-white mt-1">
-              {formState.results.processingTime || 'N/A'}
-            </p>
-          </div>
         </div>
 
-        {/* Analysis Results */}
+        {/* Main Analysis Output */}
         <div className="space-y-4">
-          <h4 className="text-lg font-semibold text-white flex items-center space-x-2">
-            <Sparkles className="w-5 h-5 text-yellow-400" />
-            <span>Analysis Results</span>
-          </h4>
-          <div className="bg-gray-900/50 p-6 rounded-lg border border-gray-700">
-            <pre className="whitespace-pre-wrap text-gray-100 leading-relaxed">
-              {formState.results.analysis}
-            </pre>
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-white">
+              Analysis Results
+            </h3>
+          </div>
+
+          <textarea
+            value={analysis}
+            readOnly
+            className="w-full p-4 bg-black/20 border border-white/10 rounded-lg text-white placeholder-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500/50 transition-all duration-300"
+            style={{
+              minHeight: '300px',
+              fontFamily: 'ui-monospace, SFMono-Regular, "SF Mono", Consolas, "Liberation Mono", Menlo, monospace',
+              fontSize: '14px',
+              lineHeight: '1.6'
+            }}
+            placeholder="Analysis results will appear here..."
+          />
+          
+          {/* Character Count */}
+          <div className="text-xs text-gray-400 text-right">
+            {analysis?.length || 0} characters
           </div>
         </div>
 
-        {/* Action Buttons */}
+        {/* Enhanced Action Buttons */}
         <div className="flex flex-wrap gap-3">
+          {/* Copy Button */}
           <motion.button
-            type="button"
-            onClick={() => navigator.clipboard.writeText(formState.results.analysis)}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            onClick={handleCopyToClipboard}
+            disabled={outputState.copyStatus === 'copying'}
+            className={`
+              flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-300
+              ${outputState.copyStatus === 'success' 
+                ? 'bg-green-600 text-white' 
+                : outputState.copyStatus === 'error'
+                ? 'bg-red-600 text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }
+              disabled:opacity-50 disabled:cursor-not-allowed
+            `}
+            whileHover={outputState.copyStatus === 'idle' ? { scale: 1.05 } : {}}
+            whileTap={outputState.copyStatus === 'idle' ? { scale: 0.95 } : {}}
+          >
+            {outputState.copyStatus === 'copying' && (
+              <>
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                >
+                  <Copy className="w-4 h-4" />
+                </motion.div>
+                <span>Copying...</span>
+              </>
+            )}
+            {outputState.copyStatus === 'success' && (
+              <>
+                <CheckCircle className="w-4 h-4" />
+                <span>Copied!</span>
+              </>
+            )}
+            {outputState.copyStatus === 'error' && (
+              <>
+                <Copy className="w-4 h-4" />
+                <span>Failed</span>
+              </>
+            )}
+            {outputState.copyStatus === 'idle' && (
+              <>
+                <Copy className="w-4 h-4" />
+                <span>Copy to Clipboard</span>
+              </>
+            )}
+          </motion.button>
+
+          {/* Clear Button */}
+          <motion.button
+            onClick={handleClearResults}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium transition-colors duration-300"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Copy className="w-4 h-4" />
-            <span>Copy Results</span>
+            <RotateCcw className="w-4 h-4" />
+            <span>Clear</span>
           </motion.button>
 
+          {/* Download Button */}
           <motion.button
-            type="button"
             onClick={() => {
-              const blob = new Blob([formState.results.analysis], { type: 'text/plain' });
+              const blob = new Blob([analysis], { type: 'text/plain' });
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
               a.href = url;
@@ -581,7 +784,7 @@ Provide a style guide that can be used to create new images in the same artistic
               a.click();
               URL.revokeObjectURL(url);
             }}
-            className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
+            className="flex items-center space-x-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium transition-colors duration-300"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
@@ -589,16 +792,38 @@ Provide a style guide that can be used to create new images in the same artistic
             <span>Download</span>
           </motion.button>
 
+          {/* New Analysis Button */}
           <motion.button
-            type="button"
-            onClick={handleReset}
-            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+            onClick={handleNewAnalysis}
+            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-colors duration-300"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            <RefreshCw className="w-4 h-4" />
-            <span>Analyze New Images</span>
+            <Sparkles className="w-4 h-4" />
+            <span>New Analysis</span>
           </motion.button>
+        </div>
+
+        {/* Pro Tips */}
+        <div className="glass-effect p-4 rounded-lg border border-white/10">
+          <h4 className="text-sm font-semibold text-white mb-2 flex items-center">
+            <Sparkles className="w-4 h-4 mr-2 text-yellow-400" />
+            Pro Tips
+          </h4>
+          <div className="text-xs text-gray-300 space-y-1">
+            {(metadata?.outputGoal || formState.selectedGoal) === 'find_common_features' ? (
+              <>
+                <p>• Use this analysis to better understand your image composition and elements</p>
+                <p>• Look for insights that might improve future photography or design work</p>
+              </>
+            ) : (
+              <>
+                <p>• Copy this prompt and paste it into {(metadata?.generationEngine || formState.selectedEngine || 'your chosen AI generator').replace(/_/g, ' ')} for best results</p>
+                <p>• You may need to adjust parameters based on your specific use case</p>
+                <p>• Experiment with variations to achieve your desired output</p>
+              </>
+            )}
+          </div>
         </div>
       </motion.div>
     );
@@ -628,7 +853,7 @@ Provide a style guide that can be used to create new images in the same artistic
     }
   };
 
-  // Show results if available
+  // Show enhanced results if available
   if (formState.results) {
     return (
       <motion.div
@@ -637,7 +862,7 @@ Provide a style guide that can be used to create new images in the same artistic
         initial="hidden"
         animate="visible"
       >
-        {renderResults()}
+        {renderEnhancedResults()}
       </motion.div>
     );
   }
