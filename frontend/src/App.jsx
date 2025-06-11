@@ -301,7 +301,7 @@ function App() {
       {/* Auto-scroll Status */}
       <div className="text-center mt-3">
         <span className="text-xs text-gray-500">
-          {isPaused ? 'Paused' : 'Auto-scrolling'} • Hover or drag to control
+          {isPaused ? 'Paused' : 'Auto-scrolling'} • Drag boxes to control •
         </span>
       </div>
     </div>
