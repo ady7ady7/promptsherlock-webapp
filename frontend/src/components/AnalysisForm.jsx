@@ -25,14 +25,8 @@ import EngineSelection from './EngineSelection';
 import CustomPromptInput from './CustomPromptInput';
 
 /**
- * Enhanced Analysis Form Component with Goal-Based User Flow
- * 
- * Enhanced Flow:
- * 1. Image Upload
- * 2. Goal Selection (appears after images uploaded)
- * 3. Engine Selection (conditional, for prompt generation goals)
- * 4. Custom Prompt Input (enhanced with contextual tips)
- * 5. Final Analysis with tailored prompts and enhanced output
+ * Clean Analysis Form Component 
+ * Consistent snake_case naming throughout
  */
 const AnalysisForm = ({
   apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000',
@@ -40,35 +34,33 @@ const AnalysisForm = ({
   initialState = {}
 }) => {
   // =============================================================================
-  // STATE MANAGEMENT
+  // STATE MANAGEMENT - Clean snake_case
   // =============================================================================
   
   const [formState, setFormState] = useState({
     images: initialState.images || [],
-    selectedGoal: initialState.selectedGoal || '',
-    selectedEngine: initialState.selectedEngine || '',
-    customPrompt: initialState.customPrompt || '',
-    isLoading: false,
+    selected_goal: initialState.selected_goal || '',
+    selected_engine: initialState.selected_engine || '',
+    custom_prompt: initialState.custom_prompt || '',
+    is_loading: false,
     results: null,
     error: null,
-    isSubmitted: false,
-    showEngineSelection: false
+    is_submitted: false,
+    show_engine_selection: false
   });
 
   const [validation, setValidation] = useState({
-    images: { isValid: true, message: '' },
-    goal: { isValid: true, message: '' },
-    engine: { isValid: true, message: '' },
-    prompt: { isValid: true, message: '' }
+    images: { is_valid: true, message: '' },
+    goal: { is_valid: true, message: '' },
+    engine: { is_valid: true, message: '' },
+    prompt: { is_valid: true, message: '' }
   });
 
-  // Enhanced output state
   const [outputState, setOutputState] = useState({
-    copyStatus: 'idle', // idle, copying, success, error
-    showRawOutput: false
+    copy_status: 'idle',
+    show_raw_output: false
   });
 
-  // Refs for form elements
   const resultsRef = useRef(null);
 
   // =============================================================================
@@ -79,7 +71,6 @@ const AnalysisForm = ({
     const baseUrl = apiUrl.replace(/\/$/, '');
     const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
     
-    // Avoid double /api/ in URL
     if (baseUrl.includes('/api') && cleanEndpoint.startsWith('/api')) {
       return `${baseUrl}${cleanEndpoint.replace('/api', '')}`;
     }
@@ -88,23 +79,18 @@ const AnalysisForm = ({
   }, [apiUrl]);
 
   // =============================================================================
-  // ENHANCED OUTPUT FUNCTIONALITY
+  // OUTPUT FUNCTIONALITY
   // =============================================================================
 
-  /**
-   * Handle copying analysis to clipboard
-   */
   const handleCopyToClipboard = async () => {
     if (!formState.results?.analysis) return;
 
-    setOutputState(prev => ({ ...prev, copyStatus: 'copying' }));
+    setOutputState(prev => ({ ...prev, copy_status: 'copying' }));
 
     try {
-      // Try modern clipboard API first
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(formState.results.analysis);
       } else {
-        // Fallback for older browsers or non-HTTPS
         const textArea = document.createElement('textarea');
         textArea.value = formState.results.analysis;
         textArea.style.position = 'fixed';
@@ -117,65 +103,53 @@ const AnalysisForm = ({
         textArea.remove();
       }
 
-      setOutputState(prev => ({ ...prev, copyStatus: 'success' }));
-      
-      // Reset status after delay
-      setTimeout(() => {
-        setOutputState(prev => ({ ...prev, copyStatus: 'idle' }));
-      }, 3000);
+      setOutputState(prev => ({ ...prev, copy_status: 'success' }));
+      setTimeout(() => setOutputState(prev => ({ ...prev, copy_status: 'idle' })), 3000);
 
     } catch (error) {
       console.error('Failed to copy to clipboard:', error);
-      setOutputState(prev => ({ ...prev, copyStatus: 'error' }));
-      setTimeout(() => {
-        setOutputState(prev => ({ ...prev, copyStatus: 'idle' }));
-      }, 3000);
+      setOutputState(prev => ({ ...prev, copy_status: 'error' }));
+      setTimeout(() => setOutputState(prev => ({ ...prev, copy_status: 'idle' })), 3000);
     }
   };
 
-  /**
-   * Clear results and return to form
-   */
   const handleClearResults = () => {
     setFormState(prev => ({
       ...prev,
       results: null,
       error: null,
-      isSubmitted: false
+      is_submitted: false
     }));
     
     setOutputState({
-      copyStatus: 'idle',
-      showRawOutput: false
+      copy_status: 'idle',
+      show_raw_output: false
     });
   };
 
-  /**
-   * Start new analysis (reset form)
-   */
   const handleNewAnalysis = () => {
     setFormState({
       images: [],
-      selectedGoal: '',
-      selectedEngine: '',
-      customPrompt: '',
-      isLoading: false,
+      selected_goal: '',
+      selected_engine: '',
+      custom_prompt: '',
+      is_loading: false,
       results: null,
       error: null,
-      isSubmitted: false,
-      showEngineSelection: false
+      is_submitted: false,
+      show_engine_selection: false
     });
 
     setValidation({
-      images: { isValid: true, message: '' },
-      goal: { isValid: true, message: '' },
-      engine: { isValid: true, message: '' },
-      prompt: { isValid: true, message: '' }
+      images: { is_valid: true, message: '' },
+      goal: { is_valid: true, message: '' },
+      engine: { is_valid: true, message: '' },
+      prompt: { is_valid: true, message: '' }
     });
     
     setOutputState({
-      copyStatus: 'idle',
-      showRawOutput: false
+      copy_status: 'idle',
+      show_raw_output: false
     });
   };
 
@@ -183,9 +157,6 @@ const AnalysisForm = ({
   // PROMPT GENERATION LOGIC
   // =============================================================================
   
-  /**
-   * Generate tailored prompts based on selected goal and engine
-   */
   const generateTailoredPrompt = useCallback((goal, engine, customPrompt, imageCount) => {
     const basePrompts = {
       find_common_features: `Analyze these ${imageCount} images and identify shared elements, themes, and characteristics. Look for:
@@ -247,7 +218,6 @@ Provide a style guide that can be used to create new images in the same artistic
       finalPrompt += engineOptimizations[engine] || '';
     }
 
-    // Add custom prompt if provided
     if (customPrompt.trim()) {
       finalPrompt += `\n\nAdditional specific instructions: ${customPrompt.trim()}`;
     }
@@ -266,54 +236,50 @@ Provide a style guide that can be used to create new images in the same artistic
       error: null
     }));
 
-    // Clear image validation
     setValidation(prev => ({
       ...prev,
-      images: { isValid: true, message: '' }
+      images: { is_valid: true, message: '' }
     }));
   }, []);
 
   const handleGoalChange = useCallback((goalId, requiresEngineSelection) => {
     setFormState(prev => ({
       ...prev,
-      selectedGoal: goalId,
-      showEngineSelection: requiresEngineSelection,
-      selectedEngine: requiresEngineSelection ? prev.selectedEngine : '',
+      selected_goal: goalId,
+      show_engine_selection: requiresEngineSelection,
+      selected_engine: requiresEngineSelection ? prev.selected_engine : '',
       error: null
     }));
 
-    // Clear goal validation
     setValidation(prev => ({
       ...prev,
-      goal: { isValid: true, message: '' }
+      goal: { is_valid: true, message: '' }
     }));
   }, []);
 
   const handleEngineChange = useCallback((engineId) => {
     setFormState(prev => ({
       ...prev,
-      selectedEngine: engineId,
+      selected_engine: engineId,
       error: null
     }));
 
-    // Clear engine validation
     setValidation(prev => ({
       ...prev,
-      engine: { isValid: true, message: '' }
+      engine: { is_valid: true, message: '' }
     }));
   }, []);
 
   const handleCustomPromptChange = useCallback((prompt) => {
     setFormState(prev => ({
       ...prev,
-      customPrompt: prompt,
+      custom_prompt: prompt,
       error: null
     }));
 
-    // Clear prompt validation
     setValidation(prev => ({
       ...prev,
-      prompt: { isValid: true, message: '' }
+      prompt: { is_valid: true, message: '' }
     }));
   }, []);
 
@@ -323,111 +289,95 @@ Provide a style guide that can be used to create new images in the same artistic
   
   const validateForm = useCallback(() => {
     const newValidation = {
-      images: { isValid: true, message: '' },
-      goal: { isValid: true, message: '' },
-      engine: { isValid: true, message: '' },
-      prompt: { isValid: true, message: '' }
+      images: { is_valid: true, message: '' },
+      goal: { is_valid: true, message: '' },
+      engine: { is_valid: true, message: '' },
+      prompt: { is_valid: true, message: '' }
     };
 
-    // Validate images
     if (formState.images.length === 0) {
       newValidation.images = {
-        isValid: false,
+        is_valid: false,
         message: 'Please upload at least one image'
       };
     } else if (formState.images.length > 10) {
       newValidation.images = {
-        isValid: false,
+        is_valid: false,
         message: 'Maximum 10 images allowed'
       };
     }
 
-    // Validate goal selection
-    if (!formState.selectedGoal) {
+    if (!formState.selected_goal) {
       newValidation.goal = {
-        isValid: false,
+        is_valid: false,
         message: 'Please select an analysis goal'
       };
     }
 
-    // Validate engine selection (if required)
-    if (formState.showEngineSelection && !formState.selectedEngine) {
+    if (formState.show_engine_selection && !formState.selected_engine) {
       newValidation.engine = {
-        isValid: false,
+        is_valid: false,
         message: 'Please select an AI generation engine'
       };
     }
 
-    // Validate custom prompt length
-    if (formState.customPrompt.length > 1000) {
+    if (formState.custom_prompt.length > 1000) {
       newValidation.prompt = {
-        isValid: false,
+        is_valid: false,
         message: 'Custom prompt must be less than 1000 characters'
       };
     }
 
     setValidation(newValidation);
-
-    // Return overall validity
-    return Object.values(newValidation).every(field => field.isValid);
+    return Object.values(newValidation).every(field => field.is_valid);
   }, [formState]);
 
   // =============================================================================
-  // FORM SUBMISSION (Enhanced for new API)
+  // FORM SUBMISSION
   // =============================================================================
   
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
-    // Validate form
     if (!validateForm()) {
       return;
     }
 
     setFormState(prev => ({
       ...prev,
-      isLoading: true,
+      is_loading: true,
       error: null,
-      isSubmitted: true
+      is_submitted: true
     }));
 
     try {
-      // Generate the tailored prompt
       const tailoredPrompt = generateTailoredPrompt(
-        formState.selectedGoal,
-        formState.selectedEngine,
-        formState.customPrompt,
+        formState.selected_goal,
+        formState.selected_engine,
+        formState.custom_prompt,
         formState.images.length
       );
 
-      // Prepare form data
       const formData = new FormData();
       
-      // Add images
       formState.images.forEach((image) => {
         formData.append('images', image.file);
       });
       
-      // Enhanced API parameters (supporting both old and new backend)
-      formData.append('prompt', tailoredPrompt); // Legacy parameter
-      formData.append('customAnalysisPrompt', formState.customPrompt); // New parameter
-      formData.append('selectedGoal', formState.selectedGoal); // For new backend mapping
-      formData.append('selectedEngine', formState.selectedEngine); // For new backend mapping
-      
-      // Add metadata for backend processing
-      formData.append('goal', formState.selectedGoal);
-      if (formState.selectedEngine) {
-        formData.append('engine', formState.selectedEngine);
+      // Clean parameter names - no duplication
+      formData.append('prompt', tailoredPrompt);
+      formData.append('goal', formState.selected_goal);
+      if (formState.selected_engine) {
+        formData.append('engine', formState.selected_engine);
       }
 
-      console.log('🚀 Sending enhanced analysis request:', {
+      console.log('🚀 Sending analysis request:', {
         imageCount: formState.images.length,
-        goal: formState.selectedGoal,
-        engine: formState.selectedEngine,
-        hasCustomPrompt: Boolean(formState.customPrompt)
+        goal: formState.selected_goal,
+        engine: formState.selected_engine,
+        hasCustomPrompt: Boolean(formState.custom_prompt)
       });
 
-      // Submit to API
       const response = await axios.post(
         getApiEndpoint('/api/analyze'),
         formData,
@@ -435,28 +385,18 @@ Provide a style guide that can be used to create new images in the same artistic
           headers: {
             'Content-Type': 'multipart/form-data',
           },
-          timeout: 120000, // 2 minute timeout
+          timeout: 120000,
         }
       );
 
-      // Handle both old and new API response formats
       const results = {
         ...response.data,
-        goal: formState.selectedGoal,
-        engine: formState.selectedEngine,
-        customPrompt: formState.customPrompt,
-        tailoredPrompt: tailoredPrompt,
-        submittedAt: new Date().toISOString(),
-        imageCount: formState.images.length,
-        // Enhanced metadata from new API
-        metadata: response.data.metadata || {
-          imageCount: formState.images.length,
-          outputGoal: formState.selectedGoal,
-          generationEngine: formState.selectedEngine,
-          hasCustomPrompt: Boolean(formState.customPrompt),
-          processingTime: response.data.processingTime,
-          timestamp: new Date().toISOString()
-        }
+        goal: formState.selected_goal,
+        engine: formState.selected_engine,
+        custom_prompt: formState.custom_prompt,
+        tailored_prompt: tailoredPrompt,
+        submitted_at: new Date().toISOString(),
+        image_count: formState.images.length
       };
 
       console.log('✅ Analysis completed successfully:', {
@@ -469,15 +409,13 @@ Provide a style guide that can be used to create new images in the same artistic
       setFormState(prev => ({
         ...prev,
         results,
-        isLoading: false
+        is_loading: false
       }));
 
-      // Callback to parent
       if (onAnalysisComplete) {
         onAnalysisComplete(results);
       }
 
-      // Scroll to results
       setTimeout(() => {
         if (resultsRef.current) {
           resultsRef.current.scrollIntoView({ 
@@ -505,18 +443,36 @@ Provide a style guide that can be used to create new images in the same artistic
       setFormState(prev => ({
         ...prev,
         error: errorMessage,
-        isLoading: false
+        is_loading: false
       }));
     }
   }, [formState, validateForm, generateTailoredPrompt, getApiEndpoint, onAnalysisComplete]);
 
   // =============================================================================
-  // FORM RESET
+  // UTILITY FUNCTIONS
   // =============================================================================
-  
-  const handleReset = useCallback(() => {
-    handleNewAnalysis();
-  }, []);
+
+  const formatGoalName = (goal) => {
+    const goalNames = {
+      'find_common_features': 'Feature Analysis',
+      'copy_image': 'Image Recreation Prompt',
+      'copy_character': 'Character Generation Prompt',
+      'copy_style': 'Style Guide Creation'
+    };
+    return goalNames[goal] || goal?.replace(/_/g, ' ').trim() || 'Analysis';
+  };
+
+  const formatEngineName = (engine) => {
+    const engineNames = {
+      'midjourney': 'Midjourney',
+      'dalle': 'DALL-E 3',
+      'stable_diffusion': 'Stable Diffusion',
+      'gemini_imagen': 'Gemini Imagen',
+      'flux': 'Flux',
+      'leonardo': 'Leonardo AI'
+    };
+    return engineNames[engine] || engine?.replace(/_/g, ' ') || '';
+  };
 
   // =============================================================================
   // RENDER METHODS
@@ -524,7 +480,7 @@ Provide a style guide that can be used to create new images in the same artistic
   
   const renderValidationErrors = () => {
     const errors = Object.entries(validation)
-      .filter(([, field]) => !field.isValid)
+      .filter(([, field]) => !field.is_valid)
       .map(([key, field]) => ({ key, message: field.message }));
 
     if (errors.length === 0) return null;
@@ -571,13 +527,13 @@ Provide a style guide that can be used to create new images in the same artistic
   };
 
   const renderLoadingState = () => {
-    if (!formState.isLoading) return null;
+    if (!formState.is_loading) return null;
 
     const getLoadingMessage = () => {
-      if (formState.selectedGoal === 'find_common_features') {
+      if (formState.selected_goal === 'find_common_features') {
         return 'Analyzing common features across your images...';
-      } else if (formState.selectedGoal.startsWith('copy_')) {
-        return `Generating ${formState.selectedEngine || 'AI'} prompts for ${formState.selectedGoal.replace('copy_', '')} recreation...`;
+      } else if (formState.selected_goal.startsWith('copy_')) {
+        return `Generating ${formState.selected_engine || 'AI'} prompts for ${formState.selected_goal.replace('copy_', '')} recreation...`;
       }
       return 'Analyzing your images...';
     };
@@ -608,10 +564,6 @@ Provide a style guide that can be used to create new images in the same artistic
     );
   };
 
-  // =============================================================================
-  // ENHANCED RESULTS RENDERING
-  // =============================================================================
-
   const renderEnhancedResults = () => {
     if (!formState.results) return null;
 
@@ -641,8 +593,8 @@ Provide a style guide that can be used to create new images in the same artistic
           </h2>
           
           <p className="text-gray-300">
-            Your {metadata?.imageCount || formState.images.length} image{metadata?.imageCount !== 1 ? 's' : ''} 
-            {metadata?.imageCount === 1 ? ' has' : ' have'} been analyzed successfully.
+            Your {metadata?.image_count || formState.images.length} image{metadata?.image_count !== 1 ? 's' : ''} 
+            {metadata?.image_count === 1 ? ' has' : ' have'} been analyzed successfully.
           </p>
         </div>
 
@@ -651,32 +603,32 @@ Provide a style guide that can be used to create new images in the same artistic
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
             <div className="flex items-center space-x-2 text-blue-300">
               <FileText className="w-4 h-4" />
-              <span>Images: {metadata?.imageCount || formState.images.length}</span>
+              <span>Images: {metadata?.image_count || formState.images.length}</span>
             </div>
             
-            {(metadata?.outputGoal || formState.selectedGoal) && (
+            {(metadata?.goal || formState.selected_goal) && (
               <div className="flex items-center space-x-2 text-purple-300">
                 <Target className="w-4 h-4" />
-                <span>Goal: {(metadata?.outputGoal || formState.selectedGoal).replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim()}</span>
+                <span>Goal: {formatGoalName(metadata?.goal || formState.selected_goal)}</span>
               </div>
             )}
             
-            {(metadata?.generationEngine || formState.selectedEngine) && (
+            {(metadata?.engine || formState.selected_engine) && (
               <div className="flex items-center space-x-2 text-green-300">
                 <Zap className="w-4 h-4" />
-                <span>Engine: {(metadata?.generationEngine || formState.selectedEngine).replace(/_/g, ' ')}</span>
+                <span>Engine: {formatEngineName(metadata?.engine || formState.selected_engine)}</span>
               </div>
             )}
             
-            {(metadata?.processingTime || formState.results.processingTime) && (
+            {(metadata?.processing_time || formState.results.processingTime) && (
               <div className="flex items-center space-x-2 text-gray-300">
                 <Clock className="w-4 h-4" />
-                <span>{metadata?.processingTime || formState.results.processingTime}</span>
+                <span>{metadata?.processing_time || formState.results.processingTime}</span>
               </div>
             )}
           </div>
           
-          {(metadata?.hasCustomPrompt || formState.customPrompt) && (
+          {(metadata?.has_custom_prompt || formState.custom_prompt) && (
             <div className="mt-3 pt-3 border-t border-white/10">
               <span className="text-xs text-yellow-300 font-medium">
                 ✨ Enhanced with custom prompt
@@ -706,7 +658,6 @@ Provide a style guide that can be used to create new images in the same artistic
             placeholder="Analysis results will appear here..."
           />
           
-          {/* Character Count */}
           <div className="text-xs text-gray-400 text-right">
             {analysis?.length || 0} characters
           </div>
@@ -717,21 +668,21 @@ Provide a style guide that can be used to create new images in the same artistic
           {/* Copy Button */}
           <motion.button
             onClick={handleCopyToClipboard}
-            disabled={outputState.copyStatus === 'copying'}
+            disabled={outputState.copy_status === 'copying'}
             className={`
               flex items-center space-x-2 px-4 py-2 rounded-lg font-medium transition-all duration-300
-              ${outputState.copyStatus === 'success' 
+              ${outputState.copy_status === 'success' 
                 ? 'bg-green-600 text-white' 
-                : outputState.copyStatus === 'error'
+                : outputState.copy_status === 'error'
                 ? 'bg-red-600 text-white'
                 : 'bg-blue-600 hover:bg-blue-700 text-white'
               }
               disabled:opacity-50 disabled:cursor-not-allowed
             `}
-            whileHover={outputState.copyStatus === 'idle' ? { scale: 1.05 } : {}}
-            whileTap={outputState.copyStatus === 'idle' ? { scale: 0.95 } : {}}
+            whileHover={outputState.copy_status === 'idle' ? { scale: 1.05 } : {}}
+            whileTap={outputState.copy_status === 'idle' ? { scale: 0.95 } : {}}
           >
-            {outputState.copyStatus === 'copying' && (
+            {outputState.copy_status === 'copying' && (
               <>
                 <motion.div
                   animate={{ rotate: 360 }}
@@ -742,19 +693,19 @@ Provide a style guide that can be used to create new images in the same artistic
                 <span>Copying...</span>
               </>
             )}
-            {outputState.copyStatus === 'success' && (
+            {outputState.copy_status === 'success' && (
               <>
                 <CheckCircle className="w-4 h-4" />
                 <span>Copied!</span>
               </>
             )}
-            {outputState.copyStatus === 'error' && (
+            {outputState.copy_status === 'error' && (
               <>
                 <Copy className="w-4 h-4" />
                 <span>Failed</span>
               </>
             )}
-            {outputState.copyStatus === 'idle' && (
+            {outputState.copy_status === 'idle' && (
               <>
                 <Copy className="w-4 h-4" />
                 <span>Copy to Clipboard</span>
@@ -811,14 +762,14 @@ Provide a style guide that can be used to create new images in the same artistic
             Pro Tips
           </h4>
           <div className="text-xs text-gray-300 space-y-1">
-            {(metadata?.outputGoal || formState.selectedGoal) === 'find_common_features' ? (
+            {(metadata?.goal || formState.selected_goal) === 'find_common_features' ? (
               <>
                 <p>• Use this analysis to better understand your image composition and elements</p>
                 <p>• Look for insights that might improve future photography or design work</p>
               </>
             ) : (
               <>
-                <p>• Copy this prompt and paste it into {(metadata?.generationEngine || formState.selectedEngine || 'your chosen AI generator').replace(/_/g, ' ')} for best results</p>
+                <p>• Copy this prompt and paste it into {formatEngineName(metadata?.engine || formState.selected_engine) || 'your chosen AI generator'} for best results</p>
                 <p>• You may need to adjust parameters based on your specific use case</p>
                 <p>• Experiment with variations to achieve your desired output</p>
               </>
@@ -853,7 +804,6 @@ Provide a style guide that can be used to create new images in the same artistic
     }
   };
 
-  // Show enhanced results if available
   if (formState.results) {
     return (
       <motion.div
@@ -882,12 +832,12 @@ Provide a style guide that can be used to create new images in the same artistic
             initialImages={formState.images}
             maxFiles={10}
             maxFileSize={10 * 1024 * 1024}
-            disabled={formState.isLoading}
-            loading={formState.isLoading}
+            disabled={formState.is_loading}
+            loading={formState.is_loading}
           />
         </motion.div>
 
-        {/* Step 2: Goal Selection (appears after images uploaded) */}
+        {/* Step 2: Goal Selection */}
         <AnimatePresence>
           {formState.images.length > 0 && (
             <motion.div
@@ -906,18 +856,18 @@ Provide a style guide that can be used to create new images in the same artistic
               }}
             >
               <GoalSelection
-                selectedGoal={formState.selectedGoal}
+                selectedGoal={formState.selected_goal}
                 onGoalChange={handleGoalChange}
-                disabled={formState.isLoading}
+                disabled={formState.is_loading}
                 imageCount={formState.images.length}
               />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Step 3: Engine Selection (conditional, for prompt generation goals) */}
+        {/* Step 3: Engine Selection */}
         <AnimatePresence>
-          {formState.showEngineSelection && formState.selectedGoal && (
+          {formState.show_engine_selection && formState.selected_goal && (
             <motion.div
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
               animate={{ 
@@ -934,18 +884,18 @@ Provide a style guide that can be used to create new images in the same artistic
               }}
             >
               <EngineSelection
-                selectedEngine={formState.selectedEngine}
+                selectedEngine={formState.selected_engine}
                 onEngineChange={handleEngineChange}
-                disabled={formState.isLoading}
-                goalType={formState.selectedGoal}
+                disabled={formState.is_loading}
+                goalType={formState.selected_goal}
               />
             </motion.div>
           )}
         </AnimatePresence>
 
-        {/* Step 4: Custom Prompt Input (enhanced) */}
+        {/* Step 4: Custom Prompt Input */}
         <AnimatePresence>
-          {formState.selectedGoal && (
+          {formState.selected_goal && (
             <motion.div
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
               animate={{ 
@@ -962,11 +912,11 @@ Provide a style guide that can be used to create new images in the same artistic
               }}
             >
               <CustomPromptInput
-                value={formState.customPrompt}
+                value={formState.custom_prompt}
                 onChange={handleCustomPromptChange}
-                disabled={formState.isLoading}
-                selectedGoal={formState.selectedGoal}
-                selectedEngine={formState.selectedEngine}
+                disabled={formState.is_loading}
+                selectedGoal={formState.selected_goal}
+                selectedEngine={formState.selected_engine}
                 imageCount={formState.images.length}
                 maxLength={1000}
               />
@@ -981,7 +931,7 @@ Provide a style guide that can be used to create new images in the same artistic
 
         {/* Step 5: Submit Button */}
         <AnimatePresence>
-          {formState.selectedGoal && (!formState.showEngineSelection || formState.selectedEngine) && (
+          {formState.selected_goal && (!formState.show_engine_selection || formState.selected_engine) && (
             <motion.div 
               className="flex justify-center"
               initial={{ opacity: 0, y: 20 }}
@@ -994,18 +944,18 @@ Provide a style guide that can be used to create new images in the same artistic
             >
               <motion.button
                 type="submit"
-                disabled={formState.isLoading || formState.images.length === 0 || !formState.selectedGoal}
+                disabled={formState.is_loading || formState.images.length === 0 || !formState.selected_goal}
                 className={`
                   glow-button flex items-center space-x-3 px-8 py-4 text-lg font-semibold
-                  ${formState.isLoading || formState.images.length === 0 || !formState.selectedGoal
+                  ${formState.is_loading || formState.images.length === 0 || !formState.selected_goal
                     ? 'opacity-50 cursor-not-allowed' 
                     : 'hover:scale-105 active:scale-95'
                   }
                 `}
-                whileHover={!formState.isLoading && formState.images.length > 0 && formState.selectedGoal ? { scale: 1.05 } : {}}
-                whileTap={!formState.isLoading && formState.images.length > 0 && formState.selectedGoal ? { scale: 0.95 } : {}}
+                whileHover={!formState.is_loading && formState.images.length > 0 && formState.selected_goal ? { scale: 1.05 } : {}}
+                whileTap={!formState.is_loading && formState.images.length > 0 && formState.selected_goal ? { scale: 0.95 } : {}}
               >
-                {formState.isLoading ? (
+                {formState.is_loading ? (
                   <>
                     <div className="spinner w-5 h-5"></div>
                     <span>Analyzing...</span>
@@ -1038,15 +988,15 @@ Provide a style guide that can be used to create new images in the same artistic
                 <span>Images Uploaded</span>
               </div>
               <ArrowRight className="w-4 h-4" />
-              <div className={`flex items-center space-x-2 ${formState.selectedGoal ? 'text-green-400' : ''}`}>
-                <div className={`w-3 h-3 rounded-full ${formState.selectedGoal ? 'bg-green-400' : 'bg-gray-600'}`} />
+              <div className={`flex items-center space-x-2 ${formState.selected_goal ? 'text-green-400' : ''}`}>
+                <div className={`w-3 h-3 rounded-full ${formState.selected_goal ? 'bg-green-400' : 'bg-gray-600'}`} />
                 <span>Goal Selected</span>
               </div>
-              {formState.showEngineSelection && (
+              {formState.show_engine_selection && (
                 <>
                   <ArrowRight className="w-4 h-4" />
-                  <div className={`flex items-center space-x-2 ${formState.selectedEngine ? 'text-green-400' : ''}`}>
-                    <div className={`w-3 h-3 rounded-full ${formState.selectedEngine ? 'bg-green-400' : 'bg-gray-600'}`} />
+                  <div className={`flex items-center space-x-2 ${formState.selected_engine ? 'text-green-400' : ''}`}>
+                    <div className={`w-3 h-3 rounded-full ${formState.selected_engine ? 'bg-green-400' : 'bg-gray-600'}`} />
                     <span>Engine Selected</span>
                   </div>
                 </>
@@ -1079,9 +1029,9 @@ AnalysisForm.propTypes = {
   onAnalysisComplete: PropTypes.func,
   initialState: PropTypes.shape({
     images: PropTypes.array,
-    selectedGoal: PropTypes.string,
-    selectedEngine: PropTypes.string,
-    customPrompt: PropTypes.string
+    selected_goal: PropTypes.string,
+    selected_engine: PropTypes.string,
+    custom_prompt: PropTypes.string
   })
 };
 

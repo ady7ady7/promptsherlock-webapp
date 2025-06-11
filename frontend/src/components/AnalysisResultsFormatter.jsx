@@ -15,70 +15,89 @@ import {
   Download,
   RotateCcw,
   CheckCircle,
-  Clock,
-  Zap,
   Sparkles
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 /**
- * Enhanced AnalysisResultsFormatter Component
- * 
- * Transforms raw AI analysis text into a beautiful, structured format
- * with proper sections, icons, professional styling, and enhanced output controls
+ * Clean AnalysisResultsFormatter Component
+ * Consistent snake_case naming throughout
  */
 const AnalysisResultsFormatter = ({ 
   analysisText,
-  metadata = null,           // NEW: Enhanced metadata from API
-  onCopy = null,             // NEW: Callback for copy action
-  onClear = null,            // NEW: Callback for clear action
-  onNewAnalysis = null,      // NEW: Callback for new analysis
-  showControls = true,       // NEW: Whether to show copy/clear buttons
-  showRawOutput = false      // NEW: Whether to show raw textarea
+  metadata = null,
+  onCopy = null,
+  onClear = null,
+  onNewAnalysis = null,
+  showControls = true,
+  showRawOutput = false
 }) => {
   // =============================================================================
   // STATE MANAGEMENT
   // =============================================================================
   
-  const [copyStatus, setCopyStatus] = useState('idle'); // idle, copying, success, error
+  const [copy_status, setCopyStatus] = useState('idle');
 
   // =============================================================================
-  // PARSING LOGIC (Enhanced)
+  // UTILITY FUNCTIONS - Clean, single version
+  // =============================================================================
+
+  const formatGoalName = (goal) => {
+    const goalNames = {
+      'find_common_features': 'Feature Analysis',
+      'copy_image': 'Image Recreation Prompt',
+      'copy_character': 'Character Generation Prompt',
+      'copy_style': 'Style Guide Creation'
+    };
+    return goalNames[goal] || goal?.replace(/_/g, ' ').trim() || 'Analysis';
+  };
+
+  const formatEngineName = (engine) => {
+    const engineNames = {
+      'midjourney': 'Midjourney',
+      'dalle': 'DALL-E 3',
+      'stable_diffusion': 'Stable Diffusion',
+      'gemini_imagen': 'Gemini Imagen',
+      'flux': 'Flux',
+      'leonardo': 'Leonardo AI'
+    };
+    return engineNames[engine] || engine?.replace(/_/g, ' ') || '';
+  };
+
+  // =============================================================================
+  // PARSING LOGIC
   // =============================================================================
 
   const parseAnalysis = (text) => {
     const sections = {
-      visualDescription: '',
+      visual_description: '',
       composition: '',
       context: '',
       technical: '',
-      textContent: '',
+      text_content: '',
       interpretation: '',
-      notableFeatures: '',
-      multiImage: '',
+      notable_features: '',
+      multi_image: '',
       summary: ''
     };
 
-    // Split by main sections
     const sectionRegex = /### 🔍 \*\*Visual Description:\*\*|### 🎨 \*\*Composition & Aesthetics:\*\*|### 🏞️ \*\*Context & Environment:\*\*|### 🔧 \*\*Technical Analysis:\*\*|### 📝 \*\*Text & Readable Content:\*\*|### 💭 \*\*Interpretation & Insights:\*\*|### ⭐ \*\*Notable Features:\*\*|### 🔗 \*\*Multi-Image Analysis\*\*|In summary/;
     
     const parts = text.split(sectionRegex);
     
-    // Extract content for each section
     if (parts.length > 1) {
-      sections.visualDescription = cleanText(parts[1] || '');
+      sections.visual_description = cleanText(parts[1] || '');
       sections.composition = cleanText(parts[2] || '');
       sections.context = cleanText(parts[3] || '');
       sections.technical = cleanText(parts[4] || '');
-      sections.textContent = cleanText(parts[5] || '');
+      sections.text_content = cleanText(parts[5] || '');
       sections.interpretation = cleanText(parts[6] || '');
-      sections.notableFeatures = cleanText(parts[7] || '');
-      sections.multiImage = cleanText(parts[8] || '');
+      sections.notable_features = cleanText(parts[7] || '');
+      sections.multi_image = cleanText(parts[8] || '');
       sections.summary = cleanText(parts[9] || '');
     }
 
-    // If parsing fails, use the full text as summary
-    if (!sections.visualDescription && !sections.composition) {
+    if (!sections.visual_description && !sections.composition) {
       sections.summary = cleanText(text);
     }
 
@@ -87,30 +106,25 @@ const AnalysisResultsFormatter = ({
 
   const cleanText = (text) => {
     return text
-      .replace(/###|\*\*|\*|#{1,6}/g, '') // Remove markdown symbols
-      .replace(/🔍|🎨|🏞️|🔧|📝|💭|⭐|🔗/g, '') // Remove emoji headers
-      .replace(/\n\s*\n/g, '\n\n') // Clean up extra whitespace
+      .replace(/###|\*\*|\*|#{1,6}/g, '')
+      .replace(/🔍|🎨|🏞️|🔧|📝|💭|⭐|🔗/g, '')
+      .replace(/\n\s*\n/g, '\n\n')
       .trim();
   };
 
   // =============================================================================
-  // ENHANCED OUTPUT FUNCTIONALITY
+  // OUTPUT FUNCTIONALITY
   // =============================================================================
 
-  /**
-   * Handle copying analysis to clipboard
-   */
   const handleCopyToClipboard = async () => {
     if (!analysisText) return;
 
     setCopyStatus('copying');
 
     try {
-      // Try modern clipboard API first
       if (navigator.clipboard && window.isSecureContext) {
         await navigator.clipboard.writeText(analysisText);
       } else {
-        // Fallback for older browsers
         const textArea = document.createElement('textarea');
         textArea.value = analysisText;
         textArea.style.position = 'fixed';
@@ -124,11 +138,7 @@ const AnalysisResultsFormatter = ({
       }
 
       setCopyStatus('success');
-      
-      // Notify parent component if callback provided
       onCopy?.();
-      
-      // Reset status after delay
       setTimeout(() => setCopyStatus('idle'), 3000);
 
     } catch (error) {
@@ -138,9 +148,6 @@ const AnalysisResultsFormatter = ({
     }
   };
 
-  /**
-   * Handle download
-   */
   const handleDownload = () => {
     const blob = new Blob([analysisText], { type: 'text/plain' });
     const url = URL.createObjectURL(blob);
@@ -188,7 +195,7 @@ const AnalysisResultsFormatter = ({
 
   const sectionConfig = [
     {
-      key: 'visualDescription',
+      key: 'visual_description',
       title: 'Visual Description',
       icon: Eye,
       color: 'blue',
@@ -216,7 +223,7 @@ const AnalysisResultsFormatter = ({
       description: 'Camera settings and technical aspects'
     },
     {
-      key: 'textContent',
+      key: 'text_content',
       title: 'Text & Readable Content',
       icon: FileText,
       color: 'cyan',
@@ -230,14 +237,14 @@ const AnalysisResultsFormatter = ({
       description: 'Meaning, story, and deeper analysis'
     },
     {
-      key: 'notableFeatures',
+      key: 'notable_features',
       title: 'Notable Features',
       icon: Star,
       color: 'pink',
       description: 'Unique or standout elements'
     },
     {
-      key: 'multiImage',
+      key: 'multi_image',
       title: 'Multi-Image Analysis',
       icon: Layers,
       color: 'indigo',
@@ -260,50 +267,9 @@ const AnalysisResultsFormatter = ({
   };
 
   // =============================================================================
-  // UTILITY FUNCTIONS
-  // =============================================================================
-
-  /**
-   * Format goal name for display
-   */
-  const formatGoalName = (goal) => {
-    const goalNames = {
-      'find_common_features': 'Feature Analysis',
-      'findFeatures': 'Feature Analysis',
-      'copy_image': 'Image Recreation Prompt',
-      'copyImage': 'Image Recreation Prompt',
-      'copy_character': 'Character Generation Prompt',
-      'copyCharacter': 'Character Generation Prompt',
-      'copy_style': 'Style Guide Creation',
-      'copyStyle': 'Style Guide Creation'
-    };
-    return goalNames[goal] || goal?.replace(/([A-Z])/g, ' $1').replace(/_/g, ' ').trim() || 'Analysis';
-  };
-
-  /**
-   * Format engine name for display
-   */
-  const formatEngineName = (engine) => {
-    const engineNames = {
-      'midjourney': 'Midjourney',
-      'dalle': 'DALL-E 3',
-      'stable_diffusion': 'Stable Diffusion',
-      'stableDiffusion': 'Stable Diffusion',
-      'gemini_imagen': 'Gemini Imagen',
-      'geminiImagen': 'Gemini Imagen',
-      'flux': 'Flux',
-      'leonardo': 'Leonardo AI'
-    };
-    return engineNames[engine] || engine?.replace(/_/g, ' ') || '';
-  };
-
-  // =============================================================================
   // RENDER COMPONENTS
   // =============================================================================
 
-  /**
-   * Render enhanced metadata section
-   */
   const renderEnhancedMetadata = () => {
     if (!metadata) return null;
 
@@ -318,21 +284,21 @@ const AnalysisResultsFormatter = ({
         </h4>
         
         <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm">
-          {metadata.imageCount && (
+          {metadata.image_count && (
             <div className="text-center">
               <div className="text-2xl font-bold text-blue-400 mb-1">
-                {metadata.imageCount}
+                {metadata.image_count}
               </div>
               <div className="text-gray-400">
-                Image{metadata.imageCount !== 1 ? 's' : ''}
+                Image{metadata.image_count !== 1 ? 's' : ''}
               </div>
             </div>
           )}
           
-          {(metadata.outputGoal || metadata.goal) && (
+          {metadata.goal && (
             <div className="text-center">
               <div className="text-lg font-semibold text-purple-400 mb-1">
-                {formatGoalName(metadata.outputGoal || metadata.goal)}
+                {formatGoalName(metadata.goal)}
               </div>
               <div className="text-gray-400">
                 Analysis Type
@@ -340,10 +306,10 @@ const AnalysisResultsFormatter = ({
             </div>
           )}
           
-          {(metadata.generationEngine || metadata.engine) && (
+          {metadata.engine && (
             <div className="text-center">
               <div className="text-lg font-semibold text-green-400 mb-1">
-                {formatEngineName(metadata.generationEngine || metadata.engine)}
+                {formatEngineName(metadata.engine)}
               </div>
               <div className="text-gray-400">
                 Optimized For
@@ -351,10 +317,10 @@ const AnalysisResultsFormatter = ({
             </div>
           )}
           
-          {metadata.processingTime && (
+          {metadata.processing_time && (
             <div className="text-center">
               <div className="text-lg font-semibold text-orange-400 mb-1">
-                {metadata.processingTime}
+                {metadata.processing_time}
               </div>
               <div className="text-gray-400">
                 Processing Time
@@ -363,7 +329,7 @@ const AnalysisResultsFormatter = ({
           )}
         </div>
         
-        {(metadata.hasCustomPrompt || metadata.customPrompt) && (
+        {metadata.has_custom_prompt && (
           <div className="mt-4 pt-4 border-t border-white/10 text-center">
             <span className="inline-flex items-center text-sm text-yellow-300 font-medium">
               <Sparkles className="w-4 h-4 mr-1" />
@@ -375,9 +341,6 @@ const AnalysisResultsFormatter = ({
     );
   };
 
-  /**
-   * Render analysis section
-   */
   const renderSection = (config) => {
     const content = sections[config.key];
     if (!content || content.length < 10) return null;
@@ -395,7 +358,6 @@ const AnalysisResultsFormatter = ({
         }}
       >
         <div className="flex items-start space-x-4">
-          {/* Icon */}
           <motion.div
             className={`p-3 rounded-xl ${colorClasses} flex-shrink-0`}
             whileHover={{ scale: 1.1, rotate: 5 }}
@@ -404,7 +366,6 @@ const AnalysisResultsFormatter = ({
             <config.icon className="w-6 h-6" />
           </motion.div>
           
-          {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="mb-3">
               <h3 className="text-xl font-bold text-white mb-1">
@@ -426,9 +387,6 @@ const AnalysisResultsFormatter = ({
     );
   };
 
-  /**
-   * Render summary section
-   */
   const renderSummary = () => {
     if (!sections.summary || sections.summary.length < 10) return null;
     
@@ -469,9 +427,6 @@ const AnalysisResultsFormatter = ({
     );
   };
 
-  /**
-   * Render raw output section
-   */
   const renderRawOutput = () => {
     if (!showRawOutput) return null;
 
@@ -504,10 +459,7 @@ const AnalysisResultsFormatter = ({
     );
   };
 
-  /**
-   * Render enhanced control buttons
-   */
-  const renderEnhancedControls = () => {
+  const renderControls = () => {
     if (!showControls) return null;
 
     return (
@@ -518,21 +470,21 @@ const AnalysisResultsFormatter = ({
         {/* Copy Button */}
         <motion.button
           onClick={handleCopyToClipboard}
-          disabled={copyStatus === 'copying'}
+          disabled={copy_status === 'copying'}
           className={`
             flex items-center space-x-2 px-6 py-3 rounded-lg font-semibold transition-all duration-300
-            ${copyStatus === 'success' 
+            ${copy_status === 'success' 
               ? 'bg-green-600 text-white' 
-              : copyStatus === 'error'
+              : copy_status === 'error'
               ? 'bg-red-600 text-white'
               : 'glass-button bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 text-white'
             }
             disabled:opacity-50 disabled:cursor-not-allowed
           `}
-          whileHover={copyStatus === 'idle' ? { scale: 1.05 } : {}}
-          whileTap={copyStatus === 'idle' ? { scale: 0.95 } : {}}
+          whileHover={copy_status === 'idle' ? { scale: 1.05 } : {}}
+          whileTap={copy_status === 'idle' ? { scale: 0.95 } : {}}
         >
-          {copyStatus === 'copying' && (
+          {copy_status === 'copying' && (
             <>
               <motion.div
                 animate={{ rotate: 360 }}
@@ -543,19 +495,19 @@ const AnalysisResultsFormatter = ({
               <span>Copying...</span>
             </>
           )}
-          {copyStatus === 'success' && (
+          {copy_status === 'success' && (
             <>
               <CheckCircle className="w-4 h-4" />
               <span>Copied!</span>
             </>
           )}
-          {copyStatus === 'error' && (
+          {copy_status === 'error' && (
             <>
               <Copy className="w-4 h-4" />
               <span>Failed</span>
             </>
           )}
-          {copyStatus === 'idle' && (
+          {copy_status === 'idle' && (
             <>
               <Copy className="w-4 h-4" />
               <span>Copy Analysis</span>
@@ -574,7 +526,7 @@ const AnalysisResultsFormatter = ({
           Download Report
         </motion.button>
 
-        {/* Clear Button (if callback provided) */}
+        {/* Clear Button */}
         {onClear && (
           <motion.button
             onClick={onClear}
@@ -587,7 +539,7 @@ const AnalysisResultsFormatter = ({
           </motion.button>
         )}
 
-        {/* New Analysis Button (if callback provided) */}
+        {/* New Analysis Button */}
         {onNewAnalysis && (
           <motion.button
             onClick={onNewAnalysis}
@@ -642,7 +594,7 @@ const AnalysisResultsFormatter = ({
         </h2>
         
         <p className="text-gray-400">
-          {metadata?.optimizedFor ? `Optimized for ${formatEngineName(metadata.optimizedFor)}` : 'Comprehensive AI-powered analysis'}
+          {metadata?.optimized_for ? `Optimized for ${formatEngineName(metadata.optimized_for)}` : 'Comprehensive AI-powered analysis'}
         </p>
       </motion.div>
 
@@ -660,8 +612,8 @@ const AnalysisResultsFormatter = ({
       {/* Raw Output Section */}
       {renderRawOutput()}
 
-      {/* Enhanced Control Buttons */}
-      {renderEnhancedControls()}
+      {/* Control Buttons */}
+      {renderControls()}
 
       {/* Pro Tips */}
       {metadata && (
@@ -674,14 +626,14 @@ const AnalysisResultsFormatter = ({
             Pro Tips
           </h4>
           <div className="text-xs text-gray-300 space-y-1">
-            {(metadata.outputGoal === 'find_common_features' || metadata.outputGoal === 'findFeatures') ? (
+            {metadata.goal === 'find_common_features' ? (
               <>
                 <p>• Use this analysis to better understand your image composition and elements</p>
                 <p>• Look for insights that might improve future photography or design work</p>
               </>
             ) : (
               <>
-                <p>• Copy this prompt and paste it into {formatEngineName(metadata.generationEngine || metadata.engine) || 'your chosen AI generator'} for best results</p>
+                <p>• Copy this prompt and paste it into {formatEngineName(metadata.engine) || 'your chosen AI generator'} for best results</p>
                 <p>• You may need to adjust parameters based on your specific use case</p>
                 <p>• Experiment with variations to achieve your desired output</p>
               </>

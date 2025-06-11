@@ -1,5 +1,5 @@
-// backend/routes/analyze.js - ENHANCED VERSION
-// Updated to work with existing frontend goal/engine names
+// backend/routes/analyze.js - CLEAN VERSION
+// Consistent snake_case throughout, no mapping nonsense
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -17,42 +17,17 @@ const router = express.Router();
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 /**
- * ENHANCED PROMPT ENGINEERING SYSTEM
- * Works with existing frontend goal and engine naming conventions
+ * CLEAN PROMPT ENGINEERING SYSTEM
+ * Uses consistent snake_case naming throughout
  */
 class PromptEngineering {
   
-  /**
-   * Map frontend goal names to backend processing
-   */
-  static mapGoalName(frontendGoal) {
-    const goalMap = {
-      'find_common_features': 'findFeatures',
-      'copy_image': 'copyImage', 
-      'copy_character': 'copyCharacter',
-      'copy_style': 'copyStyle'
-    };
-    return goalMap[frontendGoal] || frontendGoal;
-  }
-
-  /**
-   * Map frontend engine names to backend processing
-   */
-  static mapEngineName(frontendEngine) {
-    const engineMap = {
-      'stable_diffusion': 'stableDiffusion',
-      'gemini_imagen': 'geminiImagen',
-      'leonardo': 'leonardo'
-    };
-    return engineMap[frontendEngine] || frontendEngine;
-  }
-
   /**
    * Core prompt templates based on analysis goals
    */
   static getBasePromptByGoal(goal, imageCount, customPrompt = '') {
     const templates = {
-      'findFeatures': `Analyze ${imageCount === 1 ? 'this image' : `these ${imageCount} images`} and identify all key visual elements, features, and characteristics. Provide a comprehensive analysis focusing on:
+      'find_common_features': `Analyze ${imageCount === 1 ? 'this image' : `these ${imageCount} images`} and identify all key visual elements, features, and characteristics. Provide a comprehensive analysis focusing on:
 
 • Visual composition and layout
 • Colors, lighting, and atmosphere  
@@ -65,7 +40,7 @@ ${customPrompt ? `\nSpecial focus requested: ${customPrompt}` : ''}
 
 Please provide clear, natural language descriptions without using markdown formatting symbols (no ###, ***, etc.). Write in flowing paragraphs that read naturally.`,
 
-      'copyImage': `Create a detailed prompt that would allow someone to recreate or generate a very similar image ${imageCount > 1 ? 'to these images' : 'to this image'}. Focus on capturing:
+      'copy_image': `Create a detailed prompt that would allow someone to recreate or generate a very similar image ${imageCount > 1 ? 'to these images' : 'to this image'}. Focus on capturing:
 
 • Exact visual style and artistic approach
 • Composition and framing details  
@@ -79,7 +54,7 @@ ${customPrompt ? `\nAdditional requirements: ${customPrompt}` : ''}
 
 Format this as a clear, detailed generation prompt without markdown symbols.`,
 
-      'copyCharacter': `Analyze ${imageCount === 1 ? 'the character shown in this image' : `the characters shown in these ${imageCount} images`} and create a detailed character description prompt focusing on:
+      'copy_character': `Analyze ${imageCount === 1 ? 'the character shown in this image' : `the characters shown in these ${imageCount} images`} and create a detailed character description prompt focusing on:
 
 • Physical appearance and features
 • Clothing style and accessories
@@ -93,7 +68,7 @@ ${customPrompt ? `\nSpecial character focus: ${customPrompt}` : ''}
 
 Provide this as a natural, flowing description suitable for character generation.`,
 
-      'copyStyle': `Analyze the artistic style ${imageCount === 1 ? 'of this image' : `across these ${imageCount} images`} and create a comprehensive style guide focusing on:
+      'copy_style': `Analyze the artistic style ${imageCount === 1 ? 'of this image' : `across these ${imageCount} images`} and create a comprehensive style guide focusing on:
 
 • Artistic technique and medium
 • Color palette and color relationships
@@ -108,14 +83,14 @@ ${customPrompt ? `\nStyle-specific focus: ${customPrompt}` : ''}
 Present this as a cohesive style description without technical formatting symbols.`
     };
 
-    return templates[goal] || templates.findFeatures;
+    return templates[goal] || templates.find_common_features;
   }
 
   /**
-   * Engine-specific prompt optimization (using your existing engine names)
+   * Engine-specific prompt optimization
    */
   static optimizeForEngine(baseAnalysis, engine, goal) {
-    if (!engine || goal === 'findFeatures') {
+    if (!engine || goal === 'find_common_features') {
       return baseAnalysis; // No engine optimization needed for feature analysis
     }
 
@@ -132,13 +107,13 @@ Present this as a cohesive style description without technical formatting symbol
         suffix: '\n\nOptimized for DALL-E 3\'s natural language understanding and photorealistic capabilities.'
       },
       
-      'stableDiffusion': {
+      'stable_diffusion': {
         prefix: 'STABLE DIFFUSION OPTIMIZED PROMPT:\n\n',
         style: 'Format as a Stable Diffusion prompt with emphasis on keywords, artistic styles, and quality modifiers. Include both positive prompt elements and suggested negative prompts.',
         suffix: '\n\nSuggested negative prompt elements: blurry, low quality, distorted, watermark'
       },
       
-      'geminiImagen': {
+      'gemini_imagen': {
         prefix: 'GEMINI IMAGEN OPTIMIZED PROMPT:\n\n',
         style: 'Format as a Gemini Imagen prompt emphasizing natural language descriptions and photorealistic details. Focus on clear, conversational descriptions.',
         suffix: '\n\nOptimized for Gemini Imagen\'s natural language processing and high-quality image generation.'
@@ -224,48 +199,37 @@ async function processImagesForAI(imageFiles) {
 }
 
 // =============================================================================
-// MAIN ANALYSIS ENDPOINT (Enhanced to work with existing frontend)
+// MAIN ANALYSIS ENDPOINT
 // =============================================================================
 
 /**
- * POST /api/analyze - Enhanced to work with existing GoalSelection and EngineSelection components
+ * POST /api/analyze - Clean implementation with consistent naming
  */
 router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
   const startTime = Date.now();
   let uploadedFiles = [];
 
   try {
-    // Extract request data (supporting both old and new parameter names)
+    // Extract request data - clean parameter names
     const {
-      prompt: legacyPrompt = '',           // existing parameter name
-      customAnalysisPrompt = '',           // new parameter name
-      outputGoal = '',                     // new parameter name
-      generationEngine = '',               // new parameter name
-      selectedGoal = '',                   // from existing frontend
-      selectedEngine = ''                  // from existing frontend
+      prompt = '',
+      goal = 'find_common_features',
+      engine = ''
     } = req.body;
 
     uploadedFiles = req.files || [];
 
-    // Use new parameters if available, fall back to existing ones
-    const customPrompt = customAnalysisPrompt || legacyPrompt;
-    const goal = PromptEngineering.mapGoalName(outputGoal || selectedGoal);
-    const engine = PromptEngineering.mapEngineName(generationEngine || selectedEngine);
-
-    console.log('🎯 Enhanced Analysis Request:', {
+    console.log('🎯 Analysis Request:', {
       imageCount: uploadedFiles.length,
       goal: goal,
       engine: engine,
-      hasCustomPrompt: Boolean(customPrompt),
-      customPromptLength: customPrompt.length
+      hasCustomPrompt: Boolean(prompt),
+      customPromptLength: prompt.length
     });
 
-    // If no goal specified, default to feature analysis
-    const finalGoal = goal || 'findFeatures';
-
     // Validate goal
-    const validGoals = ['findFeatures', 'copyImage', 'copyCharacter', 'copyStyle'];
-    if (!validGoals.includes(finalGoal)) {
+    const validGoals = ['find_common_features', 'copy_image', 'copy_character', 'copy_style'];
+    if (!validGoals.includes(goal)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid analysis goal',
@@ -274,8 +238,8 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
       });
     }
 
-    // Engine is required for generation goals, but not for findFeatures
-    if (finalGoal !== 'findFeatures' && !engine) {
+    // Engine is required for generation goals, but not for find_common_features
+    if (goal !== 'find_common_features' && !engine) {
       return res.status(400).json({
         success: false,
         error: 'Generation engine required for prompt creation goals',
@@ -284,18 +248,29 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
       });
     }
 
+    // Validate engine if provided
+    const validEngines = ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo'];
+    if (engine && !validEngines.includes(engine)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid generation engine',
+        code: 'INVALID_ENGINE',
+        validEngines
+      });
+    }
+
     // Process images for AI analysis
     const aiImages = await processImagesForAI(uploadedFiles);
 
     // Generate optimized prompt using our prompt engineering system
     const optimizedPrompt = PromptEngineering.generatePrompt(
-      finalGoal,
+      goal,
       engine,
       uploadedFiles.length,
-      customPrompt
+      prompt
     );
 
-    console.log('🧠 Generated optimized prompt for', finalGoal, 'with', engine || 'no engine');
+    console.log('🧠 Generated optimized prompt for', goal, 'with', engine || 'no engine');
 
     // Prepare AI request
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
@@ -322,40 +297,39 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
     const processingTime = Date.now() - startTime;
 
     console.log('✅ Analysis completed successfully:', {
-      goal: finalGoal,
+      goal: goal,
       engine: engine || 'none',
       imageCount: uploadedFiles.length,
       processingTime: `${processingTime}ms`,
       analysisLength: cleanAnalysis.length
     });
 
-    // Return enhanced response (compatible with existing frontend)
+    // Return clean response
     res.json({
       success: true,
       analysis: cleanAnalysis,
       
-      // Enhanced metadata for new features
+      // Enhanced metadata
       metadata: {
-        imageCount: uploadedFiles.length,
-        outputGoal: finalGoal,
-        generationEngine: engine,
-        hasCustomPrompt: Boolean(customPrompt),
-        processingTime: `${processingTime}ms`,
+        image_count: uploadedFiles.length,
+        goal: goal,
+        engine: engine,
+        has_custom_prompt: Boolean(prompt),
+        processing_time: `${processingTime}ms`,
         timestamp: new Date().toISOString(),
-        analysisLength: cleanAnalysis.length,
-        optimizedFor: engine || 'general analysis'
+        analysis_length: cleanAnalysis.length,
+        optimized_for: engine || 'general analysis'
       },
 
-      // Legacy fields for existing frontend compatibility
+      // Legacy fields for backward compatibility
       processedImages: uploadedFiles.length,
-      goal: finalGoal,
-      engine: engine
+      processingTime: `${processingTime}ms`
     });
 
   } catch (error) {
     const processingTime = Date.now() - startTime;
     
-    console.error('❌ Enhanced analysis error:', {
+    console.error('❌ Analysis error:', {
       message: error.message,
       stack: process.env.NODE_ENV === 'development' ? error.stack : undefined,
       processingTime: `${processingTime}ms`,
@@ -383,7 +357,7 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
       code: errorCode,
       details: process.env.NODE_ENV === 'development' ? error.message : undefined,
       metadata: {
-        processingTime: `${processingTime}ms`,
+        processing_time: `${processingTime}ms`,
         timestamp: new Date().toISOString()
       }
     });
@@ -395,7 +369,7 @@ router.post('/', uploadMiddleware, validateUpload, async (req, res) => {
 });
 
 // =============================================================================
-// UTILITY ENDPOINTS (Enhanced)
+// UTILITY ENDPOINTS
 // =============================================================================
 
 /**
@@ -418,9 +392,8 @@ router.get('/health', async (req, res) => {
       features: {
         goals: ['find_common_features', 'copy_image', 'copy_character', 'copy_style'],
         engines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo'],
-        promptEngineering: true,
-        batchProcessing: true,
-        legacyCompatibility: true
+        prompt_engineering: true,
+        batch_processing: true
       },
       timestamp: new Date().toISOString()
     });
@@ -438,7 +411,7 @@ router.get('/health', async (req, res) => {
 });
 
 /**
- * GET /api/analyze/config - Enhanced service configuration
+ * GET /api/analyze/config - Service configuration
  */
 router.get('/config', async (req, res) => {
   try {
@@ -451,18 +424,17 @@ router.get('/config', async (req, res) => {
       version: '2.0.0',
       config: {
         upload: {
-          maxFileSize: config.maxFileSize,
-          maxFileSizeMB: config.maxFileSizeMB,
-          maxFiles: config.maxFiles,
-          allowedTypes: config.allowedMimeTypes,
-          allowedExtensions: config.allowedExtensions
+          max_file_size: config.maxFileSize,
+          max_file_size_mb: config.maxFileSizeMB,
+          max_files: config.maxFiles,
+          allowed_types: config.allowedMimeTypes,
+          allowed_extensions: config.allowedExtensions
         },
         analysis: {
-          maxPromptLength: 2000,
-          aiProvider: 'Google Gemini',
+          max_prompt_length: 2000,
+          ai_provider: 'Google Gemini',
           model: 'gemini-1.5-flash',
-          promptEngineering: true,
-          legacySupport: true
+          prompt_engineering: true
         },
         goals: {
           find_common_features: 'Comprehensive visual analysis and feature identification',
@@ -479,10 +451,10 @@ router.get('/config', async (req, res) => {
           leonardo: 'Optimized for Leonardo AI professional content creation'
         },
         privacy: {
-          dataRetention: 'none',
-          immediateCleanup: true,
-          secureProcessing: true,
-          noTracking: true
+          data_retention: 'none',
+          immediate_cleanup: true,
+          secure_processing: true,
+          no_tracking: true
         }
       },
       timestamp: new Date().toISOString()
