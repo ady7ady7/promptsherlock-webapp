@@ -237,13 +237,13 @@ function App() {
   const renderBeltIndicator = () => (
     <div className="relative w-full max-w-md mx-auto mt-8 mb-4">
       {/* Minimalistic Belt Background */}
-      <div className="h-1 bg-white/20 rounded-full overflow-hidden">
-        {/* Progress Indicator */}
+      <div className="h-1 bg-white/20 rounded-full relative">
+        {/* Progress Indicator - Solid Circle */}
         <motion.div
-          className="absolute top-0 h-full w-8 bg-gradient-to-r from-transparent via-blue-400 to-transparent rounded-full"
+          className="absolute top-1/2 w-4 h-4 bg-blue-400 rounded-full shadow-lg"
           style={{
             left: useTransform(beltProgress, (progress) => `${progress}%`),
-            transform: 'translateX(-50%)'
+            transform: 'translate(-50%, -50%)'
           }}
         />
       </div>
