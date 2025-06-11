@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Copy, 
   Check, 
-  RotateCcw, 
   Download, 
   Sparkles,
   FileText,
@@ -24,7 +23,7 @@ import PropTypes from 'prop-types';
 const FinalOutput = ({
   analysis,
   metadata = {},
-  onClear,
+  // REMOVED: onClear prop (was causing issues)
   onNewAnalysis,
   className = ''
 }) => {
@@ -339,15 +338,7 @@ const FinalOutput = ({
         <span>Download</span>
       </motion.button>
 
-      <motion.button
-        onClick={onClear}
-        className="flex items-center space-x-2 px-4 py-3 bg-slate-600 hover:bg-slate-700 text-white rounded-xl font-medium transition-all duration-300 shadow-slate-500/25 shadow-lg hover:shadow-xl"
-        whileHover={{ scale: 1.05, y: -2 }}
-        whileTap={{ scale: 0.95 }}
-      >
-        <RotateCcw className="w-4 h-4" />
-        <span>Clear</span>
-      </motion.button>
+      {/* REMOVED: Clear button (was causing issues) */}
 
       <motion.button
         onClick={onNewAnalysis}
@@ -451,7 +442,7 @@ const FinalOutput = ({
 FinalOutput.propTypes = {
   analysis: PropTypes.string.isRequired,
   metadata: PropTypes.object,
-  onClear: PropTypes.func.isRequired,
+  // REMOVED: onClear prop type (was causing issues)
   onNewAnalysis: PropTypes.func.isRequired,
   className: PropTypes.string
 };

@@ -69,13 +69,7 @@ const AnalysisForm = ({
   // RESULT HANDLERS
   // =============================================================================
 
-  const handleClearResults = () => {
-    setFormState(prev => ({
-      ...prev,
-      results: null,
-      error: null
-    }));
-  };
+  // REMOVED: handleClearResults function (was causing issues)
 
   const handleNewAnalysis = () => {
     setFormState({
@@ -439,8 +433,8 @@ const AnalysisForm = ({
             processing_time: formState.results.processingTime,
             output_type: formState.selected_goal === 'find_common_features' ? 'analysis' : 'prompt'
           }}
-          onClear={handleClearResults}
           onNewAnalysis={handleNewAnalysis}
+          // REMOVED: onClear prop (was causing issues)
         />
       </div>
     );
