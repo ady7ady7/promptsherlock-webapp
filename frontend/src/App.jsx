@@ -195,9 +195,6 @@ function App() {
   // Create infinite loop by duplicating features
   const infiniteFeatures = [...features, ...features, ...features];
 
-  // Transform for belt indicator
-  const beltProgress = useTransform(dragX, [-1000, 0], [0, 100]);
-
   // =============================================================================
   // INFINITE CAROUSEL LOGIC
   // =============================================================================
@@ -205,20 +202,15 @@ function App() {
   const CARD_WIDTH = 320; // width + gap
   const TOTAL_WIDTH = features.length * CARD_WIDTH;
 
+  // Calculate normalized position for belt indicator (0-100%)
+  const beltProgress = useTransform(dragX, (x) => {
+    // Normalize the position to a 0-1 range within one set of features
+    const normalizedX = ((x % TOTAL_WIDTH) + TOTAL_WIDTH) % TOTAL_WIDTH;
+    return (normalizedX / TOTAL_WIDTH) * 100;
+  });
+
   const handleDragEnd = (event, info) => {
     setIsDragging(false);
-    
-    // Get current drag position
-    const currentX = dragX.get();
-    
-    // Implement infinite scroll logic
-    if (currentX > 0) {
-      // Dragged too far right, snap to end of first set
-      dragX.set(-TOTAL_WIDTH + (currentX % CARD_WIDTH));
-    } else if (currentX < -TOTAL_WIDTH * 2) {
-      // Dragged too far left, snap to start of second set  
-      dragX.set(-TOTAL_WIDTH + (currentX % CARD_WIDTH));
-    }
   };
 
   // Auto-snap to create seamless infinite effect
@@ -240,51 +232,26 @@ function App() {
   // =============================================================================
 
   /**
-   * Renders the belt-style progress indicator
+   * Renders the minimalistic belt-style progress indicator
    */
   const renderBeltIndicator = () => (
     <div className="relative w-full max-w-md mx-auto mt-8 mb-4">
-      {/* Belt Background */}
-      <div className="h-3 bg-white/10 rounded-full overflow-hidden backdrop-blur-sm border border-white/20">
-        {/* Animated Belt Pattern */}
-        <motion.div
-          className="h-full bg-gradient-to-r from-blue-500/30 via-purple-500/30 to-pink-500/30 rounded-full relative overflow-hidden"
-          style={{
-            background: 'repeating-linear-gradient(90deg, rgba(59,130,246,0.3) 0px, rgba(147,51,234,0.3) 20px, rgba(236,72,153,0.3) 40px)'
-          }}
-          animate={{
-            x: [-40, 0]
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "linear"
-          }}
-        />
-        
+      {/* Minimalistic Belt Background */}
+      <div className="h-1 bg-white/20 rounded-full overflow-hidden">
         {/* Progress Indicator */}
         <motion.div
-          className="absolute top-0 left-0 h-full w-1 bg-white rounded-full shadow-lg"
+          className="absolute top-0 h-full w-8 bg-gradient-to-r from-transparent via-blue-400 to-transparent rounded-full"
           style={{
-            x: useTransform(dragX, [-TOTAL_WIDTH, 0], [0, 100])
+            left: useTransform(beltProgress, (progress) => `${progress}%`),
+            transform: 'translateX(-50%)'
           }}
         />
       </div>
       
-      {/* Belt Labels */}
-      <div className="flex justify-between items-center mt-2 px-2">
-        <span className="text-xs text-gray-400 flex items-center">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-            className="mr-1"
-          >
-            🔄
-          </motion.div>
-          Drag to explore
-        </span>
-        <span className="text-xs text-gray-400">
-          Infinite scroll
+      {/* Simple Label */}
+      <div className="text-center mt-3">
+        <span className="text-xs text-gray-500">
+          Drag to explore features
         </span>
       </div>
     </div>
