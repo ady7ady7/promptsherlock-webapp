@@ -36,8 +36,11 @@ function App() {
   
   const [hasAnalysis, setHasAnalysis] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const dragX = useMotionValue(0);
   const carouselRef = useRef(null);
+  const autoScrollRef = useRef(null);
 
   // =============================================================================
   // EVENT HANDLERS
@@ -158,7 +161,7 @@ function App() {
     {
       icon: Zap,
       title: 'Engine Specific Prompts',
-      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results.',
+      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)',
       bgGradient: 'from-yellow-500/10 to-orange-500/10',
       bgPattern: '⚡'
     },
@@ -196,11 +199,13 @@ function App() {
   const infiniteFeatures = [...features, ...features, ...features];
 
   // =============================================================================
-  // INFINITE CAROUSEL LOGIC
+  // INFINITE CAROUSEL LOGIC WITH AUTO-SCROLL
   // =============================================================================
 
   const CARD_WIDTH = 320; // width + gap
   const TOTAL_WIDTH = features.length * CARD_WIDTH;
+  const AUTO_SCROLL_SPEED = 0.5; // pixels per frame
+  const AUTO_SCROLL_INTERVAL = 16; // ~60fps
 
   // Calculate normalized position for belt indicator (0-100%)
   const beltProgress = useTransform(dragX, (x) => {
@@ -209,9 +214,54 @@ function App() {
     return (normalizedX / TOTAL_WIDTH) * 100;
   });
 
+  const handleDragStart = () => {
+    setIsDragging(true);
+    setIsPaused(true);
+    // Clear auto-scroll when user starts dragging
+    if (autoScrollRef.current) {
+      clearInterval(autoScrollRef.current);
+    }
+  };
+
   const handleDragEnd = (event, info) => {
     setIsDragging(false);
+    // Resume auto-scroll after a short delay
+    setTimeout(() => {
+      setIsPaused(false);
+    }, 2000); // 2 second pause after drag
   };
+
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    setIsPaused(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (!isDragging) {
+      setIsPaused(false);
+    }
+  };
+
+  // Auto-scroll effect
+  useEffect(() => {
+    if (!isPaused && !isDragging && !isHovered) {
+      autoScrollRef.current = setInterval(() => {
+        const currentX = dragX.get();
+        dragX.set(currentX - AUTO_SCROLL_SPEED);
+      }, AUTO_SCROLL_INTERVAL);
+    } else {
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    }
+
+    return () => {
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    };
+  }, [isPaused, isDragging, isHovered, dragX]);
 
   // Auto-snap to create seamless infinite effect
   useEffect(() => {
@@ -248,10 +298,10 @@ function App() {
         />
       </div>
       
-      {/* Simple Label */}
+      {/* Auto-scroll Status */}
       <div className="text-center mt-3">
         <span className="text-xs text-gray-500">
-          Drag boxes to explore features
+          {isPaused ? 'Paused' : 'Auto-scrolling'} • Hover or drag to control
         </span>
       </div>
     </div>
@@ -365,8 +415,10 @@ function App() {
             drag="x"
             dragElastic={0.1}
             dragMomentum={false}
-            onDragStart={() => setIsDragging(true)}
+            onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
           >
             {infiniteFeatures.map((feature, index) => (
               <motion.div
