@@ -251,7 +251,7 @@ function App() {
       {/* Simple Label */}
       <div className="text-center mt-3">
         <span className="text-xs text-gray-500">
-          Drag to explore features
+          Drag boxes to explore features
         </span>
       </div>
     </div>

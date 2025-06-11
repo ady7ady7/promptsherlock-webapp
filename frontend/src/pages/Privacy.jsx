@@ -220,10 +220,6 @@ const Privacy = () => {
             <h1 className="gradient-text text-4xl md:text-5xl font-bold">
               Privacy Policy
             </h1>
-            <p className="text-blue-300 text-lg mt-2 flex items-center">
-              <Search className="w-5 h-5 mr-2" />
-              Prompt Sherlock
-            </p>
           </div>
         </div>
         
