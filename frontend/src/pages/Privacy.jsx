@@ -118,7 +118,7 @@ const Privacy = () => {
         },
         {
           subtitle: 'AI Processing Partners',
-          text: 'We use Claude 3.5 Sonnet for image analysis. Images are transmitted securely to Anthropic for processing and are subject to their privacy policy, with immediate deletion after processing.'
+          text: 'We use Gemini for image analysis. Images are transmitted securely for processing and are subject to their privacy policy, with immediate deletion after processing.'
         },
         {
           subtitle: 'No Marketing or Analytics',
