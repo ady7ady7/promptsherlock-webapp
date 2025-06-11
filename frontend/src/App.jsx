@@ -155,43 +155,37 @@ function App() {
       icon: Search,
       title: 'AI Analysis',
       description: 'Sherlock "investigates" your images, extracting style, mood, composition, and subject matter.',
-      bgGradient: 'from-blue-500/10 to-cyan-500/10',
-      bgPattern: '🔍'
+      bgGradient: 'from-blue-500/10 to-cyan-500/10'
     },
     {
       icon: Zap,
       title: 'Engine Specific Prompts',
       description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)',
-      bgGradient: 'from-yellow-500/10 to-orange-500/10',
-      bgPattern: '⚡'
+      bgGradient: 'from-yellow-500/10 to-orange-500/10'
     },
     {
       icon: Palette,
       title: 'Style & Character Profiles',
       description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (Coming soon)',
-      bgGradient: 'from-purple-500/10 to-pink-500/10',
-      bgPattern: '🎨'
+      bgGradient: 'from-purple-500/10 to-pink-500/10'
     },
     {
       icon: Lightbulb,
       title: 'Instant Inspiration',
       description: 'Turn any image into a perfect AI prompt—no guesswork.',
-      bgGradient: 'from-green-500/10 to-emerald-500/10',
-      bgPattern: '💡'
+      bgGradient: 'from-green-500/10 to-emerald-500/10'
     },
     {
       icon: Target,
       title: 'Style Consistency',
       description: 'Keep your unique look across projects.',
-      bgGradient: 'from-red-500/10 to-rose-500/10',
-      bgPattern: '🎯'
+      bgGradient: 'from-red-500/10 to-rose-500/10'
     },
     {
       icon: Clock,
       title: 'Save Time',
       description: 'Skip manual prompt writing, focus on creating.',
-      bgGradient: 'from-indigo-500/10 to-violet-500/10',
-      bgPattern: '⏰'
+      bgGradient: 'from-indigo-500/10 to-violet-500/10'
     }
   ];
 
