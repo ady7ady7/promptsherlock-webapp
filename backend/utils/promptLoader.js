@@ -1,5 +1,5 @@
 // backend/utils/promptLoader.js
-// Updated to work with Render Secret Files
+// Updated to work with Render Secret Files + DEBUG VERSION
 
 import fs from 'fs';
 import path from 'path';
@@ -20,6 +20,9 @@ class PromptLoader {
       // PRODUCTION: Try Render Secret Files first
       if (process.env.NODE_ENV === 'production' || process.env.RENDER) {
         console.log('🔒 Loading prompts from Render Secret Files (production)');
+        console.log('🔍 NODE_ENV:', process.env.NODE_ENV);
+        console.log('🔍 RENDER env var:', process.env.RENDER);
+        
         if (this.loadFromRenderSecretFiles()) {
           return;
         }
@@ -50,42 +53,76 @@ class PromptLoader {
    * Load prompts from Render Secret Files (PRODUCTION)
    * Render mounts secret files to /etc/secrets/
    */
-loadFromRenderSecretFiles() {
-  try {
-    const secretFilePath = '/etc/secrets/prompts.env';
-    
-    // DEBUG: Check what's in /etc/secrets/
-    console.log('🔍 DEBUG: Checking /etc/secrets/ directory...');
+  loadFromRenderSecretFiles() {
     try {
-      const secretsDir = fs.readdirSync('/etc/secrets/');
-      console.log('📁 Files in /etc/secrets/:', secretsDir);
-    } catch (dirError) {
-      console.log('❌ Cannot read /etc/secrets/ directory:', dirError.message);
+      const secretFilePath = '/etc/secrets/prompts.env';
+      
+      // DEBUG: Check what's in /etc/secrets/
+      console.log('🔍 DEBUG: Checking /etc/secrets/ directory...');
+      try {
+        const secretsDir = fs.readdirSync('/etc/secrets/');
+        console.log('📁 Files in /etc/secrets/:', secretsDir);
+      } catch (dirError) {
+        console.log('❌ Cannot read /etc/secrets/ directory:', dirError.message);
+        
+        // Try alternative paths that Render might use
+        const alternativePaths = [
+          '/opt/render/project/secrets/',
+          '/app/secrets/',
+          '/secrets/',
+          process.env.RENDER_SECRET_PATH || 'no-custom-path'
+        ];
+        
+        console.log('🔍 Trying alternative secret paths...');
+        for (const altPath of alternativePaths) {
+          try {
+            if (fs.existsSync(altPath)) {
+              console.log(`📁 Found alternative secrets directory: ${altPath}`);
+              const files = fs.readdirSync(altPath);
+              console.log(`📁 Files in ${altPath}:`, files);
+              
+              // Try to read prompts.env from this path
+              const altPromptPath = path.join(altPath, 'prompts.env');
+              if (fs.existsSync(altPromptPath)) {
+                console.log(`✅ Found prompts.env at: ${altPromptPath}`);
+                const content = fs.readFileSync(altPromptPath, 'utf8');
+                console.log('🔍 DEBUG: File content length:', content.length);
+                console.log('🔍 DEBUG: First 100 chars:', content.substring(0, 100));
+                this.parsePromptsContent(content);
+                return true;
+              }
+            }
+          } catch (altError) {
+            console.log(`❌ Cannot read ${altPath}:`, altError.message);
+          }
+        }
+      }
+      
+      console.log('🔍 DEBUG: Checking exact file path:', secretFilePath);
+      console.log('🔍 DEBUG: File exists:', fs.existsSync(secretFilePath));
+      
+      if (fs.existsSync(secretFilePath)) {
+        console.log('✅ Found Render Secret File at:', secretFilePath);
+        const content = fs.readFileSync(secretFilePath, 'utf8');
+        console.log('🔍 DEBUG: File content length:', content.length);
+        console.log('🔍 DEBUG: First 100 chars:', content.substring(0, 100));
+        this.parsePromptsContent(content);
+        return true;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('❌ Error reading Render Secret File:', error.message);
+      return false;
     }
-    
-    console.log('🔍 DEBUG: Checking exact file path:', secretFilePath);
-    console.log('🔍 DEBUG: File exists:', fs.existsSync(secretFilePath));
-    
-    if (fs.existsSync(secretFilePath)) {
-      console.log('✅ Found Render Secret File at:', secretFilePath);
-      const content = fs.readFileSync(secretFilePath, 'utf8');
-      console.log('🔍 DEBUG: File content length:', content.length);
-      console.log('🔍 DEBUG: First 100 chars:', content.substring(0, 100));
-      this.parsePromptsContent(content);
-      return true;
-    }
-    
-    return false;
-  } catch (error) {
-    console.error('❌ Error reading Render Secret File:', error.message);
-    return false;
   }
-}
 
   /**
    * Load prompts from environment variables (FALLBACK)
    */
   loadFromEnvironment() {
+    console.log('🔍 DEBUG: Trying to load from environment variables...');
+    
     const promptEnvVars = [
       'PROMPT_FIND_COMMON_FEATURES',
       'PROMPT_COPY_IMAGE_MIDJOURNEY',
@@ -114,6 +151,9 @@ loadFromRenderSecretFiles() {
       if (process.env[envVar]) {
         this.prompts[envVar] = process.env[envVar];
         loadedCount++;
+        console.log(`✅ Found env var: ${envVar}`);
+      } else {
+        console.log(`❌ Missing env var: ${envVar}`);
       }
     }
 
@@ -129,6 +169,7 @@ loadFromRenderSecretFiles() {
    * Parse prompts content from file
    */
   parsePromptsContent(content) {
+    console.log('🔍 DEBUG: Starting to parse prompts content...');
     const lines = content.split('\n');
     let loadedCount = 0;
     
@@ -144,25 +185,33 @@ loadFromRenderSecretFiles() {
         const [, key, value] = match;
         this.prompts[key] = value;
         loadedCount++;
+        console.log(`✅ Parsed prompt: ${key} (${value.length} chars)`);
+      } else {
+        console.log(`⚠️ Could not parse line: ${line.substring(0, 50)}...`);
       }
     }
     
     console.log(`✅ Loaded ${loadedCount} prompts from file`);
+    console.log('🔍 DEBUG: Final prompts keys:', Object.keys(this.prompts));
   }
 
   /**
    * Fallback default prompts
    */
   loadDefaultPrompts() {
+    console.log('📝 DEBUG: Loading default fallback prompts');
     this.prompts = {
       PROMPT_FIND_COMMON_FEATURES: "Analyze the uploaded images and provide a comprehensive visual analysis. Focus on: visual composition, colors and lighting, objects and subjects, artistic style and techniques, mood and atmosphere, and technical aspects. Write in natural, flowing paragraphs without any markdown formatting. Be detailed but concise.",
       
       PROMPT_COPY_IMAGE_MIDJOURNEY: "Create a detailed Midjourney prompt to recreate this image. Focus on: exact visual style, composition and framing, color palette, subject positioning, environmental details, camera angle, textures and materials. Format as a clean, single paragraph optimized for Midjourney v6+ without any markdown symbols or formatting.",
       
-      PROMPT_COPY_IMAGE_DALLE: "Create a detailed DALL-E 3 prompt to recreate this image. Focus on: photorealistic details, exact composition, precise color descriptions, subject positioning and proportions, environmental context, lighting conditions, camera perspective. Write as a natural language description optimized for DALL-E 3's understanding, in a single clean paragraph without any formatting symbols."
+      PROMPT_COPY_IMAGE_DALLE: "Create a detailed DALL-E 3 prompt to recreate this image. Focus on: photorealistic details, exact composition, precise color descriptions, subject positioning and proportions, environmental context, lighting conditions, camera perspective. Write as a natural language description optimized for DALL-E 3's understanding, in a single clean paragraph without any formatting symbols.",
+      
+      PROMPT_COPY_IMAGE_STABLE_DIFFUSION: "Create a detailed Stable Diffusion prompt to recreate this image. Focus on: artistic style, detailed subject description, environment and background, lighting conditions, camera angle, color palette, artistic techniques. Use descriptive keywords and phrases optimized for Stable Diffusion in a single paragraph format."
     };
     
     console.log('📝 Using default fallback prompts');
+    console.log('🔍 DEBUG: Default prompts keys:', Object.keys(this.prompts));
   }
 
   getPrompt(goal, engine = null) {
@@ -176,6 +225,9 @@ loadFromRenderSecretFiles() {
       promptKey = `PROMPT_${goalPart}_${enginePart}`;
     }
     
+    console.log(`🔍 DEBUG: Looking for prompt key: ${promptKey}`);
+    console.log(`🔍 DEBUG: Available keys: ${Object.keys(this.prompts).join(', ')}`);
+    
     const prompt = this.prompts[promptKey];
     
     if (!prompt) {
@@ -183,6 +235,7 @@ loadFromRenderSecretFiles() {
       return this.prompts.PROMPT_FIND_COMMON_FEATURES || 'Analyze this image in detail.';
     }
     
+    console.log(`✅ Found prompt: ${promptKey} (${prompt.length} chars)`);
     return prompt;
   }
 
