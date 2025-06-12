@@ -1,5 +1,5 @@
 // backend/utils/promptLoader.js
-// FIXED VERSION - Properly handles multi-line prompts with quotes
+// EXTREME DEBUG VERSION - Let's see what the fuck is going on
 
 import fs from 'fs';
 import path from 'path';
@@ -46,22 +46,9 @@ class PromptLoader {
     }
   }
 
-  /**
-   * Load prompts from Render Secret Files (PRODUCTION)
-   * Render mounts secret files to /etc/secrets/
-   */
   loadFromRenderSecretFiles() {
     try {
       const secretFilePath = '/etc/secrets/prompts.env';
-      
-      // DEBUG: Check what's in /etc/secrets/
-      console.log('🔍 DEBUG: Checking /etc/secrets/ directory...');
-      try {
-        const secretsDir = fs.readdirSync('/etc/secrets/');
-        console.log('📁 Files in /etc/secrets/:', secretsDir);
-      } catch (dirError) {
-        console.log('❌ Cannot read /etc/secrets/ directory:', dirError.message);
-      }
       
       console.log('🔍 DEBUG: Checking exact file path:', secretFilePath);
       console.log('🔍 DEBUG: File exists:', fs.existsSync(secretFilePath));
@@ -70,7 +57,17 @@ class PromptLoader {
         console.log('✅ Found Render Secret File at:', secretFilePath);
         const content = fs.readFileSync(secretFilePath, 'utf8');
         console.log('🔍 DEBUG: File content length:', content.length);
-        console.log('🔍 DEBUG: First 100 chars:', content.substring(0, 100));
+        console.log('🔍 DEBUG: First 200 chars:', content.substring(0, 200));
+        console.log('🔍 DEBUG: Last 200 chars:', content.substring(content.length - 200));
+        
+        // Let's see exactly what lines we have
+        const lines = content.split('\n');
+        console.log('🔍 DEBUG: Total lines in file:', lines.length);
+        console.log('🔍 DEBUG: First 10 lines:');
+        for (let i = 0; i < Math.min(10, lines.length); i++) {
+          console.log(`   Line ${i + 1}: "${lines[i]}"`);
+        }
+        
         this.parsePromptsContent(content);
         return true;
       }
@@ -82,9 +79,6 @@ class PromptLoader {
     }
   }
 
-  /**
-   * Load prompts from environment variables (FALLBACK)
-   */
   loadFromEnvironment() {
     const promptEnvVars = [
       'PROMPT_FIND_COMMON_FEATURES',
@@ -114,6 +108,9 @@ class PromptLoader {
       if (process.env[envVar]) {
         this.prompts[envVar] = process.env[envVar];
         loadedCount++;
+        console.log(`✅ Loaded from env: ${envVar} (${process.env[envVar].length} chars)`);
+      } else {
+        console.log(`❌ Missing from env: ${envVar}`);
       }
     }
 
@@ -126,111 +123,133 @@ class PromptLoader {
   }
 
   /**
-   * FIXED: Parse prompts content from file - handles multi-line prompts with quotes
+   * SIMPLE PARSER - Let's try the most basic approach first
    */
   parsePromptsContent(content) {
-    console.log('🔍 DEBUG: Starting to parse prompts content...');
-    console.log('🔍 DEBUG: Content length:', content.length);
+    console.log('🔥 EXTREME DEBUG: Starting parse...');
+    console.log('🔥 Content preview (first 500 chars):');
+    console.log(content.substring(0, 500));
+    console.log('🔥 Content preview (chars 500-1000):');
+    console.log(content.substring(500, 1000));
     
     let loadedCount = 0;
-    let currentKey = null;
-    let currentValue = '';
-    let insideValue = false;
-    let quoteCount = 0;
     
+    // Split by lines first
     const lines = content.split('\n');
-    console.log('🔍 DEBUG: Total lines:', lines.length);
+    console.log(`🔥 Total lines: ${lines.length}`);
     
+    // Look for lines that start with PROMPT_
     for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
+      const line = lines[i].trim();
+      console.log(`🔥 Line ${i + 1}: "${line.substring(0, 50)}..."`);
       
-      // Skip comments and empty lines when not inside a value
-      if (!insideValue && (line.trim().startsWith('#') || !line.trim())) {
-        continue;
-      }
-      
-      // Check for start of new prompt (KEY=")
-      const startMatch = line.match(/^([A-Z_]+)="(.*)$/);
-      if (startMatch && !insideValue) {
-        // If we were building a previous prompt, save it
-        if (currentKey && currentValue) {
-          this.prompts[currentKey] = currentValue.trim();
+      if (line.startsWith('PROMPT_')) {
+        console.log(`🔥 Found potential prompt line: ${line.substring(0, 100)}`);
+        
+        // Try to extract key=value
+        const equalsIndex = line.indexOf('=');
+        if (equalsIndex > 0) {
+          const key = line.substring(0, equalsIndex);
+          let value = line.substring(equalsIndex + 1);
+          
+          // Remove surrounding quotes if present
+          if (value.startsWith('"') && value.endsWith('"')) {
+            value = value.slice(1, -1);
+          } else if (value.startsWith('"')) {
+            // Multi-line value - collect until we find the closing quote
+            value = value.slice(1); // Remove opening quote
+            
+            for (let j = i + 1; j < lines.length; j++) {
+              const nextLine = lines[j];
+              if (nextLine.endsWith('"')) {
+                value += '\n' + nextLine.slice(0, -1); // Remove closing quote
+                i = j; // Skip these lines
+                break;
+              } else {
+                value += '\n' + nextLine;
+              }
+            }
+          }
+          
+          this.prompts[key] = value;
           loadedCount++;
-          console.log(`✅ Loaded prompt: ${currentKey} (${currentValue.length} chars)`);
-        }
-        
-        // Start new prompt
-        currentKey = startMatch[1];
-        currentValue = startMatch[2];
-        
-        // Count quotes to determine if value is complete
-        quoteCount = (currentValue.match(/"/g) || []).length;
-        
-        // If the line ends with a quote and has odd number of quotes, the value is complete
-        if (currentValue.endsWith('"') && quoteCount % 2 === 1) {
-          // Remove the ending quote
-          currentValue = currentValue.slice(0, -1);
-          this.prompts[currentKey] = currentValue.trim();
-          loadedCount++;
-          console.log(`✅ Loaded prompt: ${currentKey} (${currentValue.length} chars)`);
-          currentKey = null;
-          currentValue = '';
-          insideValue = false;
-        } else {
-          insideValue = true;
-        }
-        continue;
-      }
-      
-      // If we're inside a multi-line value
-      if (insideValue && currentKey) {
-        // Add newline to current value (except for first line)
-        if (currentValue && !currentValue.endsWith('\n')) {
-          currentValue += '\n';
-        }
-        currentValue += line;
-        
-        // Count quotes in this line
-        quoteCount += (line.match(/"/g) || []).length;
-        
-        // Check if this line ends the value (ends with quote and total quotes is odd)
-        if (line.endsWith('"') && quoteCount % 2 === 1) {
-          // Remove the ending quote
-          currentValue = currentValue.slice(0, -1);
-          this.prompts[currentKey] = currentValue.trim();
-          loadedCount++;
-          console.log(`✅ Loaded prompt: ${currentKey} (${currentValue.length} chars)`);
-          currentKey = null;
-          currentValue = '';
-          insideValue = false;
-          quoteCount = 0;
+          console.log(`🔥 LOADED: ${key} (${value.length} chars)`);
+          console.log(`🔥 Preview: ${value.substring(0, 100)}...`);
         }
       }
     }
     
-    // Handle case where file doesn't end with a complete prompt
-    if (currentKey && currentValue) {
-      // Remove ending quote if present
-      if (currentValue.endsWith('"')) {
-        currentValue = currentValue.slice(0, -1);
-      }
-      this.prompts[currentKey] = currentValue.trim();
-      loadedCount++;
-      console.log(`✅ Loaded prompt: ${currentKey} (${currentValue.length} chars)`);
-    }
+    console.log(`🔥 FINAL RESULT: Loaded ${loadedCount} prompts`);
+    console.log(`🔥 Keys found:`, Object.keys(this.prompts));
     
-    console.log(`✅ Successfully loaded ${loadedCount} prompts from file`);
-    console.log('🔍 DEBUG: Loaded prompt keys:', Object.keys(this.prompts));
-    
-    // Debug: Show first 100 chars of each prompt
-    for (const [key, value] of Object.entries(this.prompts)) {
-      console.log(`📝 ${key}: ${value.substring(0, 100)}...`);
+    // If still nothing, try a different approach
+    if (loadedCount === 0) {
+      console.log('🔥 FALLBACK: Trying regex approach...');
+      this.tryRegexParse(content);
     }
   }
+  
+  tryRegexParse(content) {
+    console.log('🔥 Trying regex-based parsing...');
+    
+    // Try to find PROMPT_XXX="..." patterns
+    const promptRegex = /(PROMPT_[A-Z_]+)="([^"]*(?:"[^"]*"[^"]*)*[^"]*)"/g;
+    let match;
+    let loadedCount = 0;
+    
+    while ((match = promptRegex.exec(content)) !== null) {
+      const [, key, value] = match;
+      this.prompts[key] = value;
+      loadedCount++;
+      console.log(`🔥 REGEX LOADED: ${key} (${value.length} chars)`);
+    }
+    
+    if (loadedCount === 0) {
+      console.log('🔥 REGEX FAILED TOO. Trying split approach...');
+      this.trySplitApproach(content);
+    }
+  }
+  
+  trySplitApproach(content) {
+    console.log('🔥 Trying split-based parsing...');
+    
+    // Split by PROMPT_ to get chunks
+    const chunks = content.split(/(?=PROMPT_)/);
+    console.log(`🔥 Found ${chunks.length} chunks`);
+    
+    for (let i = 0; i < chunks.length; i++) {
+      const chunk = chunks[i].trim();
+      if (!chunk.startsWith('PROMPT_')) continue;
+      
+      console.log(`🔥 Chunk ${i}: ${chunk.substring(0, 100)}...`);
+      
+      const lines = chunk.split('\n');
+      const firstLine = lines[0];
+      const equalsIndex = firstLine.indexOf('=');
+      
+      if (equalsIndex > 0) {
+        const key = firstLine.substring(0, equalsIndex);
+        let value = firstLine.substring(equalsIndex + 1);
+        
+        // Add remaining lines
+        if (lines.length > 1) {
+          value += '\n' + lines.slice(1).join('\n');
+        }
+        
+        // Clean up quotes
+        value = value.trim();
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        }
+        
+        this.prompts[key] = value;
+        console.log(`🔥 SPLIT LOADED: ${key} (${value.length} chars)`);
+      }
+    }
+    
+    console.log(`🔥 SPLIT FINAL: ${Object.keys(this.prompts).length} prompts loaded`);
+  }
 
-  /**
-   * Fallback default prompts
-   */
   loadDefaultPrompts() {
     this.prompts = {
       PROMPT_FIND_COMMON_FEATURES: "Analyze the uploaded images and provide a comprehensive visual analysis. Focus on: visual composition, colors and lighting, objects and subjects, artistic style and techniques, mood and atmosphere, and technical aspects. Write in natural, flowing paragraphs without any markdown formatting. Be detailed but concise.",
