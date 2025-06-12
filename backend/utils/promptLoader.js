@@ -50,23 +50,37 @@ class PromptLoader {
    * Load prompts from Render Secret Files (PRODUCTION)
    * Render mounts secret files to /etc/secrets/
    */
-  loadFromRenderSecretFiles() {
+loadFromRenderSecretFiles() {
+  try {
+    const secretFilePath = '/etc/secrets/prompts.env';
+    
+    // DEBUG: Check what's in /etc/secrets/
+    console.log('🔍 DEBUG: Checking /etc/secrets/ directory...');
     try {
-      const secretFilePath = '/etc/secrets/prompts.env';
-      
-      if (fs.existsSync(secretFilePath)) {
-        console.log('✅ Found Render Secret File at:', secretFilePath);
-        const content = fs.readFileSync(secretFilePath, 'utf8');
-        this.parsePromptsContent(content);
-        return true;
-      }
-      
-      return false;
-    } catch (error) {
-      console.error('❌ Error reading Render Secret File:', error.message);
-      return false;
+      const secretsDir = fs.readdirSync('/etc/secrets/');
+      console.log('📁 Files in /etc/secrets/:', secretsDir);
+    } catch (dirError) {
+      console.log('❌ Cannot read /etc/secrets/ directory:', dirError.message);
     }
+    
+    console.log('🔍 DEBUG: Checking exact file path:', secretFilePath);
+    console.log('🔍 DEBUG: File exists:', fs.existsSync(secretFilePath));
+    
+    if (fs.existsSync(secretFilePath)) {
+      console.log('✅ Found Render Secret File at:', secretFilePath);
+      const content = fs.readFileSync(secretFilePath, 'utf8');
+      console.log('🔍 DEBUG: File content length:', content.length);
+      console.log('🔍 DEBUG: First 100 chars:', content.substring(0, 100));
+      this.parsePromptsContent(content);
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error('❌ Error reading Render Secret File:', error.message);
+    return false;
   }
+}
 
   /**
    * Load prompts from environment variables (FALLBACK)
