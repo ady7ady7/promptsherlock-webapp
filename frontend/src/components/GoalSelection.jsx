@@ -47,7 +47,7 @@ const GoalSelection = ({
       category: 'generation',
       requiresSubSelection: true,
       tip: 'Works best with clear, well-composed images.',
-      recommendedImages: '1-3 images',
+      recommendedImages: '1 image',
       color: 'green',
       isEnabled: true
     },
