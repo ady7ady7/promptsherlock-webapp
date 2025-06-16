@@ -54,16 +54,11 @@ const AnalysisForm = ({
   // API CONFIGURATION
   // =============================================================================
   
-  const getApiEndpoint = useCallback((endpoint) => {
-    const baseUrl = apiUrl.replace(/\/$/, '');
-    const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-    
-    if (baseUrl.includes('/api') && cleanEndpoint.startsWith('/api')) {
-      return `${baseUrl}${cleanEndpoint.replace('/api', '')}`;
-    }
-    
-    return `${baseUrl}${cleanEndpoint}`;
-  }, [apiUrl]);
+    const getApiEndpoint = useCallback((endpoint) => {
+      const baseUrl = apiUrl.replace(/\/$/, '');
+      const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      return `${baseUrl}${cleanEndpoint}`;
+    }, [apiUrl]);
 
   // =============================================================================
   // RESULT HANDLERS
