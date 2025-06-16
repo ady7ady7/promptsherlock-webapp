@@ -7,13 +7,15 @@ import {
   User, 
   Palette, 
   Info,
-  CheckCircle
+  CheckCircle,
+  Clock
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
 /**
  * Goal Selection Component
  * Allows users to choose their primary analysis goal
+ * Note: Copy Style and Copy Character are temporarily disabled
  */
 const GoalSelection = ({ 
   selectedGoal, 
@@ -34,7 +36,8 @@ const GoalSelection = ({
       requiresSubSelection: false,
       tip: 'For more meaningful results, upload multiple high-quality images.',
       recommendedImages: 'Multiple images (3+)',
-      color: 'blue'
+      color: 'blue',
+      isEnabled: true
     },
     {
       id: 'copy_image',
@@ -45,7 +48,8 @@ const GoalSelection = ({
       requiresSubSelection: true,
       tip: 'Works best with clear, well-composed images.',
       recommendedImages: '1-3 images',
-      color: 'green'
+      color: 'green',
+      isEnabled: true
     },
     {
       id: 'copy_character',
@@ -56,7 +60,9 @@ const GoalSelection = ({
       requiresSubSelection: true,
       tip: 'Ensure characters are clearly visible and well-lit.',
       recommendedImages: '1-2 images',
-      color: 'purple'
+      color: 'purple',
+      isEnabled: false, // DISABLED
+      comingSoon: true
     },
     {
       id: 'copy_style',
@@ -67,7 +73,9 @@ const GoalSelection = ({
       requiresSubSelection: true,
       tip: 'Upload images with consistent, distinctive styles.',
       recommendedImages: '2-4 images',
-      color: 'orange'
+      color: 'orange',
+      isEnabled: false, // DISABLED
+      comingSoon: true
     }
   ];
 
@@ -75,10 +83,24 @@ const GoalSelection = ({
     if (disabled) return;
     
     const goal = goals.find(g => g.id === goalId);
+    
+    // Prevent selection of disabled goals
+    if (!goal.isEnabled) return;
+    
     onGoalChange(goalId, goal.requiresSubSelection);
   };
 
-  const getColorClasses = (color, isSelected = false, isHovered = false) => {
+  const getColorClasses = (color, isSelected = false, isHovered = false, isDisabled = false) => {
+    // If disabled, return grey colors
+    if (isDisabled) {
+      return {
+        border: 'border-gray-600/50',
+        bg: 'bg-gray-800/30',
+        icon: 'text-gray-500',
+        text: 'text-gray-500'
+      };
+    }
+
     const colors = {
       blue: {
         border: isSelected ? 'border-blue-400' : isHovered ? 'border-blue-300' : 'border-blue-500/30',
@@ -158,27 +180,47 @@ const GoalSelection = ({
           const Icon = goal.icon;
           const isSelected = selectedGoal === goal.id;
           const isHovered = hoveredGoal === goal.id;
-          const colorClasses = getColorClasses(goal.color, isSelected, isHovered);
+          const isDisabled = !goal.isEnabled;
+          const colorClasses = getColorClasses(goal.color, isSelected, isHovered, isDisabled);
 
           return (
             <motion.div
               key={goal.id}
               className={`
-                relative p-6 rounded-lg border-2 cursor-pointer
-                transition-all duration-300 backdrop-blur-sm
+                relative p-6 rounded-lg border-2 transition-all duration-300 backdrop-blur-sm
                 ${colorClasses.border} ${colorClasses.bg}
-                ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}
+                ${disabled || isDisabled 
+                  ? 'opacity-60 cursor-not-allowed' 
+                  : 'cursor-pointer hover:scale-[1.02]'
+                }
               `}
               onClick={() => handleGoalClick(goal.id)}
-              onMouseEnter={() => setHoveredGoal(goal.id)}
+              onMouseEnter={() => !isDisabled && setHoveredGoal(goal.id)}
               onMouseLeave={() => setHoveredGoal(null)}
-              whileHover={!disabled ? { scale: 1.02 } : {}}
-              whileTap={!disabled ? { scale: 0.98 } : {}}
+              whileHover={!disabled && !isDisabled ? { scale: 1.02 } : {}}
+              whileTap={!disabled && !isDisabled ? { scale: 0.98 } : {}}
               layout
             >
+              {/* Coming Soon Badge */}
+              <AnimatePresence>
+                {isDisabled && goal.comingSoon && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0 }}
+                    className="absolute top-3 right-3 bg-gray-700/80 backdrop-blur-sm px-2 py-1 rounded-full border border-gray-600"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <Clock className="w-3 h-3 text-gray-400" />
+                      <span className="text-xs text-gray-400 font-medium">Available Soon</span>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
               {/* Selection Indicator */}
               <AnimatePresence>
-                {isSelected && (
+                {isSelected && !isDisabled && (
                   <motion.div
                     initial={{ opacity: 0, scale: 0 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -199,32 +241,49 @@ const GoalSelection = ({
                   <h4 className={`text-lg font-semibold ${colorClasses.text}`}>
                     {goal.title}
                   </h4>
-                  <span className="text-xs text-gray-400 uppercase tracking-wider">
+                  <span className={`text-xs uppercase tracking-wider ${
+                    isDisabled ? 'text-gray-500' : 'text-gray-400'
+                  }`}>
                     {goal.category}
                   </span>
                 </div>
               </div>
 
               {/* Description */}
-              <p className="text-gray-300 text-sm mb-4 leading-relaxed">
+              <p className={`text-sm mb-4 leading-relaxed ${
+                isDisabled ? 'text-gray-500' : 'text-gray-300'
+              }`}>
                 {goal.description}
               </p>
 
               {/* Metadata */}
               <div className="space-y-2">
-                <div className="flex items-center space-x-2 text-xs text-gray-400">
+                <div className={`flex items-center space-x-2 text-xs ${
+                  isDisabled ? 'text-gray-600' : 'text-gray-400'
+                }`}>
                   <Info className="w-3 h-3" />
                   <span>Recommended: {goal.recommendedImages}</span>
                 </div>
                 
                 {/* Tip */}
-                <div className={`text-xs p-2 rounded ${colorClasses.bg} border ${colorClasses.border}`}>
-                  <span className={colorClasses.text}>💡 {goal.tip}</span>
-                </div>
+                {!isDisabled && (
+                  <div className={`text-xs p-2 rounded ${colorClasses.bg} border ${colorClasses.border}`}>
+                    <span className={colorClasses.text}>💡 {goal.tip}</span>
+                  </div>
+                )}
+
+                {/* Coming Soon Message */}
+                {isDisabled && goal.comingSoon && (
+                  <div className="text-xs p-2 rounded bg-gray-800/50 border border-gray-600">
+                    <span className="text-gray-400">
+                      🚧 This feature is currently being enhanced and will be available soon!
+                    </span>
+                  </div>
+                )}
               </div>
 
               {/* Sub-selection indicator */}
-              {goal.requiresSubSelection && (
+              {goal.requiresSubSelection && !isDisabled && (
                 <div className="mt-3 text-xs text-gray-400 italic">
                   • Requires AI engine selection
                 </div>
