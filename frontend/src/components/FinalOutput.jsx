@@ -32,14 +32,12 @@ const FinalOutput = ({
   const textareaRef = useRef(null);
 
   // =============================================================================
-  // UTILITY FUNCTIONS
+  // UTILITY FUNCTIONS - REMOVED find_common_features and copy_character
   // =============================================================================
 
   const formatGoalName = (goal) => {
     const goalNames = {
-      'find_common_features': 'Visual Analysis',
       'copy_image': 'Image Recreation Prompt',
-      'copy_character': 'Character Generation Prompt',
       'copy_style': 'Style Guide'
     };
     return goalNames[goal] || 'Analysis Result';
@@ -61,18 +59,10 @@ const FinalOutput = ({
     const goalName = formatGoalName(metadata.goal);
     const engineName = formatEngineName(metadata.engine);
     
-    if (metadata.goal === 'find_common_features') {
-      return goalName;
-    }
-    
     return engineName ? `${goalName} for ${engineName}` : goalName;
   };
 
   const getOutputDescription = () => {
-    if (metadata.goal === 'find_common_features') {
-      return 'Comprehensive visual analysis of your images';
-    }
-    
     return 'Copy this prompt and paste it into your AI generator for best results';
   };
 
@@ -365,16 +355,19 @@ const FinalOutput = ({
           Pro Tips
         </h4>
         <div className="text-sm text-amber-100/90 space-y-1">
-          {metadata.goal === 'find_common_features' ? (
+          {/* REMOVED find_common_features tips */}
+          {metadata.goal === 'copy_image' && (
             <>
-              <p>• Use this analysis to understand visual patterns and improve your creative work</p>
-              <p>• Look for insights that could enhance future photography or design projects</p>
+              <p>• Copy this prompt directly into your AI generator</p>
+              <p>• Use the same aspect ratio as your original image</p>
+              <p>• Try adjusting the prompt if results need refinement</p>
             </>
-          ) : (
+          )}
+          {metadata.goal === 'copy_style' && (
             <>
-              <p>• Copy the prompt above and paste it directly into {formatEngineName(metadata.engine) || 'your AI generator'}</p>
-              <p>• Fine-tune parameters like aspect ratio, style strength, or seed for variations</p>
-              <p>• Experiment with slight modifications to achieve your perfect result</p>
+              <p>• This style prompt can be combined with any subject</p>
+              <p>• Add your own subject descriptions before the style elements</p>
+              <p>• Experiment with different style weights in your generator</p>
             </>
           )}
         </div>
