@@ -2,9 +2,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Search, 
   Copy, 
-  User, 
   Palette, 
   Info,
   CheckCircle,
@@ -15,7 +13,7 @@ import PropTypes from 'prop-types';
 /**
  * Goal Selection Component
  * Allows users to choose their primary analysis goal
- * Note: Copy Style and Copy Character are temporarily disabled
+ * UPDATED: Removed find_common_features and copy_character
  */
 const GoalSelection = ({ 
   selectedGoal, 
@@ -25,20 +23,8 @@ const GoalSelection = ({
 }) => {
   const [hoveredGoal, setHoveredGoal] = useState(null);
 
-  // Goal definitions with metadata
+  // Goal definitions with metadata - REMOVED find_common_features and copy_character
   const goals = [
-    {
-      id: 'find_common_features',
-      title: 'Find Common Features',
-      description: 'Identify shared elements, themes, and characteristics across images.',
-      icon: Search,
-      category: 'analysis',
-      requiresSubSelection: false,
-      tip: 'For more meaningful results, upload multiple high-quality images.',
-      recommendedImages: 'Multiple images (3+)',
-      color: 'blue',
-      isEnabled: false
-    },
     {
       id: 'copy_image',
       title: 'Generate Prompt: Copy Image',
@@ -52,19 +38,6 @@ const GoalSelection = ({
       isEnabled: true
     },
     {
-      id: 'copy_character',
-      title: 'Generate Prompt: Copy Character',
-      description: 'Extract character details to generate prompts for new scenes.',
-      icon: User,
-      category: 'generation',
-      requiresSubSelection: true,
-      tip: 'Ensure characters are clearly visible and well-lit.',
-      recommendedImages: '1-2 images',
-      color: 'purple',
-      isEnabled: false, // DISABLED
-      comingSoon: true
-    },
-    {
       id: 'copy_style',
       title: 'Generate Prompt: Copy Style',
       description: 'Isolate and describe the artistic or photographic style for new creations.',
@@ -74,8 +47,7 @@ const GoalSelection = ({
       tip: 'Upload images with consistent, distinctive styles.',
       recommendedImages: '2-4 images',
       color: 'orange',
-      isEnabled: true, // DISABLED
-      comingSoon: true
+      isEnabled: true
     }
   ];
 
