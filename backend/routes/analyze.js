@@ -1,5 +1,6 @@
 // backend/routes/analyze.js - CORRECTED VERSION - WORKING
 // Fixed all import issues and timeout problems
+// UPDATED: Removed find_common_features and copy_character references
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -95,17 +96,17 @@ function cleanFinalOutput(text) {
 }
 
 // =============================================================================
-// MAIN ANALYSIS ENDPOINT
+// MAIN ANALYSIS ENDPOINT - UPDATED: Only copy_image and copy_style
 // =============================================================================
 
-router.post('/', uploadMiddleware(), async (req, res) => { // CORRECT: call uploadMiddleware as function
+router.post('/', uploadMiddleware(), async (req, res) => {
   const startTime = Date.now();
   let uploadedFiles = [];
 
   try {
     const {
       prompt = '',
-      goal = 'find_common_features',
+      goal = 'copy_image', // UPDATED: Default to copy_image instead of find_common_features
       engine = ''
     } = req.body;
 
@@ -126,8 +127,8 @@ router.post('/', uploadMiddleware(), async (req, res) => { // CORRECT: call uplo
       hasCustomPrompt: Boolean(prompt)
     });
 
-    // Validate goal
-    const validGoals = ['find_common_features', 'copy_image', 'copy_character', 'copy_style'];
+    // UPDATED: Validate goal - only copy_image and copy_style
+    const validGoals = ['copy_image', 'copy_style'];
     if (!validGoals.includes(goal)) {
       return res.status(400).json({
         success: false,
@@ -137,8 +138,8 @@ router.post('/', uploadMiddleware(), async (req, res) => { // CORRECT: call uplo
       });
     }
 
-    // Engine validation for generation goals
-    if (goal !== 'find_common_features' && !engine) {
+    // UPDATED: Both remaining goals require engine selection
+    if (!engine) {
       return res.status(400).json({
         success: false,
         error: 'Generation engine required for prompt creation goals',
@@ -147,7 +148,7 @@ router.post('/', uploadMiddleware(), async (req, res) => { // CORRECT: call uplo
     }
 
     const validEngines = ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo'];
-    if (engine && !validEngines.includes(engine)) {
+    if (!validEngines.includes(engine)) {
       return res.status(400).json({
         success: false,
         error: 'Invalid generation engine',
@@ -157,203 +158,157 @@ router.post('/', uploadMiddleware(), async (req, res) => { // CORRECT: call uplo
     }
 
     // Process images for AI analysis
-    console.log('📸 Processing images for AI...');
-    const aiImages = await processImagesForAI(uploadedFiles);
+    const processedImages = await processImagesForAI(uploadedFiles);
+    console.log(`📸 Successfully processed ${processedImages.length} images`);
 
-    // Get clean prompt from prompts.env
-    console.log('🧠 Loading prompt template...');
-    const basePrompt = promptLoader.getPrompt(goal, engine);
-    const finalPrompt = promptLoader.addCustomInstructions(basePrompt, prompt);
+    // Get the appropriate prompt
+    const analysisPrompt = promptLoader.getPrompt(goal, engine);
+    const finalPrompt = prompt ? `${analysisPrompt}\n\nAdditional focus: ${prompt}` : analysisPrompt;
 
-    console.log('🤖 Sending request to Gemini AI...');
+    console.log(`📝 Using prompt for ${goal}/${engine}`);
 
-    // Prepare AI request
+    // Prepare content for Gemini
+    const content = [finalPrompt, ...processedImages];
+
+    // Call Gemini API
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const aiRequest = [finalPrompt, ...aiImages];
+    
+    console.log('🤖 Sending request to Gemini API...');
+    const result = await model.generateContent(content);
+    const response = await result.response;
+    const rawAnalysis = response.text();
 
-    // Get AI response
-    const result = await model.generateContent(aiRequest);
-    const rawAnalysis = result.response.text();
-
-    // Clean the output - REMOVE ALL FORMATTING
-    const cleanAnalysis = cleanFinalOutput(rawAnalysis);
+    // Clean the output to remove all formatting
+    const cleanedAnalysis = cleanFinalOutput(rawAnalysis);
 
     const processingTime = Date.now() - startTime;
 
-    console.log('✅ Clean analysis completed:', {
-      goal: goal,
-      engine: engine || 'none',
-      imageCount: uploadedFiles.length,
+    console.log('✅ Analysis completed successfully:', {
       processingTime: `${processingTime}ms`,
-      outputLength: cleanAnalysis.length,
-      isClean: !cleanAnalysis.includes('###') && !cleanAnalysis.includes('**')
+      rawLength: rawAnalysis.length,
+      cleanedLength: cleanedAnalysis.length,
+      goal: goal,
+      engine: engine
     });
 
-    // Return clean response
+    // Return successful response
     res.json({
       success: true,
-      analysis: cleanAnalysis,
-      
+      analysis: cleanedAnalysis,
       metadata: {
-        image_count: uploadedFiles.length,
         goal: goal,
         engine: engine,
-        has_custom_prompt: Boolean(prompt),
-        processing_time: `${processingTime}ms`,
-        timestamp: new Date().toISOString(),
-        analysis_length: cleanAnalysis.length,
-        optimized_for: engine || 'general analysis',
-        output_type: goal === 'find_common_features' ? 'analysis' : 'prompt'
-      },
-
-      // Legacy compatibility
-      processedImages: uploadedFiles.length,
-      processingTime: `${processingTime}ms`
-    });
-
-  } catch (error) {
-    const processingTime = Date.now() - startTime;
-    
-    console.error('❌ Analysis error:', {
-      message: error.message,
-      processingTime: `${processingTime}ms`,
-      imageCount: uploadedFiles.length
-    });
-
-    let errorMessage = 'Analysis failed';
-    let errorCode = 'ANALYSIS_FAILED';
-
-    if (error.message.includes('API key')) {
-      errorMessage = 'AI service configuration error';
-      errorCode = 'API_KEY_ERROR';
-    } else if (error.message.includes('quota') || error.message.includes('rate limit')) {
-      errorMessage = 'Service temporarily unavailable due to high demand';
-      errorCode = 'RATE_LIMIT_ERROR';
-    } else if (error.message.includes('image')) {
-      errorMessage = 'Failed to process uploaded images';
-      errorCode = 'IMAGE_PROCESSING_ERROR';
-    }
-
-    res.status(500).json({
-      success: false,
-      error: errorMessage,
-      code: errorCode,
-      details: process.env.NODE_ENV === 'development' ? error.message : undefined,
-      metadata: {
-        processing_time: `${processingTime}ms`,
-        timestamp: new Date().toISOString()
+        imageCount: uploadedFiles.length,
+        processingTime: processingTime,
+        hasCustomPrompt: Boolean(prompt),
+        output_type: 'prompt' // Both functions generate prompts
       }
     });
 
-  } finally {
-    // Always clean up uploaded files for security
-    await cleanupFiles(uploadedFiles);
-  }
-});
-
-// =============================================================================
-// UTILITY ENDPOINTS
-// =============================================================================
-
-router.get('/health', async (req, res) => {
-  try {
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-    const testResult = await model.generateContent('Test connection');
-    
-    res.json({
-      status: 'healthy',
-      service: 'Clean Image Analysis API',
-      ai: {
-        provider: 'Google Gemini',
-        model: 'gemini-1.5-flash',
-        status: testResult ? 'connected' : 'error'
-      },
-      features: {
-        goals: ['find_common_features', 'copy_image', 'copy_character', 'copy_style'],
-        engines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo'],
-        clean_output: true,
-        external_prompts: true
-      },
-      timestamp: new Date().toISOString()
-    });
-    
   } catch (error) {
-    console.error('Health check failed:', error);
-    res.status(503).json({
-      status: 'unhealthy',
-      error: 'AI service unavailable',
-      timestamp: new Date().toISOString()
-    });
-  }
-});
-
-router.get('/config', async (req, res) => {
-  try {
-    const { getUploadConfig } = await import('../middleware/upload.js');
-    const config = getUploadConfig();
+    console.error('❌ Analysis Error:', error);
     
-    res.json({
-      success: true,
-      service: 'Clean AI Image Analyzer',
-      version: '3.0.0',
-      config: {
-        upload: {
-          max_file_size: config.maxFileSize,
-          max_file_size_mb: config.maxFileSizeMB,
-          max_files: config.maxFiles,
-          allowed_types: config.allowedMimeTypes,
-          allowed_extensions: config.allowedExtensions
-        },
-        analysis: {
-          max_prompt_length: 2000,
-          ai_provider: 'Google Gemini',
-          model: 'gemini-1.5-flash',
-          clean_output: true,
-          external_prompts: true
-        },
-        goals: {
-          find_common_features: 'Clean visual analysis without formatting',
-          copy_image: 'Engine-optimized recreation prompts',
-          copy_character: 'Character-focused generation prompts', 
-          copy_style: 'Style extraction and replication prompts'
-        },
-        engines: {
-          midjourney: 'Optimized for Midjourney v6+ prompting',
-          dalle: 'Optimized for DALL-E 3 natural language',
-          stable_diffusion: 'Optimized for Stable Diffusion keywords',
-          gemini_imagen: 'Optimized for Gemini Imagen natural language',
-          flux: 'Optimized for Flux creative generation',
-          leonardo: 'Optimized for Leonardo AI professional content'
-        },
-        privacy: {
-          data_retention: 'none',
-          immediate_cleanup: true,
-          secure_processing: true,
-          no_tracking: true
-        }
-      },
-      timestamp: new Date().toISOString()
-    });
-    
-  } catch (error) {
-    console.error('❌ Config endpoint error:', error);
-    res.status(500).json({
+    let errorResponse = {
       success: false,
-      error: 'Failed to get configuration'
-    });
+      error: 'Analysis failed',
+      code: 'ANALYSIS_ERROR'
+    };
+
+    // Handle specific error types
+    if (error.message?.includes('API key')) {
+      errorResponse = {
+        success: false,
+        error: 'AI service configuration error',
+        code: 'API_KEY_ERROR'
+      };
+    } else if (error.message?.includes('quota') || error.message?.includes('rate limit')) {
+      errorResponse = {
+        success: false,
+        error: 'AI service rate limit reached. Please try again later.',
+        code: 'RATE_LIMIT_ERROR'
+      };
+    } else if (error.message?.includes('timeout')) {
+      errorResponse = {
+        success: false,
+        error: 'Analysis request timed out. Please try with smaller images.',
+        code: 'TIMEOUT_ERROR'
+      };
+    } else if (error.message?.includes('Failed to process image')) {
+      errorResponse = {
+        success: false,
+        error: error.message,
+        code: 'IMAGE_PROCESSING_ERROR'
+      };
+    }
+
+    res.status(500).json(errorResponse);
+
+  } finally {
+    // CRITICAL: Always clean up uploaded files
+    if (uploadedFiles && uploadedFiles.length > 0) {
+      await cleanupFiles(uploadedFiles);
+    }
   }
 });
 
-// Endpoint to reload prompts (development only)
-if (process.env.NODE_ENV === 'development') {
-  router.post('/reload-prompts', (req, res) => {
-    promptLoader.reload();
-    res.json({
-      success: true,
-      message: 'Prompts reloaded from prompts.env',
-      timestamp: new Date().toISOString()
-    });
+// =============================================================================
+// HEALTH CHECK ENDPOINTS
+// =============================================================================
+
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    service: 'Image Analysis API',
+    message: 'Service is running normally',
+    availableGoals: ['copy_image', 'copy_style'], // UPDATED: Only 2 goals
+    availableEngines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo']
   });
-}
+});
+
+router.get('/config', (req, res) => {
+  res.json({
+    service: 'Image Analysis API',
+    version: '1.0.0',
+    
+    limits: {
+      maxFiles: 10,
+      maxFileSize: '10MB',
+      supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP']
+    },
+    
+    // UPDATED: Only 2 goals now
+    goals: [
+      {
+        id: 'copy_image',
+        name: 'Copy Image',
+        description: 'Generate prompts to recreate images',
+        requiresEngine: true
+      },
+      {
+        id: 'copy_style',
+        name: 'Copy Style', 
+        description: 'Extract and describe artistic styles',
+        requiresEngine: true
+      }
+    ],
+    
+    engines: [
+      { id: 'midjourney', name: 'Midjourney' },
+      { id: 'dalle', name: 'DALL-E 3' },
+      { id: 'stable_diffusion', name: 'Stable Diffusion' },
+      { id: 'gemini_imagen', name: 'Gemini Imagen' },
+      { id: 'flux', name: 'Flux' },
+      { id: 'leonardo', name: 'Leonardo AI' }
+    ],
+    
+    environment: {
+      nodeEnv: process.env.NODE_ENV || 'development',
+      frontendUrl: process.env.FRONTEND_URL || 'Not configured',
+      aiModel: 'gemini-1.5-flash',
+      promptsLoaded: Object.keys(promptLoader.getAllPrompts()).length
+    }
+  });
+});
 
 export default router;

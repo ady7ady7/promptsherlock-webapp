@@ -1,5 +1,6 @@
 // backend/utils/promptLoader.js
 // EXTREME DEBUG VERSION - Let's see what the fuck is going on
+// UPDATED: Removed find_common_features and copy_character references
 
 import fs from 'fs';
 import path from 'path';
@@ -79,21 +80,16 @@ class PromptLoader {
     }
   }
 
+  // UPDATED: Removed find_common_features and copy_character from environment variables
   loadFromEnvironment() {
     const promptEnvVars = [
-      'PROMPT_FIND_COMMON_FEATURES',
+      // Only copy_image and copy_style prompts
       'PROMPT_COPY_IMAGE_MIDJOURNEY',
       'PROMPT_COPY_IMAGE_DALLE',
       'PROMPT_COPY_IMAGE_STABLE_DIFFUSION',
       'PROMPT_COPY_IMAGE_GEMINI_IMAGEN',
       'PROMPT_COPY_IMAGE_FLUX',
       'PROMPT_COPY_IMAGE_LEONARDO',
-      'PROMPT_COPY_CHARACTER_MIDJOURNEY',
-      'PROMPT_COPY_CHARACTER_DALLE',
-      'PROMPT_COPY_CHARACTER_STABLE_DIFFUSION',
-      'PROMPT_COPY_CHARACTER_GEMINI_IMAGEN',
-      'PROMPT_COPY_CHARACTER_FLUX',
-      'PROMPT_COPY_CHARACTER_LEONARDO',
       'PROMPT_COPY_STYLE_MIDJOURNEY',
       'PROMPT_COPY_STYLE_DALLE',
       'PROMPT_COPY_STYLE_STABLE_DIFFUSION',
@@ -205,82 +201,63 @@ class PromptLoader {
     }
     
     if (loadedCount === 0) {
-      console.log('🔥 REGEX FAILED TOO. Trying split approach...');
-      this.trySplitApproach(content);
+      console.log('🔥 REGEX FAILED TOO. Using defaults.');
+      this.loadDefaultPrompts();
     }
-  }
-  
-  trySplitApproach(content) {
-    console.log('🔥 Trying split-based parsing...');
-    
-    // Split by PROMPT_ to get chunks
-    const chunks = content.split(/(?=PROMPT_)/);
-    console.log(`🔥 Found ${chunks.length} chunks`);
-    
-    for (let i = 0; i < chunks.length; i++) {
-      const chunk = chunks[i].trim();
-      if (!chunk.startsWith('PROMPT_')) continue;
-      
-      console.log(`🔥 Chunk ${i}: ${chunk.substring(0, 100)}...`);
-      
-      const lines = chunk.split('\n');
-      const firstLine = lines[0];
-      const equalsIndex = firstLine.indexOf('=');
-      
-      if (equalsIndex > 0) {
-        const key = firstLine.substring(0, equalsIndex);
-        let value = firstLine.substring(equalsIndex + 1);
-        
-        // Add remaining lines
-        if (lines.length > 1) {
-          value += '\n' + lines.slice(1).join('\n');
-        }
-        
-        // Clean up quotes
-        value = value.trim();
-        if (value.startsWith('"') && value.endsWith('"')) {
-          value = value.slice(1, -1);
-        }
-        
-        this.prompts[key] = value;
-        console.log(`🔥 SPLIT LOADED: ${key} (${value.length} chars)`);
-      }
-    }
-    
-    console.log(`🔥 SPLIT FINAL: ${Object.keys(this.prompts).length} prompts loaded`);
   }
 
+  // UPDATED: Removed find_common_features and copy_character from defaults
   loadDefaultPrompts() {
     this.prompts = {
-      PROMPT_FIND_COMMON_FEATURES: "Analyze the uploaded images and provide a comprehensive visual analysis. Focus on: visual composition, colors and lighting, objects and subjects, artistic style and techniques, mood and atmosphere, and technical aspects. Write in natural, flowing paragraphs without any markdown formatting. Be detailed but concise.",
-      
+      // Only copy_image and copy_style default prompts
       PROMPT_COPY_IMAGE_MIDJOURNEY: "Create a detailed Midjourney prompt to recreate this image. Focus on: exact visual style, composition and framing, color palette, subject positioning, environmental details, camera angle, textures and materials. Format as a clean, single paragraph optimized for Midjourney v6+ without any markdown symbols or formatting.",
       
-      PROMPT_COPY_IMAGE_DALLE: "Create a detailed DALL-E 3 prompt to recreate this image. Focus on: photorealistic details, exact composition, precise color descriptions, subject positioning and proportions, environmental context, lighting conditions, camera perspective. Write as a natural language description optimized for DALL-E 3's understanding, in a single clean paragraph without any formatting symbols."
+      PROMPT_COPY_IMAGE_DALLE: "Create a detailed DALL-E 3 prompt to recreate this image. Focus on: photorealistic details, exact composition, precise color descriptions, subject positioning and proportions, environmental context, lighting conditions, camera perspective. Write as a natural language description optimized for DALL-E 3's understanding, in a single clean paragraph without any formatting symbols.",
+      
+      PROMPT_COPY_IMAGE_STABLE_DIFFUSION: "Create a detailed Stable Diffusion prompt to recreate this image. Focus on: visual style and aesthetics, exact composition, color palette and lighting, subject details and positioning, background and environment, camera angle and perspective. Use comma-separated keywords and phrases optimized for Stable Diffusion, in a single paragraph without formatting.",
+      
+      PROMPT_COPY_IMAGE_GEMINI_IMAGEN: "Create a detailed Gemini Imagen prompt to recreate this image. Focus on: photorealistic accuracy, composition and framing, color and lighting details, subject characteristics, environmental context, camera perspective. Write as a natural, descriptive paragraph optimized for Gemini Imagen without any formatting symbols.",
+      
+      PROMPT_COPY_IMAGE_FLUX: "Create a detailed Flux prompt to recreate this image. Focus on: artistic style and technique, exact composition, color scheme and lighting, subject positioning, environmental details, camera angle. Format as a descriptive paragraph optimized for Flux generation without any markdown or formatting symbols.",
+      
+      PROMPT_COPY_IMAGE_LEONARDO: "Create a detailed Leonardo AI prompt to recreate this image. Focus on: visual style and aesthetics, composition and framing, color palette, subject details and positioning, environmental context, lighting and shadows, camera perspective. Write as a descriptive paragraph optimized for Leonardo AI without any formatting symbols.",
+      
+      // Copy Style prompts
+      PROMPT_COPY_STYLE_MIDJOURNEY: "Analyze this image and create a Midjourney style prompt that captures the artistic style, visual aesthetics, and creative approach. Focus on: artistic technique and medium, color palette and mood, lighting style, composition approach, texture and material qualities, overall aesthetic feel. Format as a style description optimized for Midjourney without any formatting symbols.",
+      
+      PROMPT_COPY_STYLE_DALLE: "Analyze this image and create a DALL-E 3 style prompt that captures the artistic style and visual approach. Focus on: art style and technique, color scheme and mood, lighting characteristics, composition style, texture and material appearance, overall aesthetic quality. Write as a natural style description optimized for DALL-E 3 without any formatting symbols.",
+      
+      PROMPT_COPY_STYLE_STABLE_DIFFUSION: "Analyze this image and create a Stable Diffusion style prompt that captures the visual style and artistic approach. Focus on: art style and medium, color palette and mood, lighting technique, composition approach, texture and material qualities, aesthetic characteristics. Use style-focused keywords optimized for Stable Diffusion without formatting.",
+      
+      PROMPT_COPY_STYLE_GEMINI_IMAGEN: "Analyze this image and create a Gemini Imagen style prompt that captures the artistic style and visual aesthetics. Focus on: artistic technique and approach, color scheme and mood, lighting style, composition characteristics, texture and material qualities, overall visual feel. Write as a style description optimized for Gemini Imagen without formatting.",
+      
+      PROMPT_COPY_STYLE_FLUX: "Analyze this image and create a Flux style prompt that captures the artistic style and creative approach. Focus on: art style and technique, color palette and mood, lighting characteristics, composition style, texture and material appearance, aesthetic qualities. Format as a style description optimized for Flux without any formatting symbols.",
+      
+      PROMPT_COPY_STYLE_LEONARDO: "Analyze this image and create a Leonardo AI style prompt that captures the artistic style and visual approach. Focus on: art technique and medium, color scheme and mood, lighting style, composition characteristics, texture and material qualities, overall aesthetic feel. Write as a style description optimized for Leonardo AI without formatting symbols."
     };
     
-    console.log('📝 Using default fallback prompts');
+    console.log('📝 Using default fallback prompts for copy_image and copy_style only');
   }
 
+  // UPDATED: Removed find_common_features logic from getPrompt
   getPrompt(goal, engine = null) {
     let promptKey;
     
     console.log('🔍 DEBUG: Looking for prompt key:', goal, engine);
     console.log('🔍 DEBUG: Available keys:', Object.keys(this.prompts));
     
-    if (goal === 'find_common_features') {
-      promptKey = 'PROMPT_FIND_COMMON_FEATURES';
-    } else {
-      const goalPart = goal.toUpperCase();
-      const enginePart = engine ? engine.toUpperCase() : 'MIDJOURNEY';
-      promptKey = `PROMPT_${goalPart}_${enginePart}`;
-    }
+    // Build prompt key based on goal and engine
+    const goalPart = goal.toUpperCase();
+    const enginePart = engine ? engine.toUpperCase() : 'MIDJOURNEY';
+    promptKey = `PROMPT_${goalPart}_${enginePart}`;
     
     const prompt = this.prompts[promptKey];
     
     if (!prompt) {
       console.warn(`⚠️ Prompt not found: ${promptKey}, using fallback`);
-      return this.prompts.PROMPT_FIND_COMMON_FEATURES || 'Analyze this image in detail.';
+      // Return first available copy_image prompt as fallback
+      const fallbackKey = Object.keys(this.prompts).find(key => key.includes('COPY_IMAGE'));
+      return this.prompts[fallbackKey] || 'Analyze this image in detail.';
     }
     
     return prompt;
