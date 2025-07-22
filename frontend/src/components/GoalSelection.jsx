@@ -37,7 +37,7 @@ const GoalSelection = ({
       tip: 'For more meaningful results, upload multiple high-quality images.',
       recommendedImages: 'Multiple images (3+)',
       color: 'blue',
-      isEnabled: true
+      isEnabled: false
     },
     {
       id: 'copy_image',
@@ -74,7 +74,7 @@ const GoalSelection = ({
       tip: 'Upload images with consistent, distinctive styles.',
       recommendedImages: '2-4 images',
       color: 'orange',
-      isEnabled: false, // DISABLED
+      isEnabled: true, // DISABLED
       comingSoon: true
     }
   ];
