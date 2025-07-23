@@ -6,6 +6,7 @@ import Privacy from './pages/Privacy.jsx';
 import Terms from './pages/Terms.jsx';
 import NotFound from './pages/NotFound.jsx';
 import './index.css';
+import { AuthProvider } from './components/AuthContext'; 
 
 /**
  * Main Application Router Setup
@@ -36,6 +37,8 @@ const AppRouter = () => {
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <AppRouter />
+    <AuthProvider>
+      <AppRouter />
+    </AuthProvider>
   </StrictMode>,
 );

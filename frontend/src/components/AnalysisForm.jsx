@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import axios from 'axios';
-import { 
-  Send, 
-  AlertCircle, 
-  Clock, 
+import {
+  Send,
+  AlertCircle,
+  Clock,
   Sparkles,
   ArrowRight
 } from 'lucide-react';
@@ -17,8 +17,11 @@ import EngineSelection from './EngineSelection';
 import CustomPromptInput from './CustomPromptInput';
 import FinalOutput from './FinalOutput';
 
+// Import hook do uwierzytelniania Firebase
+import { useAuth } from './AuthContext'; // <-- DODANA LINIA
+
 /**
- * Clean Analysis Form Component 
+ * Clean Analysis Form Component
  * Returns clean, professional output using FinalOutput component
  */
 const AnalysisForm = ({
@@ -29,7 +32,7 @@ const AnalysisForm = ({
   // =============================================================================
   // STATE MANAGEMENT
   // =============================================================================
-  
+
   const [formState, setFormState] = useState({
     images: initialState.images || [],
     selected_goal: initialState.selected_goal || '',
@@ -50,10 +53,13 @@ const AnalysisForm = ({
 
   const resultsRef = useRef(null);
 
+  // Pobierz obiekt użytkownika i stan ładowania z kontekstu uwierzytelniania
+  const { currentUser, loading } = useAuth(); // <-- DODANA LINIA
+
   // =============================================================================
   // API CONFIGURATION
   // =============================================================================
-  
+
     const getApiEndpoint = useCallback((endpoint) => {
       const baseUrl = apiUrl.replace(/\/$/, '');
       const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
@@ -63,8 +69,6 @@ const AnalysisForm = ({
   // =============================================================================
   // RESULT HANDLERS
   // =============================================================================
-
-  // REMOVED: handleClearResults function (was causing issues)
 
   const handleNewAnalysis = () => {
     setFormState({
@@ -89,7 +93,7 @@ const AnalysisForm = ({
   // =============================================================================
   // EVENT HANDLERS
   // =============================================================================
-  
+
   const handleImagesChange = useCallback((newImages) => {
     setFormState(prev => ({
       ...prev,
@@ -147,7 +151,7 @@ const AnalysisForm = ({
   // =============================================================================
   // VALIDATION LOGIC
   // =============================================================================
-  
+
   const validateForm = useCallback(() => {
     const newValidation = {
       images: { is_valid: true, message: '' },
@@ -196,11 +200,15 @@ const AnalysisForm = ({
   // =============================================================================
   // FORM SUBMISSION
   // =============================================================================
-  
+
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    // Sprawdź, czy formularz jest poprawny i czy użytkownik jest wczytany
+    if (!validateForm() || !currentUser || loading) { // <-- DODANE SPRAWDZENIE currentUser i loading
+      if (!currentUser) {
+        setFormState(prev => ({ ...prev, error: "Authentication not ready. Please wait." }));
+      }
       return;
     }
 
@@ -211,12 +219,15 @@ const AnalysisForm = ({
     }));
 
     try {
+      // Pobierz token uwierzytelniający od bieżącego użytkownika Firebase
+      const idToken = await currentUser.getIdToken(); // <-- POBIERANIE TOKENA
+
       const formData = new FormData();
-      
+
       formState.images.forEach((image) => {
         formData.append('images', image.file);
       });
-      
+
       // Send clean parameters - no tailored prompt generation on frontend
       formData.append('prompt', formState.custom_prompt);
       formData.append('goal', formState.selected_goal);
@@ -237,6 +248,7 @@ const AnalysisForm = ({
         {
           headers: {
             'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${idToken}`, // <-- DODANIE TOKENA DO NAGŁÓWKA
           },
           timeout: 120000,
         }
@@ -271,7 +283,7 @@ const AnalysisForm = ({
 
       setTimeout(() => {
         if (resultsRef.current) {
-          resultsRef.current.scrollIntoView({ 
+          resultsRef.current.scrollIntoView({
             behavior: 'smooth',
             block: 'start'
           });
@@ -280,9 +292,9 @@ const AnalysisForm = ({
 
     } catch (error) {
       console.error('Analysis failed:', error);
-      
+
       let errorMessage = 'Analysis failed. Please try again.';
-      
+
       if (error.response?.status === 413) {
         errorMessage = 'Files too large. Please reduce file sizes and try again.';
       } else if (error.response?.status === 429) {
@@ -291,6 +303,8 @@ const AnalysisForm = ({
         errorMessage = 'Request timed out. Please try again with fewer or smaller images.';
       } else if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
+      } else if (error.message.includes("auth/")) { // <-- Dodana obsługa błędów Firebase Auth
+        errorMessage = "Authentication error: " + error.message;
       }
 
       setFormState(prev => ({
@@ -299,12 +313,12 @@ const AnalysisForm = ({
         is_loading: false
       }));
     }
-  }, [formState, validateForm, getApiEndpoint, onAnalysisComplete]);
+  }, [formState, validateForm, getApiEndpoint, onAnalysisComplete, currentUser, loading]); // <-- DODANE currentUser i loading do zależności useCallback
 
   // =============================================================================
   // RENDER METHODS
   // =============================================================================
-  
+
   const renderValidationErrors = () => {
     const errors = Object.entries(validation)
       .filter(([, field]) => !field.is_valid)
@@ -429,7 +443,6 @@ const AnalysisForm = ({
             output_type: formState.selected_goal === 'find_common_features' ? 'analysis' : 'prompt'
           }}
           onNewAnalysis={handleNewAnalysis}
-          // REMOVED: onClear prop (was causing issues)
         />
       </div>
     );
@@ -450,7 +463,7 @@ const AnalysisForm = ({
             initialImages={formState.images}
             maxFiles={10}
             maxFileSize={10 * 1024 * 1024}
-            disabled={formState.is_loading}
+            disabled={formState.is_loading || loading} // <-- DODANE 'loading'
             loading={formState.is_loading}
           />
         </motion.div>
@@ -460,15 +473,15 @@ const AnalysisForm = ({
           {formState.images.length > 0 && (
             <motion.div
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{ 
-                opacity: 1, 
-                height: 'auto', 
+              animate={{
+                opacity: 1,
+                height: 'auto',
                 marginTop: 32,
                 transition: { duration: 0.5, delay: 0.2 }
               }}
-              exit={{ 
-                opacity: 0, 
-                height: 0, 
+              exit={{
+                opacity: 0,
+                height: 0,
                 marginTop: 0,
                 transition: { duration: 0.3 }
               }}
@@ -476,7 +489,7 @@ const AnalysisForm = ({
               <GoalSelection
                 selectedGoal={formState.selected_goal}
                 onGoalChange={handleGoalChange}
-                disabled={formState.is_loading}
+                disabled={formState.is_loading || loading} // <-- DODANE 'loading'
                 imageCount={formState.images.length}
               />
             </motion.div>
@@ -488,15 +501,15 @@ const AnalysisForm = ({
           {formState.show_engine_selection && formState.selected_goal && (
             <motion.div
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{ 
-                opacity: 1, 
-                height: 'auto', 
+              animate={{
+                opacity: 1,
+                height: 'auto',
                 marginTop: 32,
                 transition: { duration: 0.5, delay: 0.1 }
               }}
-              exit={{ 
-                opacity: 0, 
-                height: 0, 
+              exit={{
+                opacity: 0,
+                height: 0,
                 marginTop: 0,
                 transition: { duration: 0.3 }
               }}
@@ -504,7 +517,7 @@ const AnalysisForm = ({
               <EngineSelection
                 selectedEngine={formState.selected_engine}
                 onEngineChange={handleEngineChange}
-                disabled={formState.is_loading}
+                disabled={formState.is_loading || loading} // <-- DODANE 'loading'
                 goalType={formState.selected_goal}
               />
             </motion.div>
@@ -516,15 +529,15 @@ const AnalysisForm = ({
           {formState.selected_goal && (
             <motion.div
               initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{ 
-                opacity: 1, 
-                height: 'auto', 
+              animate={{
+                opacity: 1,
+                height: 'auto',
                 marginTop: 32,
                 transition: { duration: 0.5, delay: 0.1 }
               }}
-              exit={{ 
-                opacity: 0, 
-                height: 0, 
+              exit={{
+                opacity: 0,
+                height: 0,
                 marginTop: 0,
                 transition: { duration: 0.3 }
               }}
@@ -532,7 +545,7 @@ const AnalysisForm = ({
               <CustomPromptInput
                 value={formState.custom_prompt}
                 onChange={handleCustomPromptChange}
-                disabled={formState.is_loading}
+                disabled={formState.is_loading || loading} // <-- DODANE 'loading'
                 selectedGoal={formState.selected_goal}
                 selectedEngine={formState.selected_engine}
                 imageCount={formState.images.length}
@@ -550,11 +563,11 @@ const AnalysisForm = ({
         {/* Step 5: Submit Button */}
         <AnimatePresence>
           {formState.selected_goal && (!formState.show_engine_selection || formState.selected_engine) && (
-            <motion.div 
+            <motion.div
               className="flex justify-center"
               initial={{ opacity: 0, y: 20 }}
-              animate={{ 
-                opacity: 1, 
+              animate={{
+                opacity: 1,
                 y: 0,
                 transition: { duration: 0.5, delay: 0.2 }
               }}
@@ -562,16 +575,17 @@ const AnalysisForm = ({
             >
               <motion.button
                 type="submit"
-                disabled={formState.is_loading || formState.images.length === 0 || !formState.selected_goal}
+                // Dodane 'loading' do warunku disabled
+                disabled={formState.is_loading || formState.images.length === 0 || !formState.selected_goal || loading} // <-- ZAKTUALIZOWANA LINIA
                 className={`
                   glow-button flex items-center space-x-3 px-8 py-4 text-lg font-semibold
-                  ${formState.is_loading || formState.images.length === 0 || !formState.selected_goal
-                    ? 'opacity-50 cursor-not-allowed' 
+                  ${formState.is_loading || formState.images.length === 0 || !formState.selected_goal || loading // <-- ZAKTUALIZOWANA LINIA
+                    ? 'opacity-50 cursor-not-allowed'
                     : 'hover:scale-105 active:scale-95'
                   }
                 `}
-                whileHover={!formState.is_loading && formState.images.length > 0 && formState.selected_goal ? { scale: 1.05 } : {}}
-                whileTap={!formState.is_loading && formState.images.length > 0 && formState.selected_goal ? { scale: 0.95 } : {}}
+                whileHover={!formState.is_loading && formState.images.length > 0 && formState.selected_goal && !loading ? { scale: 1.05 } : {}} // <-- ZAKTUALIZOWANA LINIA
+                whileTap={!formState.is_loading && formState.images.length > 0 && formState.selected_goal && !loading ? { scale: 0.95 } : {}} // <-- ZAKTUALIZOWANA LINIA
               >
                 {formState.is_loading ? (
                   <>
@@ -582,7 +596,7 @@ const AnalysisForm = ({
                   <>
                     <Sparkles className="w-5 h-5" />
                     <span>
-                      {formState.selected_goal === 'find_common_features' 
+                      {formState.selected_goal === 'find_common_features'
                         ? `Analyze ${formState.images.length} Image${formState.images.length !== 1 ? 's' : ''}`
                         : `Create ${formState.selected_engine || 'AI'} Prompt`
                       }

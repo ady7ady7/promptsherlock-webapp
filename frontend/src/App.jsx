@@ -18,6 +18,8 @@ import {
 import { Link } from 'react-router-dom';
 import AnalysisForm from './components/AnalysisForm';
 import Navigation from './components/Navigation';
+import { useAuth } from './components/AuthContext';
+
 
 /**
  * Main Application Component - Prompt Sherlock
@@ -41,6 +43,9 @@ function App() {
   const dragX = useMotionValue(0);
   const carouselRef = useRef(null);
   const autoScrollRef = useRef(null);
+  const { currentUser, loading } = useAuth();
+
+  
 
   // =============================================================================
   // EVENT HANDLERS
@@ -530,6 +535,7 @@ function App() {
         {/* Navigation Links */}
         <Navigation />
 
+
         {/* Copyright */}
         <div className="text-center py-6 border-t border-white/5 mt-8">
           <motion.p 
@@ -560,6 +566,7 @@ function App() {
           initial="hidden"
           animate="visible"
         >
+          
           {renderHeader()}
           {renderMainContent()}
           {renderFooter()}
