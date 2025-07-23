@@ -4,8 +4,8 @@
 
 [build]
   # Force install ALL dependencies including devDependencies
-  # ZAKTUALIZOWANA KOMENDA: Dodano kopiowanie pliku _headers do katalogu dist
-  command = "cd frontend && NODE_ENV=development npm install --legacy-peer-deps && npm run build && cp _headers dist/_headers"
+  # ZAKTUALIZOWANA KOMENDA: Usunięto ręczne kopiowanie _headers
+  command = "cd frontend && NODE_ENV=development npm install --legacy-peer-deps && npm run build"
   publish = "frontend/dist"
 
 [build.environment]
@@ -27,9 +27,9 @@
     X-XSS-Protection = "1; mode=block"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    # Ta sekcja Content-Security-Policy w netlify.toml jest teraz ZBĘDNA,
-    # ponieważ używamy pliku _headers. Możesz ją usunąć lub zakomentować,
-    # aby uniknąć konfliktów.
+    # Ta sekcja Content-Security-Policy w netlify.toml jest teraz ZBĘDNA
+    # i powinna zostać usunięta lub zakomentowana, aby uniknąć konfliktów
+    # z plikiem _headers w katalogu public/.
     # Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.onrender.com https://api.promptsherlock.ai"
 
 [[headers]]
