@@ -14,12 +14,49 @@ import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import admin from 'firebase-admin'; // <-- DODANA LINIA
 
 // Load environment variables first
 dotenv.config();
 
-// Import routes
-import analyzeRouter from './routes/analyze.js';
+// =============================================================================
+// KONFIGURACJA FIREBASE ADMIN SDK
+// =============================================================================
+
+// Sprawdź, czy zmienna środowiskowa istnieje
+if (!process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+  console.error('❌ Błąd: Zmienna środowiskowa FIREBASE_SERVICE_ACCOUNT_KEY nie jest ustawiona.');
+  console.error('   Upewnij się, że zawiera cały obiekt JSON z kluczem serwisowym Firebase.');
+  process.exit(1); // Zakończ proces, jeśli klucz nie jest dostępny
+}
+
+let firebaseAdminApp;
+let db; // Firestore instance
+let auth; // Auth instance
+
+try {
+  // Parsuj klucz serwisowy z JSON (pobranego ze zmiennej środowiskowej)
+  const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+
+  firebaseAdminApp = admin.initializeApp({
+    credential: admin.credential.cert(serviceAccount)
+  });
+
+  db = admin.firestore(); // Inicjalizacja Firestore
+  auth = admin.auth();     // Inicjalizacja Auth
+
+  console.log('✅ Firebase Admin SDK zainicjowany pomyślnie.');
+} catch (error) {
+  console.error('❌ Błąd inicjalizacji Firebase Admin SDK:', error);
+  console.error('   Sprawdź poprawność formatu JSON w zmiennej FIREBASE_SERVICE_ACCOUNT_KEY.');
+  process.exit(1);
+}
+
+// Eksportuj instancje, aby były dostępne w innych plikach (np. w routerach)
+export { admin, db, auth }; // <-- DODANA LINIA
+
+// Import routes (po inicjalizacji Firebase, aby routery mogły używać db/auth)
+import analyzeRouter from './routes/analyze.js'; // <-- PRZENIESIONE PO INICJALIZACJI FIREBASE
 
 // Get directory paths for ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -33,12 +70,12 @@ console.log('🚀 AI Image Analyzer Server Starting...');
 console.log('═'.repeat(60));
 
 // Simple environment validation
-const requiredEnvVars = ['GEMINI_API_KEY'];
+const requiredEnvVars = ['GEMINI_API_KEY', 'FIREBASE_SERVICE_ACCOUNT_KEY']; // <-- DODANA ZMIENNA
 const missingVars = requiredEnvVars.filter(varName => !process.env[varName]);
 
 if (missingVars.length > 0) {
   console.error('❌ Missing required environment variables:', missingVars);
-  console.error('   Please set these in your Render dashboard environment section');
+  console.error('   Please set these in your Render dashboard environment section');
   process.exit(1);
 }
 
@@ -46,6 +83,7 @@ console.log('✅ Required environment variables present');
 console.log(`🌍 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`🔗 Frontend URL: ${process.env.FRONTEND_URL || 'Not configured'}`);
 console.log(`🔑 Gemini API: ${process.env.GEMINI_API_KEY ? 'Configured' : 'Missing'}`);
+console.log(`🔑 Firebase Admin SDK: ${process.env.FIREBASE_SERVICE_ACCOUNT_KEY ? 'Configured' : 'Missing'}`); // <-- DODANY LOG
 
 // =============================================================================
 // EXPRESS APP INITIALIZATION
@@ -81,11 +119,11 @@ app.use(helmet({
 const getCorsOptions = () => {
   const frontendUrl = process.env.FRONTEND_URL;
   const nodeEnv = process.env.NODE_ENV;
-  
+
   console.log('🔍 CORS Configuration:');
-  console.log('   Frontend URL:', frontendUrl);
-  console.log('   Environment:', nodeEnv);
-  
+  console.log('   Frontend URL:', frontendUrl);
+  console.log('   Environment:', nodeEnv);
+
   // Development origins
   const devOrigins = [
     'https://promptsherlock.ai',
@@ -96,58 +134,58 @@ const getCorsOptions = () => {
     'http://127.0.0.1:5173',
     'http://127.0.0.1:3000'
   ];
-  
+
   // Production origins
   const prodOrigins = [];
   if (frontendUrl) {
     prodOrigins.push(frontendUrl);
-    
+
     // Add common variations for Netlify
     if (frontendUrl.includes('netlify.app')) {
       const baseUrl = frontendUrl.replace('https://', '').replace('.netlify.app', '');
       prodOrigins.push(`https://deploy-preview-*--${baseUrl}.netlify.app`);
     }
   }
-  
+
   const allowedOrigins = [
     ...devOrigins,
     ...prodOrigins
   ].filter(Boolean);
-  
-  console.log('   Allowed origins:', allowedOrigins);
-  
+
+  console.log('   Allowed origins:', allowedOrigins);
+
   return {
     origin: function (origin, callback) {
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin) {
-        console.log('   ✅ No origin header - allowing request');
+        console.log('   ✅ No origin header - allowing request');
         return callback(null, true);
       }
-      
+
       // Check exact matches
       if (allowedOrigins.includes(origin)) {
-        console.log('   ✅ Origin allowed:', origin);
+        console.log('   ✅ Origin allowed:', origin);
         return callback(null, true);
       }
-      
+
       // Check Netlify deploy previews pattern
-      const isNetlifyPreview = origin.includes('netlify.app') && 
-                              frontendUrl && frontendUrl.includes('netlify.app');
-      
+      const isNetlifyPreview = origin.includes('netlify.app') &&
+                               frontendUrl && frontendUrl.includes('netlify.app');
+
       if (isNetlifyPreview) {
-        console.log('   ✅ Netlify preview origin allowed:', origin);
+        console.log('   ✅ Netlify preview origin allowed:', origin);
         return callback(null, true);
       }
-      
+
       // Development mode - be more permissive
       if (nodeEnv === 'development') {
-        console.log('   ⚠️ Development mode - allowing origin:', origin);
+        console.log('   ⚠️ Development mode - allowing origin:', origin);
         return callback(null, true);
       }
-      
-      console.log('   ❌ Origin blocked:', origin);
-      console.log('   📋 Allowed origins:', allowedOrigins);
-      
+
+      console.log('   ❌ Origin blocked:', origin);
+      console.log('   📋 Allowed origins:', allowedOrigins);
+
       const error = new Error('Not allowed by CORS');
       error.status = 403;
       callback(error);
@@ -155,9 +193,9 @@ const getCorsOptions = () => {
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: [
-      'Content-Type', 
-      'Authorization', 
-      'Accept', 
+      'Content-Type',
+      'Authorization',
+      'Accept',
       'X-Requested-With',
       'Origin',
       'Access-Control-Request-Method',
@@ -205,13 +243,13 @@ const limiter = rateLimit({
 });
 
 // Body parsing
-app.use(express.json({ 
+app.use(express.json({
   limit: '1mb',
   strict: true
 }));
 
-app.use(express.urlencoded({ 
-  extended: true, 
+app.use(express.urlencoded({
+  extended: true,
   limit: '1mb'
 }));
 
@@ -223,7 +261,7 @@ app.use(express.urlencoded({
 app.get('/health', (req, res) => {
   const uptime = process.uptime();
   const memoryUsage = process.memoryUsage();
-  
+
   res.json({
     status: 'OK',
     timestamp: new Date().toISOString(),
@@ -249,7 +287,7 @@ app.get('/health', (req, res) => {
 // Root endpoint with service info - THIS WAS MISSING!
 app.get('/', (req, res) => {
   const uptime = process.uptime();
-  
+
   res.json({
     service: 'AI Image Analyzer API',
     status: 'running',
@@ -258,19 +296,19 @@ app.get('/', (req, res) => {
     uptime: `${Math.floor(uptime / 60)}m ${Math.floor(uptime % 60)}s`,
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || 'development',
-    
+
     endpoints: {
       health: '/health',
       analyze: '/api/analyze',
       config: '/api/analyze/config'
     },
-    
+
     deployment: {
       platform: 'Render',
       frontend: process.env.FRONTEND_URL || 'Not configured',
       cors: corsOptions.origin ? 'Configured' : 'Default'
     },
-    
+
     documentation: {
       upload: {
         method: 'POST',
@@ -298,7 +336,7 @@ app.use('/api/analyze', analyzeRouter);
 // 404 handler for API routes
 app.use('/api/*', (req, res) => {
   console.warn(`🔍 API endpoint not found: ${req.method} ${req.originalUrl}`);
-  
+
   res.status(404).json({
     success: false,
     error: 'API endpoint not found',
@@ -324,7 +362,7 @@ app.use((error, req, res, next) => {
       path: req.path,
       frontendUrl: process.env.FRONTEND_URL
     });
-    
+
     return res.status(403).json({
       success: false,
       error: 'CORS policy violation',
@@ -337,7 +375,7 @@ app.use((error, req, res, next) => {
       }
     });
   }
-  
+
   next(error);
 });
 
@@ -350,20 +388,20 @@ app.use((error, req, res, next) => {
     method: req.method,
     ip: req.ip
   });
-  
+
   const status = error.status || error.statusCode || 500;
-  
+
   const errorResponse = {
     success: false,
     error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error',
     code: error.code || 'INTERNAL_ERROR',
     timestamp: new Date().toISOString()
   };
-  
+
   if (process.env.NODE_ENV === 'development') {
     errorResponse.stack = error.stack;
   }
-  
+
   res.status(status).json(errorResponse);
 });
 
@@ -383,12 +421,12 @@ app.use('*', (req, res) => {
 
 const gracefulShutdown = (signal) => {
   console.log(`\n👋 ${signal} received, shutting down gracefully...`);
-  
+
   server.close(() => {
     console.log('✅ HTTP server closed');
     process.exit(0);
   });
-  
+
   setTimeout(() => {
     console.error('❌ Could not close connections in time, forcefully shutting down');
     process.exit(1);
@@ -421,30 +459,31 @@ const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`🔗 CORS enabled for: ${process.env.FRONTEND_URL || 'Not configured'}`);
   console.log(`🤖 AI Model: ${process.env.AI_MODEL || 'gemini-1.5-flash'}`);
   console.log(`⚡ Rate limiting: 100 requests per 15 minutes`);
-  
+
   console.log('\n🌐 Available Endpoints:');
-  console.log(`   • Health Check: http://localhost:${PORT}/health`);
-  console.log(`   • Service Info: http://localhost:${PORT}/`);
-  console.log(`   • Image Analysis: http://localhost:${PORT}/api/analyze`);
-  console.log(`   • Service Config: http://localhost:${PORT}/api/analyze/config`);
-  
+  console.log(`   • Health Check: http://localhost:${PORT}/health`);
+  console.log(`   • Service Info: http://localhost:${PORT}/`);
+  console.log(`   • Image Analysis: http://localhost:${PORT}/api/analyze`);
+  console.log(`   • Service Config: http://localhost:${PORT}/api/analyze/config`);
+
   console.log('\n🔧 Environment Check:');
-  console.log(`   • PORT: ${process.env.PORT || 'Using default (10000)'}`);
-  console.log(`   • FRONTEND_URL: ${process.env.FRONTEND_URL || '❌ NOT SET'}`);
-  console.log(`   • GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ SET' : '❌ NOT SET'}`);
-  console.log(`   • NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
-  
+  console.log(`   • PORT: ${process.env.PORT || 'Using default (10000)'}`);
+  console.log(`   • FRONTEND_URL: ${process.env.FRONTEND_URL || '❌ NOT SET'}`);
+  console.log(`   • GEMINI_API_KEY: ${process.env.GEMINI_API_KEY ? '✅ SET' : '❌ NOT SET'}`);
+  console.log(`   • FIREBASE_SERVICE_ACCOUNT_KEY: ${process.env.FIREBASE_SERVICE_ACCOUNT_KEY ? '✅ SET' : '❌ NOT SET'}`); // <-- DODANY LOG
+  console.log(`   • NODE_ENV: ${process.env.NODE_ENV || 'development'}`);
+
   if (!process.env.FRONTEND_URL) {
-    console.log('\n⚠️  WARNING: FRONTEND_URL not set!');
-    console.log('   This will cause CORS errors in production.');
-    console.log('   Set it to: https://prompt-sherlock.netlify.app');
+    console.log('\n⚠️  WARNING: FRONTEND_URL not set!');
+    console.log('   This will cause CORS errors in production.');
+    console.log('   Set it to: https://prompt-sherlock.netlify.app');
   }
-  
+
   if (!process.env.GEMINI_API_KEY) {
-    console.log('\n⚠️  WARNING: GEMINI_API_KEY not set!');
-    console.log('   Image analysis will fail without a valid API key.');
+    console.log('\n⚠️  WARNING: GEMINI_API_KEY not set!');
+    console.log('   Image analysis will fail without a valid API key.');
   }
-  
+
   console.log('\n✅ Server ready to handle requests!');
   console.log('═'.repeat(60));
 });
