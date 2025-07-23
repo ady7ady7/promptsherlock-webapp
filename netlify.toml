@@ -1,48 +1,47 @@
-# =============================================================================
-# NETLIFY CONFIGURATION FOR IMAGEANALYZER
-# =============================================================================
+    # =============================================================================
+    # NETLIFY CONFIGURATION FOR IMAGEANALYZER
+    # =============================================================================
 
-[build]
-  # Force install ALL dependencies including devDependencies
-  # ZAKTUALIZOWANA KOMENDA: Usunięto ręczne kopiowanie _headers
-  command = "cd frontend && NODE_ENV=development npm install --legacy-peer-deps && npm run build"
-  publish = "frontend/dist"
+    [build]
+      # Force install ALL dependencies including devDependencies
+      command = "cd frontend && NODE_ENV=development npm install --legacy-peer-deps && npm run build"
+      publish = "frontend/dist"
 
-[build.environment]
-  NODE_VERSION = "20"
-  NPM_VERSION = "10.2.3"
-  CI = "true"
-  # Don't set NODE_ENV=production here, we'll set it during build only
+    [build.environment]
+      NODE_VERSION = "20"
+      NPM_VERSION = "10.2.3"
+      CI = "true"
+      # Don't set NODE_ENV=production here, we'll set it during build only
 
-[[redirects]]
-  from = "/*"
-  to = "/index.html"
-  status = 200
+    [[redirects]]
+      from = "/*"
+      to = "/index.html"
+      status = 200
 
-[[headers]]
-  for = "/*"
-  [headers.values]
-    X-Frame-Options = "DENY"
-    X-Content-Type-Options = "nosniff"
-    X-XSS-Protection = "1; mode=block"
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    # Ta sekcja Content-Security-Policy w netlify.toml jest teraz ZBĘDNA
-    # i powinna zostać usunięta lub zakomentowana, aby uniknąć konfliktów
-    # z plikiem _headers w katalogu public/.
-    # Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.onrender.com https://api.promptsherlock.ai"
+    [[headers]]
+      for = "/*"
+      [headers.values]
+        X-Frame-Options = "DENY"
+        X-Content-Type-Options = "nosniff"
+        X-XSS-Protection = "1; mode=block"
+        Referrer-Policy = "strict-origin-when-cross-origin"
+        Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+        # Content-Security-Policy został usunięty z netlify.toml,
+        # będzie ustawiony bezpośrednio w panelu Netlify UI.
+        # Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://*.onrender.com https://api.promptsherlock.ai"
 
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    [[headers]]
+      for = "/assets/*"
+      [headers.values]
+        Cache-Control = "public, max-age=31536000, immutable"
 
-[[headers]]
-  for = "*.js"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    [[headers]]
+      for = "*.js"
+      [headers.values]
+        Cache-Control = "public, max-age=31536000, immutable"
 
-[[headers]]
-  for = "*.css"
-  [headers.values]
-    Cache-Control = "public, max-age=31536000, immutable"
+    [[headers]]
+      for = "*.css"
+      [headers.values]
+        Cache-Control = "public, max-age=31536000, immutable"
+    
