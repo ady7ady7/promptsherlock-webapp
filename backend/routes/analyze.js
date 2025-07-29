@@ -1,17 +1,16 @@
-// backend/routes/analyze.js - CORRECTED VERSION - WORKING
-// Fixed all import issues and timeout problems
-// UPDATED: Removed find_common_features and copy_character references
+// backend/routes/analyze.js - FIXED VERSION
+// All language changed to English and limits made consistent
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import uploadMiddleware from '../middleware/upload.js'; // CORRECT: default import
+import uploadMiddleware from '../middleware/upload.js';
 import { cleanupFiles } from '../utils/cleanup.js';
 import sharp from 'sharp';
 import promptLoader from '../utils/promptLoader.js';
 
-// Importy dla Firebase Admin SDK
-import { db, admin } from '../server.js'; // <-- DODANA LINIA: Importuj db i admin z server.js
-import verifyFirebaseToken from '../middleware/auth.js'; // <-- DODANA LINIA: Importuj middleware uwierzytelniania
+// Firebase Admin SDK imports
+import { db, admin } from '../server.js';
+import verifyFirebaseToken from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -100,21 +99,21 @@ function cleanFinalOutput(text) {
 }
 
 // =============================================================================
-// MAIN ANALYSIS ENDPOINT - UPDATED: Only copy_image and copy_style
+// MAIN ANALYSIS ENDPOINT
 // =============================================================================
 
 router.post('/',
-  verifyFirebaseToken, // <-- DODANA LINIA: Użyj middleware do weryfikacji tokena (przed uploadem)
+  verifyFirebaseToken,
   uploadMiddleware(),
   async (req, res) => {
     const startTime = Date.now();
     let uploadedFiles = [];
 
     try {
-      const { user } = req; // <-- DODANA LINIA: Dane użytkownika zdekodowane z tokena
+      const { user } = req;
       const {
         prompt = '',
-        goal = 'copy_image', // UPDATED: Default to copy_image instead of find_common_features
+        goal = 'copy_image',
         engine = ''
       } = req.body;
 
@@ -133,18 +132,18 @@ router.post('/',
         goal: goal,
         engine: engine,
         hasCustomPrompt: Boolean(prompt),
-        userId: user.uid, // <-- DODANY LOG
-        isAnonymous: user.firebase.sign_in_provider === 'anonymous' // <-- DODANY LOG
+        userId: user.uid,
+        isAnonymous: user.firebase.sign_in_provider === 'anonymous'
       });
 
-      // 1. POBIERZ DANE UŻYTKOWNIKA Z FIRESTORE I SPRAWDŹ LIMITY
+      // 1. GET USER DATA FROM FIRESTORE AND CHECK LIMITS
       const userRef = db.collection('users').doc(user.uid);
       const userDoc = await userRef.get();
 
       if (!userDoc.exists) {
-        // To nie powinno się zdarzyć, jeśli AuthProvider na frontendzie działa poprawnie,
-        // ale dodajemy na wszelki wypadek, aby uniknąć błędów.
-        console.warn(`Brak dokumentu użytkownika dla UID: ${user.uid}. Tworzenie nowego.`);
+        // This shouldn't happen if AuthProvider on frontend works correctly,
+        // but we add it just in case to avoid errors
+        console.warn(`No user document for UID: ${user.uid}. Creating new one.`);
         await userRef.set({
           usageCount: 0,
           isPro: false,
@@ -152,22 +151,22 @@ router.post('/',
         });
       }
 
-      let userData = userDoc.data();
-      const ANONYMOUS_LIMIT = 5; // Limit użyć dla użytkowników anonimowych
+      let userData = userDoc.data() || { usageCount: 0, isPro: false };
+      const ANONYMOUS_LIMIT = 3; // Usage limit for anonymous users
 
-      // Sprawdź, czy użytkownik jest anonimowy i czy przekroczył limit
+      // Check if user is anonymous and has exceeded limit
       if (user.firebase.sign_in_provider === 'anonymous' && !userData.isPro) {
         if (userData.usageCount >= ANONYMOUS_LIMIT) {
-          console.log(`Użytkownik anonimowy ${user.uid} przekroczył limit (${userData.usageCount}/${ANONYMOUS_LIMIT}).`);
+          console.log(`Anonymous user ${user.uid} exceeded limit (${userData.usageCount}/${ANONYMOUS_LIMIT}).`);
           return res.status(403).json({
-            success: false, // <-- DODANA LINIA
-            error: `Osiągnięto limit ${ANONYMOUS_LIMIT} użyć dla użytkowników anonimowych. Zaloguj się, aby kontynuować.`,
-            code: 'USAGE_LIMIT_EXCEEDED' // <-- DODANA LINIA
+            success: false,
+            error: `You have reached the limit of ${ANONYMOUS_LIMIT} uses for anonymous users. Please sign in to continue.`,
+            code: 'USAGE_LIMIT_EXCEEDED'
           });
         }
       }
 
-      // UPDATED: Validate goal - only copy_image and copy_style
+      // Validate goal - only copy_image and copy_style
       const validGoals = ['copy_image', 'copy_style'];
       if (!validGoals.includes(goal)) {
         return res.status(400).json({
@@ -178,7 +177,7 @@ router.post('/',
         });
       }
 
-      // UPDATED: Both remaining goals require engine selection
+      // Both remaining goals require engine selection
       if (!engine) {
         return res.status(400).json({
           success: false,
@@ -231,10 +230,9 @@ router.post('/',
         engine: engine
       });
 
-      // 3. ZWIĘKSZ LICZNIK UŻYCIA W FIRESTORE (TYLKO JEŚLI ANALIZA SIĘ POWIODŁA)
+      // 2. INCREMENT USAGE COUNTER IN FIRESTORE (ONLY IF ANALYSIS SUCCEEDED)
       await userRef.update({ usageCount: admin.firestore.FieldValue.increment(1) });
-      console.log(`Licznik użycia dla użytkownika ${user.uid} zwiększony do ${userData.usageCount + 1}.`);
-
+      console.log(`Usage counter for user ${user.uid} incremented to ${userData.usageCount + 1}.`);
 
       // Return successful response
       res.json({
@@ -247,10 +245,10 @@ router.post('/',
           processingTime: processingTime,
           hasCustomPrompt: Boolean(prompt),
           output_type: 'prompt', // Both functions generate prompts
-          user_id: user.uid, // <-- DODANA LINIA
-          is_anonymous: user.firebase.sign_in_provider === 'anonymous', // <-- DODANA LINIA
-          current_usage: userData.usageCount + 1, // <-- DODANA LINIA
-          limit: userData.isPro ? 'unlimited' : ANONYMOUS_LIMIT // <-- DODANA LINIA
+          user_id: user.uid,
+          is_anonymous: user.firebase.sign_in_provider === 'anonymous',
+          current_usage: userData.usageCount + 1,
+          limit: userData.isPro ? 'unlimited' : ANONYMOUS_LIMIT
         }
       });
 
@@ -263,25 +261,25 @@ router.post('/',
         code: 'ANALYSIS_ERROR'
       };
 
-      // Obsługa błędów z middleware uwierzytelniania (np. 401)
-      // Ważne: Sprawdź, czy odpowiedź już nie została wysłana przez poprzednie middleware
+      // Handle authentication middleware errors (e.g. 401)
+      // Important: Check if response has already been sent by previous middleware
       if (res.headersSent) {
-        return; // Jeśli tak, po prostu zakończ, aby uniknąć błędu "Cannot set headers after they are sent to the client"
+        return; // If so, just end to avoid "Cannot set headers after they are sent to the client" error
       }
 
       // Handle specific error types
-      if (error instanceof multer.MulterError) { // <-- Obsługa błędów Multer
+      if (error.constructor.name === 'MulterError') {
         if (error.code === 'LIMIT_FILE_SIZE') {
           errorResponse = {
             success: false,
-            error: 'Jeden lub więcej plików jest zbyt duży. Maksymalny rozmiar to 10MB.',
+            error: 'One or more files are too large. Maximum size is 10MB.',
             code: 'FILE_SIZE_LIMIT_EXCEEDED'
           };
           return res.status(413).json(errorResponse);
         }
         errorResponse = {
           success: false,
-          error: `Błąd przesyłania pliku: ${error.message}`,
+          error: `File upload error: ${error.message}`,
           code: 'UPLOAD_ERROR'
         };
         return res.status(400).json(errorResponse);
@@ -333,7 +331,7 @@ router.get('/health', (req, res) => {
     timestamp: new Date().toISOString(),
     service: 'Image Analysis API',
     message: 'Service is running normally',
-    availableGoals: ['copy_image', 'copy_style'], // UPDATED: Only 2 goals
+    availableGoals: ['copy_image', 'copy_style'],
     availableEngines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo']
   });
 });
@@ -346,10 +344,10 @@ router.get('/config', (req, res) => {
     limits: {
       maxFiles: 10,
       maxFileSize: '10MB',
-      supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP']
+      supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP'],
+      anonymousLimit: 3 // Added this for consistency
     },
 
-    // UPDATED: Only 2 goals now
     goals: [
       {
         id: 'copy_image',
