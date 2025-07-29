@@ -1,280 +1,39 @@
 // =============================================================================
-// OPTIMIZED APP.JSX WITH LAZY FRAMER MOTION LOADING
-// File: frontend/src/App.jsx - REPLACE EXISTING
+// UPDATED APP.JSX - SIMPLE & PERFORMANT
+// File: frontend/src/App.jsx - REPLACE EXISTING  
 // =============================================================================
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { 
   Search, 
   Zap, 
   Shield, 
-  Brain, 
   Heart, 
   Sparkles,
-  Eye,
   Clock,
-  Users,
   Palette,
-  Wand2,
   Target,
   Lightbulb
 } from 'lucide-react';
 
-// Import components (these are lightweight)
+// Import components
 import AnalysisForm from './components/AnalysisForm';
 import Navigation from './components/Navigation';
 import { useAuth } from './components/AuthContext';
-
-// =============================================================================
-// LAZY MOTION LOADING STRATEGY
-// =============================================================================
-
-/**
- * Lazy load Framer Motion modules when user interacts
- */
-let motionModules = null;
-let motionLoadingPromise = null;
-
-const loadFramerMotion = async () => {
-  if (motionModules) return motionModules;
-  if (motionLoadingPromise) return motionLoadingPromise;
-  
-  motionLoadingPromise = (async () => {
-    try {
-      console.log('🎬 Loading Framer Motion for animations...');
-      const { motion, useMotionValue, useTransform } = await import('framer-motion');
-      
-      motionModules = {
-        motion,
-        useMotionValue,
-        useTransform
-      };
-      
-      console.log('✅ Framer Motion loaded successfully');
-      return motionModules;
-    } catch (error) {
-      console.error('❌ Failed to load Framer Motion:', error);
-      // Fallback to plain HTML elements
-      motionModules = {
-        motion: {
-          div: 'div',
-          header: 'header',
-          main: 'main',
-          footer: 'footer',
-          h1: 'h1',
-          p: 'p',
-          button: 'button'
-        },
-        useMotionValue: () => ({ get: () => 0, set: () => {}, onChange: () => () => {} }),
-        useTransform: () => 0
-      };
-      return motionModules;
-    }
-  })();
-  
-  return motionLoadingPromise;
-};
-
-// =============================================================================
-// LAZY MOTION WRAPPER COMPONENTS
-// =============================================================================
-
-/**
- * Lazy motion wrapper that loads Framer Motion on interaction
- */
-const LazyMotion = ({ 
-  component = 'div', 
-  children, 
-  className, 
-  variants,
-  initial,
-  animate,
-  whileHover,
-  whileTap,
-  style,
-  ...props 
-}) => {
-  const [MotionComponent, setMotionComponent] = useState(null);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  
-  const handleInteraction = useCallback(async () => {
-    if (!hasInteracted && !MotionComponent) {
-      setHasInteracted(true);
-      const { motion } = await loadFramerMotion();
-      setMotionComponent(() => motion[component]);
-    }
-  }, [hasInteracted, MotionComponent, component]);
-  
-  // Interaction event handlers
-  const interactionProps = {
-    onMouseEnter: handleInteraction,
-    onFocus: handleInteraction,
-    onTouchStart: handleInteraction,
-    ...props
-  };
-  
-  // If motion component not loaded yet, use plain HTML element
-  if (!MotionComponent) {
-    const Element = component;
-    return (
-      <Element 
-        className={className} 
-        style={style}
-        {...interactionProps}
-      >
-        {children}
-      </Element>
-    );
-  }
-  
-  // Use motion component with full animation capabilities
-  return (
-    <MotionComponent
-      className={className}
-      style={style}
-      variants={variants}
-      initial={initial}
-      animate={animate}
-      whileHover={whileHover}
-      whileTap={whileTap}
-      {...props}
-    >
-      {children}
-    </MotionComponent>
-  );
-};
-
-/**
- * Lazy carousel with motion values
- */
-const LazyCarousel = ({ children, className }) => {
-  const [motionValues, setMotionValues] = useState(null);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const carouselRef = useRef(null);
-  const autoScrollRef = useRef(null);
-  
-  // Load motion values when needed
-  useEffect(() => {
-    const loadMotionValues = async () => {
-      const { useMotionValue, useTransform } = await loadFramerMotion();
-      const dragX = useMotionValue(0);
-      const beltProgress = useTransform(dragX, (x) => {
-        const TOTAL_WIDTH = 6 * 320; // 6 features * 320px
-        const normalizedX = ((x % TOTAL_WIDTH) + TOTAL_WIDTH) % TOTAL_WIDTH;
-        return (normalizedX / TOTAL_WIDTH) * 100;
-      });
-      
-      setMotionValues({ dragX, beltProgress });
-    };
-    
-    loadMotionValues();
-  }, []);
-  
-  // Auto-scroll logic (without motion initially)
-  useEffect(() => {
-    const AUTO_SCROLL_SPEED = 0.5;
-    const AUTO_SCROLL_INTERVAL = 16;
-    
-    if (!isPaused && !isDragging && !isHovered && motionValues) {
-      autoScrollRef.current = setInterval(() => {
-        const currentX = motionValues.dragX.get();
-        motionValues.dragX.set(currentX - AUTO_SCROLL_SPEED);
-      }, AUTO_SCROLL_INTERVAL);
-    } else {
-      if (autoScrollRef.current) {
-        clearInterval(autoScrollRef.current);
-      }
-    }
-
-    return () => {
-      if (autoScrollRef.current) {
-        clearInterval(autoScrollRef.current);
-      }
-    };
-  }, [isPaused, isDragging, isHovered, motionValues]);
-  
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-    setIsPaused(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    if (!isDragging) {
-      setIsPaused(false);
-    }
-  };
-  
-  if (!motionValues) {
-    // Fallback static carousel while motion loads
-    return (
-      <div 
-        className={className}
-        ref={carouselRef}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
-      >
-        {children}
-      </div>
-    );
-  }
-  
-  return (
-    <LazyMotion
-      component="div"
-      className={className}
-      ref={carouselRef}
-      style={{ x: motionValues.dragX }}
-      drag="x"
-      dragElastic={0.1}
-      dragMomentum={false}
-      onDragStart={() => {
-        setIsDragging(true);
-        setIsPaused(true);
-      }}
-      onDragEnd={() => {
-        setIsDragging(false);
-        setTimeout(() => setIsPaused(false), 2000);
-      }}
-      onMouseEnter={handleMouseEnter}
-      onMouseLeave={handleMouseLeave}
-    >
-      {children}
-    </LazyMotion>
-  );
-};
+import { SimpleMotion, preloadMotion } from './components/SimpleMotion';
+import { SimpleCarousel } from './components/SimpleCarousel';
 
 // =============================================================================
 // MAIN APP COMPONENT
 // =============================================================================
 
 function App() {
-  // =============================================================================
-  // STATE MANAGEMENT
-  // =============================================================================
-  
   const [hasAnalysis, setHasAnalysis] = useState(false);
-  const [motionLoaded, setMotionLoaded] = useState(false);
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, isOfflineMode } = useAuth();
 
-  // =============================================================================
-  // LAZY LOADING TRIGGERS
-  // =============================================================================
-
-  /**
-   * Preload Framer Motion after initial render
-   */
+  // Preload motion after component mounts
   useEffect(() => {
-    // Preload motion after a short delay for better initial page load
-    const timer = setTimeout(() => {
-      loadFramerMotion().then(() => {
-        setMotionLoaded(true);
-      });
-    }, 1000);
-
-    return () => clearTimeout(timer);
+    preloadMotion();
   }, []);
 
   // =============================================================================
@@ -283,13 +42,18 @@ function App() {
 
   const handleAnalysisComplete = (results) => {
     setHasAnalysis(true);
-    // Scroll to results
     setTimeout(() => {
       document.querySelector('#analysis-results')?.scrollIntoView({ 
         behavior: 'smooth' 
       });
     }, 100);
   };
+
+  const scrollToUpload = useCallback(() => {
+    document.querySelector('#upload-section')?.scrollIntoView({ 
+      behavior: 'smooth' 
+    });
+  }, []);
 
   // =============================================================================
   // FEATURE DATA
@@ -334,220 +98,112 @@ function App() {
     }
   ];
 
-  // Create infinite loop by duplicating features
-  const infiniteFeatures = [...features, ...features, ...features];
-
   // =============================================================================
   // RENDER COMPONENTS
   // =============================================================================
 
-  /**
-   * Renders the main header section
-   */
   const renderHeader = () => (
-    <LazyMotion
-      component="header"
-      className="text-center mb-16"
-      variants={{
-        hidden: { opacity: 0, y: -50 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut' } }
-      }}
-      initial="hidden"
-      animate="visible"
-    >
+    <header className="text-center mb-16">
       {/* Logo and Brand */}
-      <LazyMotion
-        component="div"
+      <SimpleMotion
         className="flex items-center justify-center mb-6"
         whileHover={{ scale: 1.05 }}
+        transition={{ duration: 0.2 }}
       >
-        <LazyMotion
-          component="div"
+        <SimpleMotion
           className="glass-effect p-4 rounded-2xl mr-4"
           whileHover={{ 
             boxShadow: '0 0 30px rgba(59, 130, 246, 0.6)',
             scale: 1.1 
           }}
+          transition={{ duration: 0.3 }}
         >
           <Search className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
-        </LazyMotion>
+        </SimpleMotion>
         
-        <LazyMotion
-          component="h1"
-          className="gradient-text text-4xl md:text-5xl lg:text-6xl font-bold"
-          variants={{
-            hidden: { opacity: 0, scale: 0.8 },
-            visible: { opacity: 1, scale: 1, transition: { duration: 0.6, delay: 0.2 } }
-          }}
-        >
+        <h1 className="gradient-text text-4xl md:text-5xl lg:text-6xl font-bold">
           Prompt Sherlock
-        </LazyMotion>
-      </LazyMotion>
+        </h1>
+      </SimpleMotion>
 
       {/* Marketing Tagline */}
-      <LazyMotion
-        component="div"
-        className="max-w-3xl mx-auto mb-8"
-        variants={{
-          hidden: { opacity: 0, y: 20 },
-          visible: { opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.4 } }
-        }}
-      >
+      <div className="max-w-3xl mx-auto mb-8">
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
           Uncover. Create. Repeat.<br />
           Turn any image into the perfect AI art prompt.
         </p>
-      </LazyMotion>
+      </div>
 
-      {/* Simplified Marketing Description */}
-      <LazyMotion
-        component="div"
+      {/* Marketing Description */}
+      <SimpleMotion
         className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
-        variants={{
-          hidden: { opacity: 0, y: 30 },
-          visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.6 } }
-        }}
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, delay: 0.4 }}
       >
         <p className="text-white text-lg md:text-xl leading-relaxed mb-8 text-center">
           <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, tailored for top AI engines like Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
         </p>
         
-        {/* Centered CTA Button */}
+        {/* Offline Mode Notice */}
+        {isOfflineMode && (
+          <div className="mb-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg">
+            <div className="flex items-center justify-center text-orange-300">
+              <Clock className="w-5 h-5 mr-2" />
+              <span className="text-sm">Running in offline mode - some features may be limited</span>
+            </div>
+          </div>
+        )}
+        
+        {/* CTA Button */}
         <div className="text-center">
-          <LazyMotion
-            component="button"
-            className="glass-button px-10 py-5 text-white font-bold text-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300 border border-blue-400/30 mx-auto"
+          <SimpleMotion
+            className="glass-button px-10 py-5 text-white font-bold text-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300 border border-blue-400/30 mx-auto cursor-pointer inline-block"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
-            onClick={() => document.querySelector('#upload-section')?.scrollIntoView({ behavior: 'smooth' })}
+            onClick={scrollToUpload}
           >
             Get Started Now
-          </LazyMotion>
+          </SimpleMotion>
           
           <p className="text-gray-400 text-sm mt-4">
             Upload Your First Image and See Sherlock in Action!
           </p>
         </div>
-      </LazyMotion>
+      </SimpleMotion>
 
-      {/* Infinite Draggable Feature Carousel */}
-      <LazyMotion
-        component="div"
-        className="max-w-7xl mx-auto overflow-hidden px-4 py-4"
-        variants={{
-          hidden: { opacity: 0, y: 30 },
-          visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.8 } }
-        }}
-        initial="hidden"
-        animate="visible"
+      {/* Feature Carousel */}
+      <SimpleMotion
+        initial={{ opacity: 0, y: 30 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.8 }}
       >
-        <div className="relative">
-          {/* Background Pattern Layer */}
-          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
-            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5" />
-            <LazyMotion
-              component="div"
-              className="absolute inset-0 opacity-10"
-              animate={{
-                backgroundPosition: ['0% 0%', '100% 100%']
-              }}
-              style={{
-                backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(59,130,246,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(147,51,234,0.3) 0%, transparent 50%)',
-                backgroundSize: '200% 200%'
-              }}
-            />
-          </div>
-
-          {/* Carousel Container */}
-          <LazyCarousel className="flex space-x-6 cursor-grab active:cursor-grabbing">
-            {infiniteFeatures.map((feature, index) => (
-              <LazyMotion
-                key={`${feature.title}-${index}`}
-                component="div"
-                className="glass-effect p-6 rounded-xl hover:bg-white/15 transition-all duration-300 flex-shrink-0 relative overflow-hidden"
-                style={{ width: '300px' }}
-                whileHover={{ 
-                  scale: 1.05,
-                  boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)'
-                }}
-                whileTap={{ scale: 0.95 }}
-              >
-                {/* Background Pattern */}
-                <div className={`absolute inset-0 bg-gradient-to-br ${feature.bgGradient} opacity-50`} />
-                
-                {/* Content */}
-                <LazyMotion
-                  component="div"
-                  className="relative z-10 flex flex-col items-center text-center space-y-3"
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                >
-                  <LazyMotion
-                    component="div"
-                    className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full backdrop-blur-sm"
-                    whileHover={{ rotate: 360 }}
-                  >
-                    <feature.icon className="w-6 h-6 text-blue-400" />
-                  </LazyMotion>
-                  
-                  <h3 className="text-white font-semibold text-lg">
-                    {feature.title}
-                  </h3>
-                  
-                  <p className="text-gray-300 text-sm">
-                    {feature.description}
-                  </p>
-                </LazyMotion>
-              </LazyMotion>
-            ))}
-          </LazyCarousel>
-        </div>
-        
-        {/* Belt Indicator - Simple fallback if motion not loaded */}
-        <div className="relative w-full max-w-md mx-auto mt-8 mb-4">
-          <div className="h-1 bg-white/20 rounded-full relative">
-            <div className="absolute top-1/2 w-4 h-4 bg-blue-400 rounded-full shadow-lg animate-pulse" 
-                 style={{ left: '50%', transform: 'translate(-50%, -50%)' }} />
-          </div>
-        </div>
-      </LazyMotion>
-    </LazyMotion>
+        <SimpleCarousel features={features} />
+      </SimpleMotion>
+    </header>
   );
 
-  /**
-   * Renders the main content area
-   */
   const renderMainContent = () => (
-    <LazyMotion
-      component="main"
-      variants={{
-        hidden: { opacity: 0, y: 40 },
-        visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 1.0 } }
-      }}
-      initial="hidden"
-      animate="visible"
+    <SimpleMotion
+      className="main"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.8, delay: 1.0 }}
       id="upload-section"
     >
       <AnalysisForm
         onAnalysisComplete={handleAnalysisComplete}
         apiUrl={import.meta.env.VITE_API_URL}
       />
-    </LazyMotion>
+    </SimpleMotion>
   );
 
-  /**
-   * Renders the footer section with navigation
-   */
   const renderFooter = () => (
-    <LazyMotion
-      component="footer"
+    <SimpleMotion
       className="mt-20 pt-12 border-t border-white/10"
-      variants={{
-        hidden: { opacity: 0 },
-        visible: { opacity: 1, transition: { duration: 0.6, delay: 1.2 } }
-      }}
-      initial="hidden"
-      animate="visible"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.6, delay: 1.2 }}
     >
       <div className="max-w-6xl mx-auto">
         {/* Footer Content */}
@@ -584,7 +240,7 @@ function App() {
             <div className="space-y-1 text-gray-400 text-sm">
               <p>Google Gemini</p>
               <p>React & Tailwind CSS</p>
-              {motionLoaded && <p>Framer Motion</p>}
+              <p>Framer Motion</p>
             </div>
           </div>
         </div>
@@ -594,19 +250,19 @@ function App() {
 
         {/* Copyright */}
         <div className="text-center py-6 border-t border-white/5 mt-8">
-          <LazyMotion 
-            component="p"
+          <SimpleMotion 
             className="text-gray-500 text-sm flex items-center justify-center"
             whileHover={{ scale: 1.05 }}
+            transition={{ duration: 0.2 }}
           >
             Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the creative community
-          </LazyMotion>
+          </SimpleMotion>
           <p className="text-gray-600 text-xs mt-2">
             © 2024 Prompt Sherlock. Privacy-focused AI prompt generation.
           </p>
         </div>
       </div>
-    </LazyMotion>
+    </SimpleMotion>
   );
 
   // =============================================================================
@@ -616,34 +272,17 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
       <div className="container mx-auto px-4 py-8">
-        <LazyMotion
-          component="div"
+        <SimpleMotion
           className="max-w-7xl mx-auto"
-          variants={{
-            hidden: { opacity: 0 },
-            visible: { 
-              opacity: 1,
-              transition: { 
-                duration: 0.6,
-                staggerChildren: 0.2 
-              }
-            }
-          }}
-          initial="hidden"
-          animate="visible"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ duration: 0.6 }}
         >
           {renderHeader()}
           {renderMainContent()}
           {renderFooter()}
-        </LazyMotion>
+        </SimpleMotion>
       </div>
-      
-      {/* Performance indicator */}
-      {import.meta.env.DEV && (
-        <div className="fixed bottom-4 right-4 text-xs text-gray-500">
-          Motion: {motionLoaded ? '✅' : '⏳'}
-        </div>
-      )}
     </div>
   );
 }
