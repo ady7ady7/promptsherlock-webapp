@@ -1,5 +1,9 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { motion, useMotionValue, useTransform } from 'framer-motion';
+// =============================================================================
+// OPTIMIZED APP.JSX WITH LAZY FRAMER MOTION LOADING
+// File: frontend/src/App.jsx - REPLACE EXISTING
+// =============================================================================
+
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { 
   Search, 
   Zap, 
@@ -15,37 +19,263 @@ import {
   Target,
   Lightbulb
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
+
+// Import components (these are lightweight)
 import AnalysisForm from './components/AnalysisForm';
 import Navigation from './components/Navigation';
 import { useAuth } from './components/AuthContext';
 
+// =============================================================================
+// LAZY MOTION LOADING STRATEGY
+// =============================================================================
 
 /**
- * Main Application Component - Prompt Sherlock
- * 
- * Features:
- * - Modern glass morphism design
- * - Framer Motion animations
- * - Responsive layout
- * - AI-powered prompt generation branding
- * - Infinite draggable carousel with belt indicator
+ * Lazy load Framer Motion modules when user interacts
  */
+let motionModules = null;
+let motionLoadingPromise = null;
+
+const loadFramerMotion = async () => {
+  if (motionModules) return motionModules;
+  if (motionLoadingPromise) return motionLoadingPromise;
+  
+  motionLoadingPromise = (async () => {
+    try {
+      console.log('🎬 Loading Framer Motion for animations...');
+      const { motion, useMotionValue, useTransform } = await import('framer-motion');
+      
+      motionModules = {
+        motion,
+        useMotionValue,
+        useTransform
+      };
+      
+      console.log('✅ Framer Motion loaded successfully');
+      return motionModules;
+    } catch (error) {
+      console.error('❌ Failed to load Framer Motion:', error);
+      // Fallback to plain HTML elements
+      motionModules = {
+        motion: {
+          div: 'div',
+          header: 'header',
+          main: 'main',
+          footer: 'footer',
+          h1: 'h1',
+          p: 'p',
+          button: 'button'
+        },
+        useMotionValue: () => ({ get: () => 0, set: () => {}, onChange: () => () => {} }),
+        useTransform: () => 0
+      };
+      return motionModules;
+    }
+  })();
+  
+  return motionLoadingPromise;
+};
+
+// =============================================================================
+// LAZY MOTION WRAPPER COMPONENTS
+// =============================================================================
+
+/**
+ * Lazy motion wrapper that loads Framer Motion on interaction
+ */
+const LazyMotion = ({ 
+  component = 'div', 
+  children, 
+  className, 
+  variants,
+  initial,
+  animate,
+  whileHover,
+  whileTap,
+  style,
+  ...props 
+}) => {
+  const [MotionComponent, setMotionComponent] = useState(null);
+  const [hasInteracted, setHasInteracted] = useState(false);
+  
+  const handleInteraction = useCallback(async () => {
+    if (!hasInteracted && !MotionComponent) {
+      setHasInteracted(true);
+      const { motion } = await loadFramerMotion();
+      setMotionComponent(() => motion[component]);
+    }
+  }, [hasInteracted, MotionComponent, component]);
+  
+  // Interaction event handlers
+  const interactionProps = {
+    onMouseEnter: handleInteraction,
+    onFocus: handleInteraction,
+    onTouchStart: handleInteraction,
+    ...props
+  };
+  
+  // If motion component not loaded yet, use plain HTML element
+  if (!MotionComponent) {
+    const Element = component;
+    return (
+      <Element 
+        className={className} 
+        style={style}
+        {...interactionProps}
+      >
+        {children}
+      </Element>
+    );
+  }
+  
+  // Use motion component with full animation capabilities
+  return (
+    <MotionComponent
+      className={className}
+      style={style}
+      variants={variants}
+      initial={initial}
+      animate={animate}
+      whileHover={whileHover}
+      whileTap={whileTap}
+      {...props}
+    >
+      {children}
+    </MotionComponent>
+  );
+};
+
+/**
+ * Lazy carousel with motion values
+ */
+const LazyCarousel = ({ children, className }) => {
+  const [motionValues, setMotionValues] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const carouselRef = useRef(null);
+  const autoScrollRef = useRef(null);
+  
+  // Load motion values when needed
+  useEffect(() => {
+    const loadMotionValues = async () => {
+      const { useMotionValue, useTransform } = await loadFramerMotion();
+      const dragX = useMotionValue(0);
+      const beltProgress = useTransform(dragX, (x) => {
+        const TOTAL_WIDTH = 6 * 320; // 6 features * 320px
+        const normalizedX = ((x % TOTAL_WIDTH) + TOTAL_WIDTH) % TOTAL_WIDTH;
+        return (normalizedX / TOTAL_WIDTH) * 100;
+      });
+      
+      setMotionValues({ dragX, beltProgress });
+    };
+    
+    loadMotionValues();
+  }, []);
+  
+  // Auto-scroll logic (without motion initially)
+  useEffect(() => {
+    const AUTO_SCROLL_SPEED = 0.5;
+    const AUTO_SCROLL_INTERVAL = 16;
+    
+    if (!isPaused && !isDragging && !isHovered && motionValues) {
+      autoScrollRef.current = setInterval(() => {
+        const currentX = motionValues.dragX.get();
+        motionValues.dragX.set(currentX - AUTO_SCROLL_SPEED);
+      }, AUTO_SCROLL_INTERVAL);
+    } else {
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    }
+
+    return () => {
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    };
+  }, [isPaused, isDragging, isHovered, motionValues]);
+  
+  const handleMouseEnter = () => {
+    setIsHovered(true);
+    setIsPaused(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsHovered(false);
+    if (!isDragging) {
+      setIsPaused(false);
+    }
+  };
+  
+  if (!motionValues) {
+    // Fallback static carousel while motion loads
+    return (
+      <div 
+        className={className}
+        ref={carouselRef}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
+      >
+        {children}
+      </div>
+    );
+  }
+  
+  return (
+    <LazyMotion
+      component="div"
+      className={className}
+      ref={carouselRef}
+      style={{ x: motionValues.dragX }}
+      drag="x"
+      dragElastic={0.1}
+      dragMomentum={false}
+      onDragStart={() => {
+        setIsDragging(true);
+        setIsPaused(true);
+      }}
+      onDragEnd={() => {
+        setIsDragging(false);
+        setTimeout(() => setIsPaused(false), 2000);
+      }}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
+      {children}
+    </LazyMotion>
+  );
+};
+
+// =============================================================================
+// MAIN APP COMPONENT
+// =============================================================================
+
 function App() {
   // =============================================================================
   // STATE MANAGEMENT
   // =============================================================================
   
   const [hasAnalysis, setHasAnalysis] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isHovered, setIsHovered] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const dragX = useMotionValue(0);
-  const carouselRef = useRef(null);
-  const autoScrollRef = useRef(null);
+  const [motionLoaded, setMotionLoaded] = useState(false);
   const { currentUser, loading } = useAuth();
 
-  
+  // =============================================================================
+  // LAZY LOADING TRIGGERS
+  // =============================================================================
+
+  /**
+   * Preload Framer Motion after initial render
+   */
+  useEffect(() => {
+    // Preload motion after a short delay for better initial page load
+    const timer = setTimeout(() => {
+      loadFramerMotion().then(() => {
+        setMotionLoaded(true);
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   // =============================================================================
   // EVENT HANDLERS
@@ -62,97 +292,7 @@ function App() {
   };
 
   // =============================================================================
-  // ANIMATION VARIANTS
-  // =============================================================================
-
-  const containerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        staggerChildren: 0.2
-      }
-    }
-  };
-
-  const headerVariants = {
-    hidden: { opacity: 0, y: -50 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.8,
-        ease: 'easeOut'
-      }
-    }
-  };
-
-  const titleVariants = {
-    hidden: { opacity: 0, scale: 0.8 },
-    visible: {
-      opacity: 1,
-      scale: 1,
-      transition: {
-        duration: 0.6,
-        ease: 'easeOut',
-        delay: 0.2
-      }
-    }
-  };
-
-  const subtitleVariants = {
-    hidden: { opacity: 0, y: 20 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.6,
-        ease: 'easeOut',
-        delay: 0.4
-      }
-    }
-  };
-
-  const featureVariants = {
-    hidden: { opacity: 0, y: 30 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.5,
-        ease: 'easeOut'
-      }
-    }
-  };
-
-  const contentVariants = {
-    hidden: { opacity: 0, y: 40 },
-    visible: {
-      opacity: 1,
-      y: 0,
-      transition: {
-        duration: 0.8,
-        ease: 'easeOut',
-        delay: 0.6
-      }
-    }
-  };
-
-  const footerVariants = {
-    hidden: { opacity: 0 },
-    visible: {
-      opacity: 1,
-      transition: {
-        duration: 0.6,
-        ease: 'easeOut',
-        delay: 1.0
-      }
-    }
-  };
-
-  // =============================================================================
-  // FEATURE DATA - Enhanced with background elements
+  // FEATURE DATA
   // =============================================================================
 
   const features = [
@@ -165,13 +305,13 @@ function App() {
     {
       icon: Zap,
       title: 'Engine Specific Prompts',
-      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) and get prompts crafted for optimal results. (Coming soon)',
+      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) (Coming soon)',
       bgGradient: 'from-yellow-500/10 to-orange-500/10'
     },
     {
       icon: Palette,
       title: 'Style & Character Profiles',
-      description: 'Build a library of recurring styles and characters for consistent branding and storytelling. (Coming soon)',
+      description: 'Build a library of recurring styles and characters for consistent branding. (Coming soon)',
       bgGradient: 'from-purple-500/10 to-pink-500/10'
     },
     {
@@ -198,158 +338,75 @@ function App() {
   const infiniteFeatures = [...features, ...features, ...features];
 
   // =============================================================================
-  // INFINITE CAROUSEL LOGIC WITH AUTO-SCROLL
-  // =============================================================================
-
-  const CARD_WIDTH = 320; // width + gap
-  const TOTAL_WIDTH = features.length * CARD_WIDTH;
-  const AUTO_SCROLL_SPEED = 0.5; // pixels per frame
-  const AUTO_SCROLL_INTERVAL = 16; // ~60fps
-
-  // Calculate normalized position for belt indicator (0-100%)
-  const beltProgress = useTransform(dragX, (x) => {
-    // Normalize the position to a 0-1 range within one set of features
-    const normalizedX = ((x % TOTAL_WIDTH) + TOTAL_WIDTH) % TOTAL_WIDTH;
-    return (normalizedX / TOTAL_WIDTH) * 100;
-  });
-
-  const handleDragStart = () => {
-    setIsDragging(true);
-    setIsPaused(true);
-    // Clear auto-scroll when user starts dragging
-    if (autoScrollRef.current) {
-      clearInterval(autoScrollRef.current);
-    }
-  };
-
-  const handleDragEnd = (event, info) => {
-    setIsDragging(false);
-    // Resume auto-scroll after a short delay
-    setTimeout(() => {
-      setIsPaused(false);
-    }, 2000); // 2 second pause after drag
-  };
-
-  const handleMouseEnter = () => {
-    setIsHovered(true);
-    setIsPaused(true);
-  };
-
-  const handleMouseLeave = () => {
-    setIsHovered(false);
-    if (!isDragging) {
-      setIsPaused(false);
-    }
-  };
-
-  // Auto-scroll effect
-  useEffect(() => {
-    if (!isPaused && !isDragging && !isHovered) {
-      autoScrollRef.current = setInterval(() => {
-        const currentX = dragX.get();
-        dragX.set(currentX - AUTO_SCROLL_SPEED);
-      }, AUTO_SCROLL_INTERVAL);
-    } else {
-      if (autoScrollRef.current) {
-        clearInterval(autoScrollRef.current);
-      }
-    }
-
-    return () => {
-      if (autoScrollRef.current) {
-        clearInterval(autoScrollRef.current);
-      }
-    };
-  }, [isPaused, isDragging, isHovered, dragX]);
-
-  // Auto-snap to create seamless infinite effect
-  useEffect(() => {
-    const unsubscribe = dragX.onChange((x) => {
-      // Seamlessly loop when reaching boundaries
-      if (x > CARD_WIDTH / 2) {
-        dragX.set(x - TOTAL_WIDTH);
-      } else if (x < -TOTAL_WIDTH * 2 + CARD_WIDTH / 2) {
-        dragX.set(x + TOTAL_WIDTH);
-      }
-    });
-
-    return unsubscribe;
-  }, [dragX, TOTAL_WIDTH, CARD_WIDTH]);
-
-  // =============================================================================
   // RENDER COMPONENTS
   // =============================================================================
 
   /**
-   * Renders the minimalistic belt-style progress indicator
-   */
-  const renderBeltIndicator = () => (
-    <div className="relative w-full max-w-md mx-auto mt-8 mb-4">
-      {/* Minimalistic Belt Background */}
-      <div className="h-1 bg-white/20 rounded-full relative">
-        {/* Progress Indicator - Solid Circle */}
-        <motion.div
-          className="absolute top-1/2 w-4 h-4 bg-blue-400 rounded-full shadow-lg"
-          style={{
-            left: useTransform(beltProgress, (progress) => `${progress}%`),
-            transform: 'translate(-50%, -50%)'
-          }}
-        />
-      </div>
-      
-    </div>
-  );
-
-  /**
-   * Renders the main header section with infinite carousel
+   * Renders the main header section
    */
   const renderHeader = () => (
-    <motion.header
+    <LazyMotion
+      component="header"
       className="text-center mb-16"
-      variants={headerVariants}
+      variants={{
+        hidden: { opacity: 0, y: -50 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.8, ease: 'easeOut' } }
+      }}
       initial="hidden"
       animate="visible"
     >
       {/* Logo and Brand */}
-      <motion.div
+      <LazyMotion
+        component="div"
         className="flex items-center justify-center mb-6"
         whileHover={{ scale: 1.05 }}
-        transition={{ duration: 0.2 }}
       >
-        <motion.div
+        <LazyMotion
+          component="div"
           className="glass-effect p-4 rounded-2xl mr-4"
           whileHover={{ 
             boxShadow: '0 0 30px rgba(59, 130, 246, 0.6)',
             scale: 1.1 
           }}
-          transition={{ duration: 0.3 }}
         >
           <Search className="w-8 h-8 md:w-10 md:h-10 text-blue-400" />
-        </motion.div>
+        </LazyMotion>
         
-        <motion.h1
+        <LazyMotion
+          component="h1"
           className="gradient-text text-4xl md:text-5xl lg:text-6xl font-bold"
-          variants={titleVariants}
+          variants={{
+            hidden: { opacity: 0, scale: 0.8 },
+            visible: { opacity: 1, scale: 1, transition: { duration: 0.6, delay: 0.2 } }
+          }}
         >
           Prompt Sherlock
-        </motion.h1>
-      </motion.div>
+        </LazyMotion>
+      </LazyMotion>
 
       {/* Marketing Tagline */}
-      <motion.div
+      <LazyMotion
+        component="div"
         className="max-w-3xl mx-auto mb-8"
-        variants={subtitleVariants}
+        variants={{
+          hidden: { opacity: 0, y: 20 },
+          visible: { opacity: 1, y: 0, transition: { duration: 0.6, delay: 0.4 } }
+        }}
       >
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
           Uncover. Create. Repeat.<br />
           Turn any image into the perfect AI art prompt.
         </p>
-      </motion.div>
+      </LazyMotion>
 
       {/* Simplified Marketing Description */}
-      <motion.div
+      <LazyMotion
+        component="div"
         className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
-        variants={subtitleVariants}
+        variants={{
+          hidden: { opacity: 0, y: 30 },
+          visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.6 } }
+        }}
       >
         <p className="text-white text-lg md:text-xl leading-relaxed mb-8 text-center">
           <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, tailored for top AI engines like Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
@@ -357,25 +414,30 @@ function App() {
         
         {/* Centered CTA Button */}
         <div className="text-center">
-          <motion.button
+          <LazyMotion
+            component="button"
             className="glass-button px-10 py-5 text-white font-bold text-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300 border border-blue-400/30 mx-auto"
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.98 }}
             onClick={() => document.querySelector('#upload-section')?.scrollIntoView({ behavior: 'smooth' })}
           >
             Get Started Now
-          </motion.button>
+          </LazyMotion>
           
           <p className="text-gray-400 text-sm mt-4">
             Upload Your First Image and See Sherlock in Action!
           </p>
         </div>
-      </motion.div>
+      </LazyMotion>
 
       {/* Infinite Draggable Feature Carousel */}
-      <motion.div
+      <LazyMotion
+        component="div"
         className="max-w-7xl mx-auto overflow-hidden px-4 py-4"
-        variants={featureVariants}
+        variants={{
+          hidden: { opacity: 0, y: 30 },
+          visible: { opacity: 1, y: 0, transition: { duration: 0.5, delay: 0.8 } }
+        }}
         initial="hidden"
         animate="visible"
       >
@@ -383,15 +445,11 @@ function App() {
           {/* Background Pattern Layer */}
           <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-xl">
             <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 via-purple-500/5 to-pink-500/5" />
-            <motion.div
+            <LazyMotion
+              component="div"
               className="absolute inset-0 opacity-10"
               animate={{
                 backgroundPosition: ['0% 0%', '100% 100%']
-              }}
-              transition={{
-                duration: 20,
-                repeat: Infinity,
-                ease: "linear"
               }}
               style={{
                 backgroundImage: 'radial-gradient(circle at 20% 50%, rgba(59,130,246,0.3) 0%, transparent 50%), radial-gradient(circle at 80% 50%, rgba(147,51,234,0.3) 0%, transparent 50%)',
@@ -401,49 +459,36 @@ function App() {
           </div>
 
           {/* Carousel Container */}
-          <motion.div
-            ref={carouselRef}
-            className="flex space-x-6 cursor-grab active:cursor-grabbing"
-            style={{ x: dragX }}
-            drag="x"
-            dragElastic={0.1}
-            dragMomentum={false}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
+          <LazyCarousel className="flex space-x-6 cursor-grab active:cursor-grabbing">
             {infiniteFeatures.map((feature, index) => (
-              <motion.div
+              <LazyMotion
                 key={`${feature.title}-${index}`}
+                component="div"
                 className="glass-effect p-6 rounded-xl hover:bg-white/15 transition-all duration-300 flex-shrink-0 relative overflow-hidden"
                 style={{ width: '300px' }}
-                whileHover={!isDragging ? { 
+                whileHover={{ 
                   scale: 1.05,
                   boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)'
-                } : {}}
-                whileTap={!isDragging ? { scale: 0.95 } : {}}
+                }}
+                whileTap={{ scale: 0.95 }}
               >
                 {/* Background Pattern */}
                 <div className={`absolute inset-0 bg-gradient-to-br ${feature.bgGradient} opacity-50`} />
-                <div className="absolute top-2 right-2 text-4xl opacity-20">
-                  {feature.bgPattern}
-                </div>
                 
                 {/* Content */}
-                <motion.div
+                <LazyMotion
+                  component="div"
                   className="relative z-10 flex flex-col items-center text-center space-y-3"
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.8 + (index % features.length) * 0.1, duration: 0.5 }}
                 >
-                  <motion.div
+                  <LazyMotion
+                    component="div"
                     className="p-3 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full backdrop-blur-sm"
-                    whileHover={!isDragging ? { rotate: 360 } : {}}
-                    transition={{ duration: 0.6 }}
+                    whileHover={{ rotate: 360 }}
                   >
                     <feature.icon className="w-6 h-6 text-blue-400" />
-                  </motion.div>
+                  </LazyMotion>
                   
                   <h3 className="text-white font-semibold text-lg">
                     {feature.title}
@@ -452,25 +497,33 @@ function App() {
                   <p className="text-gray-300 text-sm">
                     {feature.description}
                   </p>
-                </motion.div>
-              </motion.div>
+                </LazyMotion>
+              </LazyMotion>
             ))}
-          </motion.div>
+          </LazyCarousel>
         </div>
         
-        {/* Belt Indicator */}
-        {renderBeltIndicator()}
-        
-      </motion.div>
-    </motion.header>
+        {/* Belt Indicator - Simple fallback if motion not loaded */}
+        <div className="relative w-full max-w-md mx-auto mt-8 mb-4">
+          <div className="h-1 bg-white/20 rounded-full relative">
+            <div className="absolute top-1/2 w-4 h-4 bg-blue-400 rounded-full shadow-lg animate-pulse" 
+                 style={{ left: '50%', transform: 'translate(-50%, -50%)' }} />
+          </div>
+        </div>
+      </LazyMotion>
+    </LazyMotion>
   );
 
   /**
    * Renders the main content area
    */
   const renderMainContent = () => (
-    <motion.main
-      variants={contentVariants}
+    <LazyMotion
+      component="main"
+      variants={{
+        hidden: { opacity: 0, y: 40 },
+        visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 1.0 } }
+      }}
       initial="hidden"
       animate="visible"
       id="upload-section"
@@ -479,16 +532,20 @@ function App() {
         onAnalysisComplete={handleAnalysisComplete}
         apiUrl={import.meta.env.VITE_API_URL}
       />
-    </motion.main>
+    </LazyMotion>
   );
 
   /**
    * Renders the footer section with navigation
    */
   const renderFooter = () => (
-    <motion.footer
+    <LazyMotion
+      component="footer"
       className="mt-20 pt-12 border-t border-white/10"
-      variants={footerVariants}
+      variants={{
+        hidden: { opacity: 0 },
+        visible: { opacity: 1, transition: { duration: 0.6, delay: 1.2 } }
+      }}
       initial="hidden"
       animate="visible"
     >
@@ -527,7 +584,7 @@ function App() {
             <div className="space-y-1 text-gray-400 text-sm">
               <p>Google Gemini</p>
               <p>React & Tailwind CSS</p>
-              <p>Framer Motion</p>
+              {motionLoaded && <p>Framer Motion</p>}
             </div>
           </div>
         </div>
@@ -535,22 +592,21 @@ function App() {
         {/* Navigation Links */}
         <Navigation />
 
-
         {/* Copyright */}
         <div className="text-center py-6 border-t border-white/5 mt-8">
-          <motion.p 
+          <LazyMotion 
+            component="p"
             className="text-gray-500 text-sm flex items-center justify-center"
             whileHover={{ scale: 1.05 }}
-            transition={{ duration: 0.2 }}
           >
             Made with <Heart className="w-4 h-4 mx-1 text-red-400" /> for the creative community
-          </motion.p>
+          </LazyMotion>
           <p className="text-gray-600 text-xs mt-2">
             © 2024 Prompt Sherlock. Privacy-focused AI prompt generation.
           </p>
         </div>
       </div>
-    </motion.footer>
+    </LazyMotion>
   );
 
   // =============================================================================
@@ -560,18 +616,34 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900">
       <div className="container mx-auto px-4 py-8">
-        <motion.div
+        <LazyMotion
+          component="div"
           className="max-w-7xl mx-auto"
-          variants={containerVariants}
+          variants={{
+            hidden: { opacity: 0 },
+            visible: { 
+              opacity: 1,
+              transition: { 
+                duration: 0.6,
+                staggerChildren: 0.2 
+              }
+            }
+          }}
           initial="hidden"
           animate="visible"
         >
-          
           {renderHeader()}
           {renderMainContent()}
           {renderFooter()}
-        </motion.div>
+        </LazyMotion>
       </div>
+      
+      {/* Performance indicator */}
+      {import.meta.env.DEV && (
+        <div className="fixed bottom-4 right-4 text-xs text-gray-500">
+          Motion: {motionLoaded ? '✅' : '⏳'}
+        </div>
+      )}
     </div>
   );
 }
