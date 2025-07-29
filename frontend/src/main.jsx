@@ -1,10 +1,11 @@
 // =============================================================================
-// OPTIMIZED MAIN.JSX WITH PROGRESSIVE LAZY LOADING
+// FIXED MAIN.JSX - PRODUCTION READY WITH STATIC IMPORTS
 // File: frontend/src/main.jsx - REPLACE EXISTING
 // =============================================================================
 
 import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import './index.css';
 
 // =============================================================================
@@ -24,9 +25,9 @@ const CriticalLoading = () => (
 );
 
 /**
- * Router loading component - lighter than full page loader
+ * Page loading component - for lazy loaded pages
  */
-const RouterLoading = () => (
+const PageLoading = () => (
   <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center">
     <div className="text-center">
       <div className="animate-pulse">
@@ -43,18 +44,15 @@ const RouterLoading = () => (
 
 /**
  * Core App component - loads main functionality
- * This includes the home page and analysis form
  */
 const LazyApp = lazy(() => import('./App.jsx'));
 
 /**
  * AuthProvider - loads Firebase auth when needed
- * Wrapped in its own lazy loader to avoid loading full Firebase on initial load
  */
 const LazyAuthProvider = lazy(() => 
   import('./components/AuthContext').then(module => ({
     default: ({ children }) => {
-      // Only initialize Firebase when auth is actually needed
       const AuthProvider = module.AuthProvider;
       return <AuthProvider>{children}</AuthProvider>;
     }
@@ -62,48 +60,57 @@ const LazyAuthProvider = lazy(() =>
 );
 
 /**
- * Router System - loads routing infrastructure
- * Split to avoid loading all routes immediately
+ * Legal pages - lazy loaded on navigation
  */
-const LazyRouter = lazy(async () => {
-  // Dynamic import of router components
-  const [
-    { BrowserRouter: Router, Routes, Route },
-    { lazyComponents }
-  ] = await Promise.all([
-    import('react-router-dom'),
-    import('./lazy/lazyLoaders')
-  ]);
-  
-  return {
-    default: function AppRouter({ children }) {
-      return (
-        <Router>
-          <Routes>
-            {/* Main Application Route - loads immediately */}
-            <Route path="/" element={<LazyApp />} />
-            
-            {/* Legal Pages - lazy loaded on navigation */}
-            <Route 
-              path="/privacy" 
-              element={<lazyComponents.Privacy />} 
-            />
-            <Route 
-              path="/terms" 
-              element={<lazyComponents.Terms />} 
-            />
-            
-            {/* 404 Error Page - lazy loaded */}
-            <Route 
-              path="*" 
-              element={<lazyComponents.NotFound />} 
-            />
-          </Routes>
-        </Router>
-      );
-    }
-  };
-});
+const LazyPrivacyPage = lazy(() => import('./pages/Privacy.jsx'));
+const LazyTermsPage = lazy(() => import('./pages/Terms.jsx'));
+const LazyNotFoundPage = lazy(() => import('./pages/NotFound.jsx'));
+
+// =============================================================================
+// ROUTER COMPONENT - STATIC IMPORTS, LAZY PAGES
+// =============================================================================
+
+/**
+ * App Router with lazy loaded pages (not lazy router itself)
+ */
+const AppRouter = ({ children }) => {
+  return (
+    <Router>
+      <Routes>
+        {/* Main Application Route - loads immediately */}
+        <Route path="/" element={<LazyApp />} />
+        
+        {/* Legal Pages - lazy loaded on navigation */}
+        <Route 
+          path="/privacy" 
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <LazyPrivacyPage />
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/terms" 
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <LazyTermsPage />
+            </Suspense>
+          } 
+        />
+        
+        {/* 404 Error Page - lazy loaded */}
+        <Route 
+          path="*" 
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <LazyNotFoundPage />
+            </Suspense>
+          } 
+        />
+      </Routes>
+    </Router>
+  );
+};
 
 // =============================================================================
 // PROGRESSIVE ENHANCEMENT STRATEGY
@@ -111,23 +118,19 @@ const LazyRouter = lazy(async () => {
 
 /**
  * App Shell component that loads critical functionality first
- * Then progressively enhances with additional features
  */
 const AppShell = () => {
   return (
     <StrictMode>
-      {/* Level 1: Critical Loading - App Structure */}
-      <Suspense fallback={<CriticalLoading />}>
+      {/* Level 1: Critical Loading - Router Structure (Static) */}
+      <AppRouter>
         {/* Level 2: Authentication - Lazy loaded */}
         <Suspense fallback={<CriticalLoading />}>
           <LazyAuthProvider>
-            {/* Level 3: Routing - Lazy loaded */}
-            <Suspense fallback={<RouterLoading />}>
-              <LazyRouter />
-            </Suspense>
+            {/* App content loaded via routes */}
           </LazyAuthProvider>
         </Suspense>
-      </Suspense>
+      </AppRouter>
     </StrictMode>
   );
 };
@@ -146,7 +149,7 @@ const preloadCriticalChunks = () => {
       // Preload Framer Motion for interactions
       import('framer-motion').catch(() => {});
       
-      // Preload router components for faster navigation
+      // Preload pages for faster navigation
       Promise.allSettled([
         import('./pages/Privacy.jsx'),
         import('./pages/Terms.jsx')
@@ -160,7 +163,7 @@ const preloadCriticalChunks = () => {
  */
 const initPerformanceMonitoring = () => {
   // Monitor Core Web Vitals
-  if ('web-vitals' in window || window.webVitals) {
+  if (import.meta.env.PROD) {
     import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
       getCLS(console.log);
       getFID(console.log);
@@ -220,6 +223,17 @@ window.addEventListener('error', (event) => {
       sessionStorage.setItem('chunk-reload-attempted', 'true');
       window.location.reload();
     }
+  }
+});
+
+/**
+ * Handle dynamic import errors
+ */
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message && event.reason.message.includes('Failed to fetch dynamically imported module')) {
+    console.warn('Dynamic import failed:', event.reason.message);
+    // Let React's error boundaries handle this
+    event.preventDefault();
   }
 });
 

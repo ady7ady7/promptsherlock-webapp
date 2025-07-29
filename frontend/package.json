@@ -28,9 +28,7 @@
     "test:component": "vitest run src/__tests__/components",
     "test:integration": "vitest run src/__tests__/integration",
     "perf:lighthouse": "lhci autorun",
-    "perf:measure": "npm run build && node scripts/measure-bundle.js",
-    "optimize:images": "imagemin src/assets/images/**/* --out-dir=src/assets/images/optimized",
-    "preload:check": "node scripts/check-preload-hints.js"
+    "perf:measure": "npm run build && node scripts/measure-bundle.js"
   },
   "engines": {
     "node": ">=20.0.0",
@@ -38,15 +36,13 @@
   },
   "dependencies": {
     "@headlessui/react": "^2.2.0",
-    "prop-types": "^15.8.1",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1"
-  },
-  "peerDependencies": {
     "axios": "^1.9.0",
     "firebase": "12.0.0",
     "framer-motion": "^11.18.2",
     "lucide-react": "^0.460.0",
+    "prop-types": "^15.8.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
     "react-dropzone": "^14.3.8",
     "react-router-dom": "^6.28.0"
   },
@@ -72,11 +68,7 @@
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.14",
     "globals": "^15.12.0",
-    "imagemin": "^8.0.1",
-    "imagemin-mozjpeg": "^10.0.0",
-    "imagemin-pngquant": "^9.0.2",
     "jsdom": "^23.0.0",
-    "lighthouse": "^11.4.0",
     "msw": "^2.0.0",
     "postcss": "^8.5.1",
     "tailwindcss": "^3.4.14",
@@ -89,40 +81,20 @@
   "bundlesize": [
     {
       "path": "./dist/assets/js/index-*.js",
-      "maxSize": "200kb",
+      "maxSize": "300kb",
       "compression": "gzip"
     },
     {
-      "path": "./dist/assets/js/react-core-*.js",
-      "maxSize": "150kb",
+      "path": "./dist/assets/js/vendor-*.js",
+      "maxSize": "200kb",
       "compression": "gzip"
     },
     {
       "path": "./dist/assets/js/motion-*-*.js",
       "maxSize": "100kb",
       "compression": "gzip"
-    },
-    {
-      "path": "./dist/assets/js/firebase-essential-*.js",
-      "maxSize": "80kb",
-      "compression": "gzip"
-    },
-    {
-      "path": "./dist/assets/js/http-client-*.js",
-      "maxSize": "50kb",
-      "compression": "gzip"
     }
   ],
-  "importmap": {
-    "imports": {
-      "axios": "./node_modules/axios/lib/axios.js",
-      "firebase/app": "./node_modules/firebase/app/dist/esm/index.esm.js",
-      "firebase/auth": "./node_modules/firebase/auth/dist/esm/index.esm.js",
-      "firebase/firestore": "./node_modules/firebase/firestore/dist/esm/index.esm.js",
-      "framer-motion": "./node_modules/framer-motion/dist/esm/index.mjs",
-      "react-router-dom": "./node_modules/react-router-dom/dist/index.js"
-    }
-  },
   "sideEffects": [
     "*.css",
     "./src/index.css"

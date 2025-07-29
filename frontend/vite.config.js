@@ -1,5 +1,5 @@
 // =============================================================================
-// OPTIMIZED VITE CONFIGURATION WITH COMPREHENSIVE CHUNKING STRATEGY
+// FIXED VITE CONFIGURATION - PRODUCTION READY
 // File: frontend/vite.config.js - REPLACE EXISTING
 // =============================================================================
 
@@ -51,97 +51,65 @@ export default defineConfig(({ command, mode }) => {
       cors: true
     },
     
-    // Build configuration with advanced chunking strategy
+    // Build configuration with comprehensive chunking strategy
     build: {
       outDir: 'dist',
       sourcemap: isDevelopment,
       minify: isProduction ? 'terser' : false,
       
-      // ADVANCED CHUNK SPLITTING STRATEGY
+      // COMPREHENSIVE CHUNK SPLITTING STRATEGY
       rollupOptions: {
         output: {
-          // Manual chunk splitting to prevent circular dependencies and optimize loading
+          // Manual chunk splitting for optimal loading
           manualChunks: (id) => {
             // =============================================================================
-            // CORE DEPENDENCIES - LOAD FIRST
+            // CORE REACT - HIGHEST PRIORITY
             // =============================================================================
-            
-            // React core - highest priority, loaded immediately
             if (id.includes('react/') || id.includes('react-dom/')) {
               return 'react-core';
             }
             
             // =============================================================================
-            // DEFERRED CHUNKS - LOAD ON DEMAND
+            // VENDOR LIBRARIES - GROUPED BY USAGE PATTERN
             // =============================================================================
             
-            // Firebase - ONLY load Auth, exclude unused modules
-            if (id.includes('firebase') || id.includes('@firebase')) {
-              // Split Firebase into essential vs optional
-              if (id.includes('auth') || id.includes('firestore')) {
-                return 'firebase-essential';
-              }
-              // Exclude unused Firebase modules entirely
-              if (id.includes('messaging') || id.includes('performance') || 
-                  id.includes('remote-config') || id.includes('database') ||
-                  id.includes('storage') || id.includes('functions')) {
-                return 'firebase-unused'; // This will be tree-shaken out
-              }
-              return 'firebase-core';
-            }
-            
-            // Framer Motion - SPLIT INTO COMPONENTS
-            if (id.includes('framer-motion')) {
-              // Core motion utilities
-              if (id.includes('motion-dom') || id.includes('motion-utils')) {
-                return 'motion-core';
-              }
-              // Animation components - lazy loaded
-              if (id.includes('AnimatePresence') || id.includes('motion.')) {
-                return 'motion-components';
-              }
-              return 'motion-main';
-            }
-            
-            // Axios - lazy load only when form submission happens
-            if (id.includes('axios')) {
-              return 'http-client';
-            }
-            
-            // React Router - split routing logic
+            // Router - static import, but separate chunk
             if (id.includes('react-router')) {
               return 'router';
             }
             
-            // UI Components - group by usage pattern
-            if (id.includes('lucide-react')) {
-              return 'icons';
+            // Firebase - separate from other vendors due to size
+            if (id.includes('firebase') || id.includes('@firebase')) {
+              // Only include essential Firebase modules
+              if (id.includes('auth') || id.includes('firestore') || id.includes('app')) {
+                return 'firebase';
+              }
+              // Exclude unused Firebase modules by not chunking them
+              return 'vendor';
             }
             
-            if (id.includes('@headlessui')) {
+            // Framer Motion - large animation library
+            if (id.includes('framer-motion')) {
+              return 'animations';
+            }
+            
+            // HTTP client
+            if (id.includes('axios')) {
+              return 'http-client';
+            }
+            
+            // UI components and utilities
+            if (id.includes('lucide-react') || id.includes('@headlessui') || 
+                id.includes('react-dropzone')) {
               return 'ui-components';
             }
             
-            if (id.includes('react-dropzone')) {
-              return 'file-handling';
-            }
-            
-            // =============================================================================
-            // VENDOR DEPENDENCIES - COMMON CHUNKS
-            // =============================================================================
-            
-            // Group small utilities together
-            if (id.includes('prop-types') || id.includes('classnames') || 
-                id.includes('lodash') || id.includes('uuid')) {
+            // Small utilities
+            if (id.includes('prop-types') || id.includes('classnames')) {
               return 'utils';
             }
             
-            // Polyfills and browser compatibility
-            if (id.includes('core-js') || id.includes('regenerator-runtime')) {
-              return 'polyfills';
-            }
-            
-            // Everything else that's not our code goes to vendor
+            // All other node_modules
             if (id.includes('node_modules')) {
               return 'vendor';
             }
@@ -170,7 +138,6 @@ export default defineConfig(({ command, mode }) => {
           drop_console: true,
           drop_debugger: true,
           pure_funcs: ['console.log', 'console.info', 'console.warn'],
-          // Remove unused Firebase modules
           dead_code: true,
           unused: true
         },
@@ -179,7 +146,7 @@ export default defineConfig(({ command, mode }) => {
         }
       } : {},
       
-      // Lower chunk size warning for better monitoring
+      // Chunk size warning limits
       chunkSizeWarningLimit: 500,
       
       // Target modern browsers for smaller bundles
@@ -189,25 +156,24 @@ export default defineConfig(({ command, mode }) => {
       cssCodeSplit: true
     },
     
-    // OPTIMIZED DEPENDENCY PRE-BUNDLING
+    // DEPENDENCY PRE-BUNDLING OPTIMIZATION
     optimizeDeps: {
-      // Include dependencies that should be pre-bundled
+      // Include critical dependencies that should be pre-bundled
       include: [
         'react',
         'react-dom',
+        'react-router-dom',
         'prop-types'
       ],
       // Exclude large dependencies that benefit from lazy loading
       exclude: [
-        'framer-motion',
-        'axios',
-        'firebase',
-        '@firebase/auth',
-        '@firebase/firestore',
-        'react-router-dom'
+        // Don't exclude these as we're not dynamically importing them anymore
+        // 'framer-motion',
+        // 'axios',
+        // 'firebase'
       ],
-      // Force optimization of problematic dependencies
-      force: true
+      // Force re-optimization
+      force: false
     },
     
     // Path resolution
@@ -218,8 +184,7 @@ export default defineConfig(({ command, mode }) => {
         '@pages': resolve(__dirname, 'src/pages'),
         '@utils': resolve(__dirname, 'src/utils'),
         '@hooks': resolve(__dirname, 'src/hooks'),
-        '@assets': resolve(__dirname, 'src/assets'),
-        '@lazy': resolve(__dirname, 'src/lazy') // New lazy loading directory
+        '@assets': resolve(__dirname, 'src/assets')
       }
     },
     
@@ -237,11 +202,7 @@ export default defineConfig(({ command, mode }) => {
     define: {
       __DEV__: isDevelopment,
       __PROD__: isProduction,
-      __VERSION__: JSON.stringify(process.env.npm_package_version),
-      // Feature flags for lazy loading
-      __LAZY_LOAD_FRAMER__: true,
-      __LAZY_LOAD_FIREBASE__: true,
-      __LAZY_LOAD_AXIOS__: true
+      __VERSION__: JSON.stringify(process.env.npm_package_version)
     },
     
     // Base URL for deployment
