@@ -1,50 +1,16 @@
 // =============================================================================
-// OPTIMIZED AUTHCONTEXT WITH LAZY FIREBASE LOADING
+// FIXED AUTHCONTEXT - STATIC IMPORTS FOR CRITICAL AUTH
 // File: frontend/src/components/AuthContext.jsx - REPLACE EXISTING
 // =============================================================================
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 // =============================================================================
-// LAZY FIREBASE IMPORTS - NO IMMEDIATE LOADING
+// STATIC FIREBASE IMPORTS FOR CRITICAL AUTH PATH
 // =============================================================================
 
-// These will be loaded only when authentication is actually needed
-let lazyAuth = null;
-let lazyDb = null;
-let firebaseModules = null;
-
-/**
- * Lazy load Firebase modules only when needed
- */
-const loadFirebaseModules = async () => {
-  if (firebaseModules) return firebaseModules;
-  
-  try {
-    // Dynamic imports - only load when actually needed
-    const [
-      { lazyFirebaseAuth, lazyFirebaseFirestore },
-      { doc, getDoc, setDoc }
-    ] = await Promise.all([
-      import('../firebase/firebase'),
-      import('firebase/firestore')
-    ]);
-    
-    firebaseModules = {
-      auth: lazyFirebaseAuth,
-      firestore: lazyFirebaseFirestore,
-      doc,
-      getDoc,
-      setDoc
-    };
-    
-    console.log('✅ Firebase modules loaded lazily for authentication');
-    return firebaseModules;
-  } catch (error) {
-    console.error('❌ Failed to load Firebase modules:', error);
-    throw error;
-  }
-};
+// Import Firebase statically since auth is critical for app functionality
+import { auth, db, safeFirestoreOperation } from '../firebase/firebase';
 
 // =============================================================================
 // AUTH CONTEXT SETUP
@@ -61,7 +27,7 @@ export const useAuth = () => {
 };
 
 // =============================================================================
-// OPTIMIZED AUTH PROVIDER
+// OPTIMIZED AUTH PROVIDER - NO LAZY LOADING FOR CRITICAL PATH
 // =============================================================================
 
 export const AuthProvider = ({ children }) => {
@@ -69,56 +35,39 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isFirebaseAvailable, setIsFirebaseAvailable] = useState(false);
-  const [initializationAttempted, setInitializationAttempted] = useState(false);
 
   // =============================================================================
-  // LAZY FIREBASE INITIALIZATION
+  // FIREBASE AVAILABILITY CHECK
   // =============================================================================
 
   /**
-   * Initialize Firebase only when authentication is needed
+   * Check if Firebase is available without lazy loading
    */
-  const initializeFirebase = useCallback(async () => {
-    if (initializationAttempted) return isFirebaseAvailable;
-    
-    setInitializationAttempted(true);
-    
-    try {
-      // Check if Firebase is configured before loading modules
-      const { isFirebaseConfigured } = await import('../firebase/firebase');
-      
-      if (!isFirebaseConfigured()) {
-        console.warn('⚠️ Firebase not configured, running in offline mode');
+  useEffect(() => {
+    const checkFirebaseAvailability = () => {
+      try {
+        if (auth && db) {
+          setIsFirebaseAvailable(true);
+          console.log('✅ Firebase services available');
+        } else {
+          setIsFirebaseAvailable(false);
+          console.warn('⚠️ Firebase services not available, running in offline mode');
+        }
+      } catch (error) {
+        console.error('❌ Firebase availability check failed:', error);
         setIsFirebaseAvailable(false);
-        setLoading(false);
-        return false;
       }
-      
-      // Load Firebase modules lazily
-      const modules = await loadFirebaseModules();
-      
-      // Initialize auth
-      lazyAuth = await modules.auth.getAuth();
-      lazyDb = await modules.firestore.getFirestore();
-      
-      setIsFirebaseAvailable(true);
-      console.log('✅ Firebase initialized lazily for authentication');
-      return true;
-    } catch (error) {
-      console.error('❌ Firebase lazy initialization failed:', error);
-      setError(`Firebase initialization failed: ${error.message}`);
-      setIsFirebaseAvailable(false);
-      setLoading(false);
-      return false;
-    }
-  }, [initializationAttempted, isFirebaseAvailable]);
+    };
+
+    checkFirebaseAvailability();
+  }, []);
 
   // =============================================================================
   // USER INITIALIZATION
   // =============================================================================
 
   /**
-   * Initialize user in Firestore with lazy loading
+   * Initialize user in Firestore
    */
   const initializeUser = useCallback(async (user) => {
     if (!user) {
@@ -129,28 +78,30 @@ export const AuthProvider = ({ children }) => {
 
     try {
       // Only initialize Firestore if Firebase is available
-      if (isFirebaseAvailable && lazyDb) {
-        const modules = await loadFirebaseModules();
-        
-        // Create user document reference
-        const userRef = await modules.firestore.doc('users', user.uid);
-        const userSnap = await modules.firestore.getDoc(userRef);
+      if (isFirebaseAvailable && db) {
+        await safeFirestoreOperation(async () => {
+          // Dynamically import Firestore functions only when needed
+          const { doc, getDoc, setDoc } = await import('firebase/firestore');
+          
+          const userRef = doc(db, 'users', user.uid);
+          const userSnap = await getDoc(userRef);
 
-        if (!(await userSnap.exists())) {
-          await modules.firestore.setDoc(userRef, {
-            usageCount: 0,
-            isPro: false,
-            createdAt: new Date(),
-            lastLogin: new Date()
-          });
-          console.log('✅ New user initialized in Firestore');
-        } else {
-          // Update last login
-          await modules.firestore.setDoc(userRef, {
-            lastLogin: new Date()
-          }, { merge: true });
-          console.log('✅ User login updated in Firestore');
-        }
+          if (!userSnap.exists()) {
+            await setDoc(userRef, {
+              usageCount: 0,
+              isPro: false,
+              createdAt: new Date(),
+              lastLogin: new Date()
+            });
+            console.log('✅ New user initialized in Firestore');
+          } else {
+            // Update last login
+            await setDoc(userRef, {
+              lastLogin: new Date()
+            }, { merge: true });
+            console.log('✅ User login updated in Firestore');
+          }
+        });
       }
 
       setCurrentUser(user);
@@ -170,7 +121,7 @@ export const AuthProvider = ({ children }) => {
   // =============================================================================
 
   /**
-   * Setup authentication listener with lazy loading
+   * Setup authentication listener
    */
   useEffect(() => {
     let unsubscribe = () => {};
@@ -178,19 +129,17 @@ export const AuthProvider = ({ children }) => {
 
     const setupAuthentication = async () => {
       try {
-        // Initialize Firebase lazily
-        const firebaseReady = await initializeFirebase();
-        
-        if (!firebaseReady || !mounted) {
+        if (!isFirebaseAvailable || !auth) {
+          console.warn('⚠️ Firebase Auth not available, skipping authentication');
           if (mounted) setLoading(false);
           return;
         }
 
-        // Load auth modules
-        const modules = await loadFirebaseModules();
+        // Dynamically import auth functions only when needed
+        const { onAuthStateChanged, signInAnonymously } = await import('firebase/auth');
         
         // Setup auth state listener
-        unsubscribe = await modules.auth.onAuthStateChanged(async (user) => {
+        unsubscribe = onAuthStateChanged(auth, async (user) => {
           if (!mounted) return;
           
           try {
@@ -202,8 +151,7 @@ export const AuthProvider = ({ children }) => {
               
               try {
                 // Attempt anonymous sign-in
-                const authInstance = await modules.auth.getAuth();
-                const result = await modules.auth.signInAnonymously(authInstance);
+                const result = await signInAnonymously(auth);
                 console.log('✅ Anonymous user created:', result.user.uid);
                 await initializeUser(result.user);
               } catch (anonError) {
@@ -239,7 +187,7 @@ export const AuthProvider = ({ children }) => {
         console.log('🧹 Auth listener cleaned up');
       }
     };
-  }, []); // Empty dependency array - only run once
+  }, [isFirebaseAvailable, initializeUser]);
 
   // =============================================================================
   // UTILITY FUNCTIONS
@@ -251,15 +199,11 @@ export const AuthProvider = ({ children }) => {
   const retryConnection = useCallback(async () => {
     setLoading(true);
     setError(null);
-    setInitializationAttempted(false); // Reset to allow retry
     
     try {
-      const firebaseReady = await initializeFirebase();
-      
-      if (firebaseReady) {
-        const modules = await loadFirebaseModules();
-        const authInstance = await modules.auth.getAuth();
-        const result = await modules.auth.signInAnonymously(authInstance);
+      if (auth) {
+        const { signInAnonymously } = await import('firebase/auth');
+        const result = await signInAnonymously(auth);
         await initializeUser(result.user);
       } else {
         setError('Firebase services still not available');
@@ -269,7 +213,7 @@ export const AuthProvider = ({ children }) => {
       setError(`Retry failed: ${error.message}`);
       setLoading(false);
     }
-  }, [initializeFirebase, initializeUser]);
+  }, [initializeUser]);
 
   /**
    * Clear error state
@@ -343,12 +287,13 @@ export const AuthProvider = ({ children }) => {
       <div className="min-h-screen bg-gradient-to-br from-slate-900 to-purple-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-white text-lg">
-            {initializationAttempted ? 'Initializing Authentication...' : 'Loading App...'}
-          </p>
+          <p className="text-white text-lg">Initializing Authentication...</p>
           {error && (
             <p className="text-red-400 text-sm mt-2">{error}</p>
           )}
+          <div className="mt-4 text-gray-400 text-sm">
+            Firebase Status: {isFirebaseAvailable ? '✅ Available' : '⏳ Checking...'}
+          </div>
         </div>
       </div>
     );

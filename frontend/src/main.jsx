@@ -1,11 +1,12 @@
 // =============================================================================
-// FIXED MAIN.JSX - PRODUCTION READY WITH STATIC IMPORTS
+// FIXED MAIN.JSX - CORRECTED AUTHPROVIDER HIERARCHY
 // File: frontend/src/main.jsx - REPLACE EXISTING
 // =============================================================================
 
 import { StrictMode, Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './components/AuthContext'; // STATIC IMPORT FOR CRITICAL AUTH
 import './index.css';
 
 // =============================================================================
@@ -39,25 +40,14 @@ const PageLoading = () => (
 );
 
 // =============================================================================
-// LAZY LOADED COMPONENTS - SPLIT BY USAGE PATTERN
+// LAZY LOADED COMPONENTS - ONLY NON-CRITICAL COMPONENTS
 // =============================================================================
 
 /**
  * Core App component - loads main functionality
+ * This needs AuthProvider to be available, so AuthProvider must be static
  */
 const LazyApp = lazy(() => import('./App.jsx'));
-
-/**
- * AuthProvider - loads Firebase auth when needed
- */
-const LazyAuthProvider = lazy(() => 
-  import('./components/AuthContext').then(module => ({
-    default: ({ children }) => {
-      const AuthProvider = module.AuthProvider;
-      return <AuthProvider>{children}</AuthProvider>;
-    }
-  }))
-);
 
 /**
  * Legal pages - lazy loaded on navigation
@@ -67,18 +57,25 @@ const LazyTermsPage = lazy(() => import('./pages/Terms.jsx'));
 const LazyNotFoundPage = lazy(() => import('./pages/NotFound.jsx'));
 
 // =============================================================================
-// ROUTER COMPONENT - STATIC IMPORTS, LAZY PAGES
+// ROUTER COMPONENT - STATIC IMPORTS FOR CRITICAL PATH
 // =============================================================================
 
 /**
- * App Router with lazy loaded pages (not lazy router itself)
+ * App Router with lazy loaded pages
  */
-const AppRouter = ({ children }) => {
+const AppRouter = () => {
   return (
     <Router>
       <Routes>
         {/* Main Application Route - loads immediately */}
-        <Route path="/" element={<LazyApp />} />
+        <Route 
+          path="/" 
+          element={
+            <Suspense fallback={<CriticalLoading />}>
+              <LazyApp />
+            </Suspense>
+          } 
+        />
         
         {/* Legal Pages - lazy loaded on navigation */}
         <Route 
@@ -113,24 +110,21 @@ const AppRouter = ({ children }) => {
 };
 
 // =============================================================================
-// PROGRESSIVE ENHANCEMENT STRATEGY
+// APP SHELL - CORRECT COMPONENT HIERARCHY
 // =============================================================================
 
 /**
- * App Shell component that loads critical functionality first
+ * App Shell component with correct provider hierarchy
+ * AuthProvider MUST wrap all components that use useAuth
  */
 const AppShell = () => {
   return (
     <StrictMode>
-      {/* Level 1: Critical Loading - Router Structure (Static) */}
-      <AppRouter>
-        {/* Level 2: Authentication - Lazy loaded */}
-        <Suspense fallback={<CriticalLoading />}>
-          <LazyAuthProvider>
-            {/* App content loaded via routes */}
-          </LazyAuthProvider>
-        </Suspense>
-      </AppRouter>
+      {/* Level 1: Authentication Provider - STATIC IMPORT (Critical) */}
+      <AuthProvider>
+        {/* Level 2: Router - Static import but lazy loaded routes */}
+        <AppRouter />
+      </AuthProvider>
     </StrictMode>
   );
 };
@@ -162,14 +156,14 @@ const preloadCriticalChunks = () => {
  * Initialize performance monitoring
  */
 const initPerformanceMonitoring = () => {
-  // Monitor Core Web Vitals
+  // Monitor Core Web Vitals only in production
   if (import.meta.env.PROD) {
     import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
-      getCLS(console.log);
-      getFID(console.log);
-      getFCP(console.log);
-      getLCP(console.log);
-      getTTFB(console.log);
+      getCLS((metric) => console.log('CLS:', metric));
+      getFID((metric) => console.log('FID:', metric));
+      getFCP((metric) => console.log('FCP:', metric));
+      getLCP((metric) => console.log('LCP:', metric));
+      getTTFB((metric) => console.log('TTFB:', metric));
     }).catch(() => {});
   }
   
@@ -179,6 +173,11 @@ const initPerformanceMonitoring = () => {
     window.addEventListener('load', () => {
       performance.mark('app-loaded');
       performance.measure('app-load-time', 'app-start', 'app-loaded');
+      
+      if (import.meta.env.DEV) {
+        const measure = performance.getEntriesByName('app-load-time')[0];
+        console.log('📊 App load time:', measure.duration + 'ms');
+      }
     });
   }
 };
@@ -188,10 +187,17 @@ const initPerformanceMonitoring = () => {
 // =============================================================================
 
 /**
- * Initialize the React application with progressive loading
+ * Initialize the React application
  */
 const initializeApp = () => {
-  const root = createRoot(document.getElementById('root'));
+  const rootElement = document.getElementById('root');
+  
+  if (!rootElement) {
+    console.error('Root element not found! Make sure index.html has <div id="root"></div>');
+    return;
+  }
+  
+  const root = createRoot(rootElement);
   
   // Render app shell immediately
   root.render(<AppShell />);
@@ -201,8 +207,10 @@ const initializeApp = () => {
     initPerformanceMonitoring();
   }
   
-  // Preload non-critical chunks
+  // Preload non-critical chunks after a delay
   setTimeout(preloadCriticalChunks, 1000);
+  
+  console.log('✅ App initialized successfully');
 };
 
 // =============================================================================
@@ -234,6 +242,17 @@ window.addEventListener('unhandledrejection', (event) => {
     console.warn('Dynamic import failed:', event.reason.message);
     // Let React's error boundaries handle this
     event.preventDefault();
+  }
+});
+
+/**
+ * Handle AuthProvider errors specifically
+ */
+window.addEventListener('error', (event) => {
+  if (event.message.includes('useAuth must be used within an AuthProvider')) {
+    console.error('🚨 CRITICAL: AuthProvider not properly initialized!');
+    console.error('This usually means AuthProvider is not wrapping the component that uses useAuth');
+    // You could implement a fallback here if needed
   }
 });
 
