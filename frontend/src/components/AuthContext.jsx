@@ -1,16 +1,16 @@
 // =============================================================================
-// FIXED AUTHCONTEXT - STATIC IMPORTS FOR CRITICAL AUTH
+// MINIMAL AUTHCONTEXT FIX - KEEP LAZY LOADING WORKING
 // File: frontend/src/components/AuthContext.jsx - REPLACE EXISTING
 // =============================================================================
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 
 // =============================================================================
-// STATIC FIREBASE IMPORTS FOR CRITICAL AUTH PATH
+// IMPORT LAZY FIREBASE - DON'T BREAK THE OPTIMIZATION
 // =============================================================================
 
-// Import Firebase statically since auth is critical for app functionality
-import { auth, db, safeFirestoreOperation } from '../firebase/firebase';
+// Import the lazy Firebase functions - this keeps the optimization working
+import { lazyFirebaseAuth, lazyFirebaseFirestore, isFirebaseConfigured } from '../firebase/firebase';
 
 // =============================================================================
 // AUTH CONTEXT SETUP
@@ -27,7 +27,7 @@ export const useAuth = () => {
 };
 
 // =============================================================================
-// OPTIMIZED AUTH PROVIDER - NO LAZY LOADING FOR CRITICAL PATH
+// OPTIMIZED AUTH PROVIDER - USES LAZY FIREBASE
 // =============================================================================
 
 export const AuthProvider = ({ children }) => {
@@ -41,17 +41,17 @@ export const AuthProvider = ({ children }) => {
   // =============================================================================
 
   /**
-   * Check if Firebase is available without lazy loading
+   * Check if Firebase is configured
    */
   useEffect(() => {
     const checkFirebaseAvailability = () => {
       try {
-        if (auth && db) {
-          setIsFirebaseAvailable(true);
-          console.log('✅ Firebase services available');
+        const configured = isFirebaseConfigured();
+        setIsFirebaseAvailable(configured);
+        if (configured) {
+          console.log('✅ Firebase configured');
         } else {
-          setIsFirebaseAvailable(false);
-          console.warn('⚠️ Firebase services not available, running in offline mode');
+          console.warn('⚠️ Firebase not configured, running in offline mode');
         }
       } catch (error) {
         console.error('❌ Firebase availability check failed:', error);
@@ -67,7 +67,7 @@ export const AuthProvider = ({ children }) => {
   // =============================================================================
 
   /**
-   * Initialize user in Firestore
+   * Initialize user in Firestore using lazy functions
    */
   const initializeUser = useCallback(async (user) => {
     if (!user) {
@@ -78,16 +78,14 @@ export const AuthProvider = ({ children }) => {
 
     try {
       // Only initialize Firestore if Firebase is available
-      if (isFirebaseAvailable && db) {
-        await safeFirestoreOperation(async () => {
-          // Dynamically import Firestore functions only when needed
-          const { doc, getDoc, setDoc } = await import('firebase/firestore');
-          
-          const userRef = doc(db, 'users', user.uid);
-          const userSnap = await getDoc(userRef);
+      if (isFirebaseAvailable) {
+        try {
+          // Use lazy Firestore functions
+          const userRef = await lazyFirebaseFirestore.doc('users', user.uid);
+          const userSnap = await lazyFirebaseFirestore.getDoc(userRef);
 
           if (!userSnap.exists()) {
-            await setDoc(userRef, {
+            await lazyFirebaseFirestore.setDoc(userRef, {
               usageCount: 0,
               isPro: false,
               createdAt: new Date(),
@@ -96,12 +94,15 @@ export const AuthProvider = ({ children }) => {
             console.log('✅ New user initialized in Firestore');
           } else {
             // Update last login
-            await setDoc(userRef, {
+            await lazyFirebaseFirestore.setDoc(userRef, {
               lastLogin: new Date()
             }, { merge: true });
             console.log('✅ User login updated in Firestore');
           }
-        });
+        } catch (firestoreError) {
+          console.warn('⚠️ Firestore operation failed:', firestoreError);
+          // Don't fail the whole auth process for Firestore errors
+        }
       }
 
       setCurrentUser(user);
@@ -121,7 +122,7 @@ export const AuthProvider = ({ children }) => {
   // =============================================================================
 
   /**
-   * Setup authentication listener
+   * Setup authentication listener using lazy Firebase
    */
   useEffect(() => {
     let unsubscribe = () => {};
@@ -129,17 +130,17 @@ export const AuthProvider = ({ children }) => {
 
     const setupAuthentication = async () => {
       try {
-        if (!isFirebaseAvailable || !auth) {
-          console.warn('⚠️ Firebase Auth not available, skipping authentication');
+        if (!isFirebaseAvailable) {
+          console.warn('⚠️ Firebase not available, skipping authentication');
           if (mounted) setLoading(false);
           return;
         }
 
-        // Dynamically import auth functions only when needed
-        const { onAuthStateChanged, signInAnonymously } = await import('firebase/auth');
+        // Use lazy Firebase auth functions
+        const authInstance = await lazyFirebaseAuth.getAuth();
         
-        // Setup auth state listener
-        unsubscribe = onAuthStateChanged(auth, async (user) => {
+        // Setup auth state listener using lazy function
+        unsubscribe = await lazyFirebaseAuth.onAuthStateChanged(async (user) => {
           if (!mounted) return;
           
           try {
@@ -150,8 +151,8 @@ export const AuthProvider = ({ children }) => {
               console.log('👤 No user authenticated, attempting anonymous sign-in');
               
               try {
-                // Attempt anonymous sign-in
-                const result = await signInAnonymously(auth);
+                // Attempt anonymous sign-in using lazy function
+                const result = await lazyFirebaseAuth.signInAnonymously();
                 console.log('✅ Anonymous user created:', result.user.uid);
                 await initializeUser(result.user);
               } catch (anonError) {
@@ -201,14 +202,9 @@ export const AuthProvider = ({ children }) => {
     setError(null);
     
     try {
-      if (auth) {
-        const { signInAnonymously } = await import('firebase/auth');
-        const result = await signInAnonymously(auth);
-        await initializeUser(result.user);
-      } else {
-        setError('Firebase services still not available');
-        setLoading(false);
-      }
+      // Use lazy Firebase auth for retry
+      const result = await lazyFirebaseAuth.signInAnonymously();
+      await initializeUser(result.user);
     } catch (error) {
       setError(`Retry failed: ${error.message}`);
       setLoading(false);
@@ -288,9 +284,6 @@ export const AuthProvider = ({ children }) => {
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
           <p className="text-white text-lg">Initializing Authentication...</p>
-          {error && (
-            <p className="text-red-400 text-sm mt-2">{error}</p>
-          )}
           <div className="mt-4 text-gray-400 text-sm">
             Firebase Status: {isFirebaseAvailable ? '✅ Available' : '⏳ Checking...'}
           </div>
