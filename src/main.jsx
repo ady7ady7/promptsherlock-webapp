@@ -1,75 +1,268 @@
 // =============================================================================
-// SIMPLE WEBAPP MAIN.JSX - FOR TESTING DEPLOYMENT
-// File: webapp/src/main.jsx
+// WEBAPP MAIN.JSX - ADAPTED FROM ORIGINAL FRONTEND
+// File: webapp/src/main.jsx - REPLACE EXISTING
 // =============================================================================
 
-import React from 'react'
-import ReactDOM from 'react-dom/client'
-import './index.css'
+import { StrictMode, Suspense, lazy } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './components/AuthContext'; // STATIC IMPORT FOR CRITICAL AUTH
+import './index.css';
 
-function App() {
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center p-4">
-      <div className="text-center max-w-2xl">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-5xl font-bold text-white mb-4 animate-fade-in">
-            🔍 PromptSherlock
-          </h1>
-          <p className="text-xl text-blue-200 mb-2">
-            WebApp
-          </p>
-          <div className="w-24 h-1 bg-gradient-to-r from-blue-500 to-purple-500 mx-auto rounded-full"></div>
-        </div>
+// =============================================================================
+// LOADING COMPONENTS - LOADED IMMEDIATELY
+// =============================================================================
 
-        {/* Status Card */}
-        <div className="glass-effect p-8 rounded-2xl mb-8 animate-slide-up">
-          <div className="flex items-center justify-center mb-4">
-            <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse mr-3"></div>
-            <span className="text-green-400 font-semibold">Phase 1.1 Complete</span>
-          </div>
-          
-          <h2 className="text-2xl font-bold text-white mb-4">
-            🚧 Foundation Ready!
-          </h2>
-          
-          <p className="text-gray-300 mb-6">
-            WebApp infrastructure is set up and deployed successfully. 
-            Ready for component migration in Phase 2!
-          </p>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-              <div className="text-green-400 font-semibold">✅ Completed</div>
-              <div className="text-gray-300">Build System</div>
-            </div>
-            <div className="bg-green-500/10 border border-green-500/20 rounded-lg p-3">
-              <div className="text-green-400 font-semibold">✅ Completed</div>
-              <div className="text-gray-300">Deployment</div>
-            </div>
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-              <div className="text-yellow-400 font-semibold">🔄 Next</div>
-              <div className="text-gray-300">Components</div>
-            </div>
-            <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3">
-              <div className="text-yellow-400 font-semibold">🔄 Next</div>
-              <div className="text-gray-300">API Integration</div>
-            </div>
-          </div>
-        </div>
+/**
+ * Critical loading component for initial app shell
+ */
+const CriticalLoading = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 border-blue-500 mx-auto mb-4"></div>
+      <p className="text-white text-lg">Loading WebApp...</p>
+    </div>
+  </div>
+);
 
-        {/* Info */}
-        <div className="text-gray-400 text-sm">
-          <p>Environment: {import.meta.env.MODE}</p>
-          <p>Build: {new Date().toLocaleString()}</p>
-        </div>
+/**
+ * Page loading component - for lazy loaded pages
+ */
+const PageLoading = () => (
+  <div className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-purple-900 flex items-center justify-center">
+    <div className="text-center">
+      <div className="animate-pulse">
+        <div className="h-8 w-48 bg-blue-500/20 rounded mx-auto mb-4"></div>
+        <div className="h-4 w-32 bg-blue-500/10 rounded mx-auto"></div>
       </div>
     </div>
-  )
-}
+  </div>
+);
 
-ReactDOM.createRoot(document.getElementById('root')).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>,
-)
+// =============================================================================
+// LAZY LOADED COMPONENTS - ONLY NON-CRITICAL COMPONENTS
+// =============================================================================
+
+/**
+ * Core App component - loads main functionality
+ * This needs AuthProvider to be available, so AuthProvider must be static
+ */
+const LazyApp = lazy(() => import('./App.jsx'));
+
+/**
+ * Legal pages - lazy loaded on navigation
+ */
+const LazyPrivacyPage = lazy(() => import('./pages/Privacy.jsx'));
+const LazyTermsPage = lazy(() => import('./pages/Terms.jsx'));
+const LazyNotFoundPage = lazy(() => import('./pages/NotFound.jsx'));
+
+// =============================================================================
+// ROUTER COMPONENT - STATIC IMPORTS FOR CRITICAL PATH
+// =============================================================================
+
+/**
+ * App Router with lazy loaded pages
+ */
+const AppRouter = () => {
+  return (
+    <Router>
+      <Routes>
+        {/* Main Application Route - loads immediately */}
+        <Route 
+          path="/" 
+          element={
+            <Suspense fallback={<CriticalLoading />}>
+              <LazyApp />
+            </Suspense>
+          } 
+        />
+        
+        {/* Legal Pages - lazy loaded on navigation */}
+        <Route 
+          path="/privacy" 
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <LazyPrivacyPage />
+            </Suspense>
+          } 
+        />
+        <Route 
+          path="/terms" 
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <LazyTermsPage />
+            </Suspense>
+          } 
+        />
+        
+        {/* 404 Error Page - lazy loaded */}
+        <Route 
+          path="*" 
+          element={
+            <Suspense fallback={<PageLoading />}>
+              <LazyNotFoundPage />
+            </Suspense>
+          } 
+        />
+      </Routes>
+    </Router>
+  );
+};
+
+// =============================================================================
+// APP SHELL - CORRECT COMPONENT HIERARCHY
+// =============================================================================
+
+/**
+ * App Shell component with correct provider hierarchy
+ * AuthProvider MUST wrap all components that use useAuth
+ */
+const AppShell = () => {
+  return (
+    <StrictMode>
+      {/* Level 1: Authentication Provider - STATIC IMPORT (Critical) */}
+      <AuthProvider>
+        {/* Level 2: Router - Static import but lazy loaded routes */}
+        <AppRouter />
+      </AuthProvider>
+    </StrictMode>
+  );
+};
+
+// =============================================================================
+// PERFORMANCE OPTIMIZATIONS
+// =============================================================================
+
+/**
+ * Preload critical chunks after initial load
+ */
+const preloadCriticalChunks = () => {
+  // Only preload if browser supports idle callbacks and user has good connection
+  if (window.requestIdleCallback && navigator.connection?.effectiveType !== 'slow-2g') {
+    window.requestIdleCallback(() => {
+      // Preload Framer Motion for interactions
+      import('framer-motion').catch(() => {});
+      
+      // Preload pages for faster navigation
+      Promise.allSettled([
+        import('./pages/Privacy.jsx'),
+        import('./pages/Terms.jsx')
+      ]).catch(() => {});
+    });
+  }
+};
+
+/**
+ * Initialize performance monitoring
+ */
+const initPerformanceMonitoring = () => {
+  // Monitor Core Web Vitals only in production
+  if (import.meta.env.PROD) {
+    import('web-vitals').then(({ getCLS, getFID, getFCP, getLCP, getTTFB }) => {
+      getCLS((metric) => console.log('CLS:', metric));
+      getFID((metric) => console.log('FID:', metric));
+      getFCP((metric) => console.log('FCP:', metric));
+      getLCP((metric) => console.log('LCP:', metric));
+      getTTFB((metric) => console.log('TTFB:', metric));
+    }).catch(() => {});
+  }
+  
+  // Monitor bundle loading performance
+  if (performance.mark) {
+    performance.mark('webapp-start');
+    window.addEventListener('load', () => {
+      performance.mark('webapp-loaded');
+      performance.measure('webapp-load-time', 'webapp-start', 'webapp-loaded');
+      
+      if (import.meta.env.DEV) {
+        const measure = performance.getEntriesByName('webapp-load-time')[0];
+        console.log('📊 WebApp load time:', measure.duration + 'ms');
+      }
+    });
+  }
+};
+
+// =============================================================================
+// APPLICATION INITIALIZATION
+// =============================================================================
+
+/**
+ * Initialize the React application
+ */
+const initializeApp = () => {
+  const rootElement = document.getElementById('root');
+  
+  if (!rootElement) {
+    console.error('Root element not found! Make sure index.html has <div id="root"></div>');
+    return;
+  }
+  
+  const root = createRoot(rootElement);
+  
+  // Render app shell immediately
+  root.render(<AppShell />);
+  
+  // Setup performance monitoring
+  if (import.meta.env.PROD) {
+    initPerformanceMonitoring();
+  }
+  
+  // Preload non-critical chunks after a delay
+  setTimeout(preloadCriticalChunks, 1000);
+  
+  console.log('✅ WebApp initialized successfully');
+};
+
+// =============================================================================
+// ERROR HANDLING FOR CHUNK LOADING FAILURES
+// =============================================================================
+
+/**
+ * Handle chunk loading errors (network issues, cache problems)
+ */
+window.addEventListener('error', (event) => {
+  const isChunkError = event.message.includes('Loading chunk') || 
+                      event.message.includes('ChunkLoadError');
+  
+  if (isChunkError) {
+    console.warn('Chunk loading failed, attempting to reload:', event.message);
+    // Attempt to reload the page once
+    if (!sessionStorage.getItem('chunk-reload-attempted')) {
+      sessionStorage.setItem('chunk-reload-attempted', 'true');
+      window.location.reload();
+    }
+  }
+});
+
+/**
+ * Handle dynamic import errors
+ */
+window.addEventListener('unhandledrejection', (event) => {
+  if (event.reason && event.reason.message && event.reason.message.includes('Failed to fetch dynamically imported module')) {
+    console.warn('Dynamic import failed:', event.reason.message);
+    // Let React's error boundaries handle this
+    event.preventDefault();
+  }
+});
+
+/**
+ * Handle AuthProvider errors specifically
+ */
+window.addEventListener('error', (event) => {
+  if (event.message.includes('useAuth must be used within an AuthProvider')) {
+    console.error('🚨 CRITICAL: AuthProvider not properly initialized!');
+    console.error('This usually means AuthProvider is not wrapping the component that uses useAuth');
+    // You could implement a fallback here if needed
+  }
+});
+
+// =============================================================================
+// APP INITIALIZATION
+// =============================================================================
+
+// Initialize app when DOM is ready
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initializeApp);
+} else {
+  initializeApp();
+}
