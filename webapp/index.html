@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  
+  <!-- Primary Meta Tags -->
+  <title>PromptSherlock WebApp - AI Image Analysis Tool</title>
+  <meta name="title" content="PromptSherlock WebApp - AI Image Analysis Tool" />
+  <meta name="description" content="Advanced AI-powered image analysis tool. Upload images and get detailed AI prompts for Midjourney, DALL·E, Stable Diffusion and more." />
+  <meta name="keywords" content="AI image analysis, prompt generation, Midjourney prompts, DALL-E prompts, image to prompt, AI art" />
+  <meta name="author" content="PromptSherlock" />
+  
+  <!-- Theme and PWA -->
+  <meta name="theme-color" content="#1e40af" />
+  <meta name="color-scheme" content="dark light" />
+  
+  <!-- Security Headers -->
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta http-equiv="X-Frame-Options" content="DENY" />
+  <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://api.promptsherlock.ai/" />
+  <meta property="og:title" content="PromptSherlock WebApp - AI Image Analysis Tool" />
+  <meta property="og:description" content="Advanced AI-powered image analysis tool. Upload images and get detailed AI prompts for Midjourney, DALL·E, Stable Diffusion and more." />
+  <meta property="og:image" content="https://api.promptsherlock.ai/og-image.jpg" />
+  <meta property="og:site_name" content="PromptSherlock WebApp" />
+  
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image" />
+  <meta property="twitter:url" content="https://api.promptsherlock.ai/" />
+  <meta property="twitter:title" content="PromptSherlock WebApp - AI Image Analysis Tool" />
+  <meta property="twitter:description" content="Advanced AI-powered image analysis tool. Upload images and get detailed AI prompts for Midjourney, DALL·E, Stable Diffusion and more." />
+  <meta property="twitter:image" content="https://api.promptsherlock.ai/og-image.jpg" />
+  
+  <!-- Icons and Favicons -->
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="icon" type="image/png" href="/favicon.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+  <link rel="manifest" href="/manifest.json" />
+  
+  <!-- Preconnect to external domains for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  
+  <!-- DNS Prefetch for faster loading -->
+  <link rel="dns-prefetch" href="//api.promptsherlock.ai" />
+  
+  <!-- Canonical URL -->
+  <link rel="canonical" href="https://api.promptsherlock.ai/" />
+  
+  <!-- Performance Optimization -->
+  <link rel="preload" href="/src/index.css" as="style" />
+  
+  <!-- Critical CSS Inline (for faster First Contentful Paint) -->
+  <style>
+    /* Critical loading styles - inline for performance */
+    .critical-loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #581c87 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    
+    .loading-content {
+      text-align: center;
+      color: white;
+    }
+    
+    .loading-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(59, 130, 246, 0.3);
+      border-top: 3px solid #3b82f6;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 16px;
+    }
+    
+    .loading-text {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    
+    .loading-subtitle {
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.7);
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    /* Hide loading when app is ready */
+    .app-ready .critical-loading {
+      opacity: 0;
+      transition: opacity 0.3s ease;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <!-- Critical Loading Screen -->
+  <div class="critical-loading" id="critical-loading">
+    <div class="loading-content">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">PromptSherlock WebApp</div>
+      <div class="loading-subtitle">Loading AI Analysis Tool...</div>
+    </div>
+  </div>
+
+  <!-- Main App Container -->
+  <div id="root"></div>
+  
+  <!-- App Initialization Script -->
+  <script type="module" src="/src/main.jsx"></script>
+  
+  <!-- Remove loading screen when app loads -->
+  <script>
+    // Remove loading screen when React app is ready
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.body.classList.add('app-ready');
+        setTimeout(() => {
+          const loading = document.getElementById('critical-loading');
+          if (loading) {
+            loading.remove();
+          }
+        }, 300);
+      }, 100);
+    });
+    
+    // Fallback: Remove loading screen after max 5 seconds
+    setTimeout(() => {
+      document.body.classList.add('app-ready');
+      const loading = document.getElementById('critical-loading');
+      if (loading) {
+        loading.remove();
+      }
+    }, 5000);
+  </script>
+  
+  <!-- Error Boundary for Critical Failures -->
+  <script>
+    window.addEventListener('error', (event) => {
+      console.error('Critical Error:', event.error);
+      // Log to your error tracking service here
+    });
+    
+    window.addEventListener('unhandledrejection', (event) => {
+      console.error('Unhandled Rejection:', event.reason);
+      // Log to your error tracking service here
+    });
+  </script>
+</body>
+</html>
