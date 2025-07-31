@@ -1,4 +1,4 @@
-/ FILE: src/components/AnalysisForm.jsx
+// FILE: src/components/AnalysisForm.jsx
 import React from 'react';
 import { Upload, Sparkles } from 'lucide-react';
 
