@@ -8,13 +8,13 @@
   command = "npm install && npm run build"
   publish = "dist"
   
-  # Node.js version
-  environment = { NODE_VERSION = "20", NPM_VERSION = "10.2.3" }
-
-[build.environment]
-  # Environment variables for build process
-  NODE_ENV = "production"
-  VITE_APP_NAME = "PromptSherlock WebApp"
+  # Node.js version and environment variables
+  environment = { 
+    NODE_VERSION = "20", 
+    NPM_VERSION = "10.2.3",
+    NODE_ENV = "production",
+    VITE_APP_NAME = "PromptSherlock WebApp"
+  }
 
 # =============================================================================
 # REDIRECTS AND ROUTING
