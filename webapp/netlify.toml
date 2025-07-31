@@ -1,0 +1,96 @@
+# =============================================================================
+# WEBAPP NETLIFY CONFIGURATION
+# File: webapp/netlify.toml
+# =============================================================================
+
+[build]
+  # Build settings for webapp
+  command = "npm install && npm run build"
+  publish = "dist"
+  
+  # Node.js version
+  environment = { NODE_VERSION = "20", NPM_VERSION = "10.2.3" }
+
+[build.environment]
+  # Environment variables for build process
+  NODE_ENV = "production"
+  VITE_APP_NAME = "PromptSherlock WebApp"
+
+# =============================================================================
+# REDIRECTS AND ROUTING
+# =============================================================================
+
+# Handle client-side routing (React Router)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+  force = false
+
+# API proxy to backend (optional - for development testing)
+[[redirects]]
+  from = "/api/*"
+  to = "https://your-backend.onrender.com/api/:splat"
+  status = 200
+  force = false
+  headers = {X-From = "Netlify"}
+
+# =============================================================================
+# SECURITY HEADERS
+# =============================================================================
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Security headers
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    
+    # HTTPS and security
+    Strict-Transport-Security = "max-age=31536000; includeSubDomains"
+    
+    # Content Security Policy (adjust as needed)
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://your-backend.onrender.com https://*.firebase.com https://*.googleapis.com"
+
+# Cache static assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+# Cache service worker
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# =============================================================================
+# FUNCTIONS (if needed later)
+# =============================================================================
+
+[functions]
+  directory = "netlify/functions"
+
+# =============================================================================
+# PERFORMANCE OPTIMIZATIONS
+# =============================================================================
+
+# Enable asset optimization
+[build.processing]
+  skip_processing = false
+
+[build.processing.css]
+  bundle = true
+  minify = true
+
+[build.processing.js]
+  bundle = true
+  minify = true
+
+[build.processing.html]
+  pretty_urls = true
+
+[build.processing.images]
+  compress = true
