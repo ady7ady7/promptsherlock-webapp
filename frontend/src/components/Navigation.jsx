@@ -1,32 +1,27 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { Link, useLocation } from 'react-router-dom';
-import { Shield, FileText, Eye, Home } from 'lucide-react';
+import { Shield, FileText } from 'lucide-react';
 
 /**
  * Navigation Component for Footer Links
  * 
  * Features:
- * - Footer navigation links
+ * - Footer navigation links (Privacy & Terms only)
  * - Active route highlighting
  * - Smooth hover animations
  * - Glass morphism styling
  * - Mobile-responsive design
+ * - Centered symmetrical layout
  */
 const Navigation = () => {
   const location = useLocation();
 
   // =============================================================================
-  // NAVIGATION DATA
+  // NAVIGATION DATA - CLEANED UP (HOME REMOVED)
   // =============================================================================
 
   const navigationLinks = [
-    {
-      to: '/',
-      icon: Home,
-      label: 'Home',
-      description: 'AI Image Analysis'
-    },
     {
       to: '/privacy',
       icon: Shield,
@@ -83,7 +78,7 @@ const Navigation = () => {
 
   const renderNavigationLinks = () => (
     <motion.div
-      className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-8"
+      className="flex flex-col md:flex-row justify-center items-center space-y-4 md:space-y-0 md:space-x-12"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -97,7 +92,7 @@ const Navigation = () => {
         >
           <Link
             to={link.to}
-            className={`flex items-center space-x-3 px-4 py-3 rounded-lg transition-all duration-300 group ${
+            className={`flex items-center space-x-3 px-6 py-3 rounded-lg transition-all duration-300 group ${
               isActive(link.to)
                 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
                 : 'hover:bg-white/10 text-gray-300 hover:text-white'
@@ -135,7 +130,7 @@ const Navigation = () => {
 
   const renderCompactLinks = () => (
     <motion.div
-      className="flex justify-center items-center space-x-6"
+      className="flex justify-center items-center space-x-8"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -168,12 +163,12 @@ const Navigation = () => {
 
   return (
     <nav className="mt-8">
-      {/* Desktop Navigation - Full Links */}
+      {/* Desktop Navigation - Full Links with Better Spacing */}
       <div className="hidden md:block">
         {renderNavigationLinks()}
       </div>
 
-      {/* Mobile Navigation - Compact Links */}
+      {/* Mobile Navigation - Compact Links with Better Spacing */}
       <div className="block md:hidden">
         {renderCompactLinks()}
       </div>
