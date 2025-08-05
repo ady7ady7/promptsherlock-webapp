@@ -46,42 +46,42 @@ const engines = [
   {
     id: 'midjourney',
     name: 'Midjourney',
-    description: 'High-quality, artistic images',
+    description: 'Leading AI art generator known for high-quality, artistic images',
     icon: Palette,
     color: 'purple'
   },
   {
     id: 'dalle',
     name: 'ChatGPT (DALL-E 3)',
-    description: 'OpenAI\'s latest image generator',
+    description: 'OpenAI\'s latest image generator with excellent text understanding',
     icon: Bot,
     color: 'green'
   },
   {
     id: 'stable_diffusion',
     name: 'Stable Diffusion',
-    description: 'Open-source model',
+    description: 'Open-source model with extensive community support and customization',
     icon: Cpu,
     color: 'blue'
   },
   {
     id: 'gemini_imagen',
     name: 'Google Gemini (Imagen)',
-    description: 'Strong photorealism',
+    description: 'Google\'s advanced image generation model with strong photorealism',
     icon: Camera,
     color: 'orange'
   },
   {
     id: 'flux',
     name: 'Flux',
-    description: 'State-of-the-art image generation model',
+    description: 'Black Forest Labs\' state-of-the-art image generation model',
     icon: Zap,
     color: 'cyan'
   },
   {
     id: 'leonardo',
     name: 'Leonardo AI',
-    description: 'Fine-tuned control options',
+    description: 'Professional creative platform with fine-tuned control options',
     icon: Sparkles,
     color: 'indigo'
   }
@@ -165,20 +165,20 @@ function GoalEngineSelection({
   };
 
   // =============================================================================
-  // ANIMATION VARIANTS - OPTIMIZED FOR PERFORMANCE
+  // ANIMATION VARIANTS - SMOOTH LIKE IMAGEUPLOADER
   // =============================================================================
   const containerVariants = {
     hidden: { 
       opacity: 0, 
-      y: 20
+      y: 20 
     },
     visible: {
       opacity: 1,
       y: 0,
       transition: {
-        duration: 0.4,
+        duration: 0.5,
         ease: "easeOut",
-        staggerChildren: 0.08
+        staggerChildren: 0.1
       }
     }
   };
@@ -186,11 +186,26 @@ function GoalEngineSelection({
   const sectionVariants = {
     hidden: { 
       opacity: 0, 
-      y: 15
+      y: 10
     },
     visible: {
       opacity: 1,
       y: 0,
+      transition: {
+        duration: 0.4,
+        ease: "easeOut"
+      }
+    }
+  };
+
+  const cardVariants = {
+    hidden: { 
+      opacity: 0, 
+      scale: 0.95 
+    },
+    visible: {
+      opacity: 1,
+      scale: 1,
       transition: {
         duration: 0.3,
         ease: "easeOut"
@@ -208,15 +223,16 @@ function GoalEngineSelection({
     >
       <div className="text-center">
         <h3 className="text-xl font-bold text-white mb-2">
-          Prompt Optimization
+          Choose Your Goal
         </h3>
         <p className="text-gray-300 text-sm">
-          Which AI engine will you use with this prompt?
+          What do you want to achieve with your {imageCount} image{imageCount !== 1 ? 's' : ''}?
         </p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {goals.map((goal) => {
+        <AnimatePresence mode="wait">
+          {goals.map((goal) => {
           const Icon = goal.icon;
           const isSelected = selectedGoal === goal.id;
           const isHovered = hoveredGoal === goal.id;
@@ -230,10 +246,11 @@ function GoalEngineSelection({
                 ${colorClasses.border} ${colorClasses.bg}
                 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.02]'}
               `}
+              variants={cardVariants}
               onClick={() => handleGoalClick(goal.id)}
               onMouseEnter={() => !disabled && setHoveredGoal(goal.id)}
               onMouseLeave={() => setHoveredGoal(null)}
-              whileHover={!disabled ? { scale: 1.02 } : {}}
+              whileHover={!disabled ? { scale: 1.02, y: -2 } : {}}
               whileTap={!disabled ? { scale: 0.98 } : {}}
             >
               {/* Selection Indicator */}
@@ -270,7 +287,8 @@ function GoalEngineSelection({
               </p>
             </motion.div>
           );
-        })}
+                  })}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -290,7 +308,8 @@ function GoalEngineSelection({
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {engines.map((engine) => {
+        <AnimatePresence mode="wait">
+          {engines.map((engine) => {
           const Icon = engine.icon;
           const isSelected = selectedEngine === engine.id;
           const isHovered = hoveredEngine === engine.id;
@@ -304,10 +323,11 @@ function GoalEngineSelection({
                 ${colorClasses.border} ${colorClasses.bg}
                 ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:scale-[1.05]'}
               `}
+              variants={cardVariants}
               onClick={() => handleEngineClick(engine.id)}
               onMouseEnter={() => !disabled && setHoveredEngine(engine.id)}
               onMouseLeave={() => setHoveredEngine(null)}
-              whileHover={!disabled ? { scale: 1.05 } : {}}
+              whileHover={!disabled ? { scale: 1.05, y: -3 } : {}}
               whileTap={!disabled ? { scale: 0.95 } : {}}
             >
               {/* Selection Indicator */}
@@ -340,7 +360,8 @@ function GoalEngineSelection({
               </p>
             </motion.div>
           );
-        })}
+                  })}
+        </AnimatePresence>
       </div>
     </motion.div>
   );

@@ -5,6 +5,7 @@
 
 import React, { useState, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
+import { motion, AnimatePresence } from 'framer-motion';
 
 // =============================================================================
 // LAZY IMPORTS - LOAD ONLY WHEN NEEDED
@@ -585,15 +586,19 @@ const AnalysisForm = ({
           />
         </LazyMotionDiv>
 
-        {/* Step 2: Goal & Engine Selection - MERGED COMPONENT */}
-        <LazyAnimatePresence>
+        {/* Step 2: Goal & Engine Selection - SMOOTH ANIMATION */}
+        <AnimatePresence>
           {formState.images.length > 0 && (
-            <LazyMotionDiv
+            <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{
                 opacity: 1,
                 y: 0,
-                transition: { duration: 0.4, ease: "easeOut" }
+                transition: { 
+                  duration: 0.5,
+                  ease: "easeOut",
+                  delay: 0.2 
+                }
               }}
               exit={{
                 opacity: 0,
@@ -609,9 +614,9 @@ const AnalysisForm = ({
                 disabled={formState.is_loading || loading}
                 imageCount={formState.images.length}
               />
-            </LazyMotionDiv>
+            </motion.div>
           )}
-        </LazyAnimatePresence>
+        </AnimatePresence>
 
         {/* Validation Errors */}
         <LazyAnimatePresence>
