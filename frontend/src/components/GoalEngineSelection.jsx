@@ -13,8 +13,7 @@ import {
   Bot, 
   Sparkles, 
   Camera, 
-  Cpu,
-  Star
+  Cpu
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
@@ -47,50 +46,44 @@ const engines = [
   {
     id: 'midjourney',
     name: 'Midjourney',
-    description: 'Artistic and creative generation',
+    description: 'Leading AI art generator known for high-quality, artistic images',
     icon: Palette,
-    color: 'purple',
-    popularity: 5
+    color: 'purple'
   },
   {
     id: 'dalle',
-    name: 'DALL-E 3',
-    description: 'Excellent prompt adherence',
+    name: 'ChatGPT (DALL-E 3)',
+    description: 'OpenAI\'s latest image generator with excellent text understanding',
     icon: Bot,
-    color: 'green',
-    popularity: 4
+    color: 'green'
   },
   {
     id: 'stable_diffusion',
     name: 'Stable Diffusion',
-    description: 'Open-source powerhouse',
+    description: 'Open-source model with extensive community support and customization',
     icon: Cpu,
-    color: 'blue',
-    popularity: 4
+    color: 'blue'
   },
   {
     id: 'gemini_imagen',
-    name: 'Gemini Imagen',
-    description: 'Photorealistic results',
+    name: 'Google Gemini (Imagen)',
+    description: 'Google\'s advanced image generation model with strong photorealism',
     icon: Camera,
-    color: 'orange',
-    popularity: 3
+    color: 'orange'
   },
   {
     id: 'flux',
     name: 'Flux',
-    description: 'Next-generation model',
+    description: 'Black Forest Labs\' state-of-the-art image generation model',
     icon: Zap,
-    color: 'cyan',
-    popularity: 4
+    color: 'cyan'
   },
   {
     id: 'leonardo',
     name: 'Leonardo AI',
-    description: 'Professional-grade generation',
+    description: 'Professional creative platform with fine-tuned control options',
     icon: Sparkles,
-    color: 'indigo',
-    popularity: 3
+    color: 'indigo'
   }
 ];
 
@@ -140,18 +133,9 @@ const getColorClasses = (color, isSelected = false, isHovered = false) => {
 };
 
 // =============================================================================
-// POPULARITY STARS COMPONENT
+// POPULARITY STARS COMPONENT - REMOVED (NO LONGER USED)
 // =============================================================================
-const renderPopularityStars = (popularity) => {
-  return Array.from({ length: 5 }, (_, i) => (
-    <Star
-      key={i}
-      className={`w-3 h-3 ${
-        i < popularity ? 'text-yellow-400 fill-current' : 'text-gray-600'
-      }`}
-    />
-  ));
-};
+// Removed star rating system as requested
 
 // =============================================================================
 // MAIN COMPONENT
@@ -354,11 +338,6 @@ function GoalEngineSelection({
               <p className="text-xs text-gray-400 mb-2 line-clamp-2">
                 {engine.description}
               </p>
-
-              {/* Popularity Stars */}
-              <div className="flex justify-center space-x-0.5">
-                {renderPopularityStars(engine.popularity)}
-              </div>
             </motion.div>
           );
         })}
