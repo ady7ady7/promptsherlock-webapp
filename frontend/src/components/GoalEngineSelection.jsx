@@ -282,10 +282,10 @@ function GoalEngineSelection({
     >
       <div className="text-center">
         <h3 className="text-xl font-bold text-white mb-2">
-          Select AI Engine
+          Optimize for AI Engine
         </h3>
         <p className="text-gray-300 text-sm">
-          Choose the AI model you'll use to generate your images
+          Choose which AI model you'll use so we can optimize your prompt accordingly
         </p>
       </div>
 
