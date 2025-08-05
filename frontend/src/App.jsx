@@ -8,7 +8,6 @@ import {
   Search, 
   Shield, 
   Heart, 
-  Sparkles,
   Clock
 } from 'lucide-react';
 
@@ -116,21 +115,10 @@ function App() {
       transition={{ duration: 0.6, delay: 1.2 }}
     >
       <div className="max-w-6xl mx-auto">
-        {/* Footer Content */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-8">
-          {/* Brand Section */}
-          <div className="text-center md:text-left">
-            <div className="flex items-center justify-center md:justify-start mb-4">
-              <Search className="w-6 h-6 text-blue-400 mr-2" />
-              <span className="gradient-text font-bold text-xl">Prompt Sherlock</span>
-            </div>
-            <p className="text-gray-400 text-sm">
-              AI-powered tool that investigates images to create perfect AI art prompts.
-            </p>
-          </div>
-
+        {/* Footer Content - Centered Privacy Only */}
+        <div className="max-w-2xl mx-auto mb-8 text-center">
           {/* Privacy Statement */}
-          <div className="text-center">
+          <div>
             <h4 className="text-white font-semibold mb-3 flex items-center justify-center">
               <Shield className="w-5 h-5 mr-2 text-green-400" />
               Privacy Promise
@@ -139,19 +127,6 @@ function App() {
               Your images are processed securely and deleted immediately after analysis. 
               We never store or share your data.
             </p>
-          </div>
-
-          {/* Powered By */}
-          <div className="text-center md:text-right">
-            <h4 className="text-white font-semibold mb-3 flex items-center justify-center md:justify-end">
-              <Sparkles className="w-5 h-5 mr-2 text-purple-400" />
-              Powered By
-            </h4>
-            <div className="space-y-1 text-gray-400 text-sm">
-              <p>Google Gemini</p>
-              <p>React & Tailwind CSS</p>
-              <p>Framer Motion</p>
-            </div>
           </div>
         </div>
 
