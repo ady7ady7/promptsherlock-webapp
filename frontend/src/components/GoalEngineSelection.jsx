@@ -46,42 +46,42 @@ const engines = [
   {
     id: 'midjourney',
     name: 'Midjourney',
-    description: 'Leading AI art generator known for high-quality, artistic images',
+    description: 'High-quality, artistic images',
     icon: Palette,
     color: 'purple'
   },
   {
     id: 'dalle',
     name: 'ChatGPT (DALL-E 3)',
-    description: 'OpenAI\'s latest image generator with excellent text understanding',
+    description: 'OpenAI\'s latest image generator',
     icon: Bot,
     color: 'green'
   },
   {
     id: 'stable_diffusion',
     name: 'Stable Diffusion',
-    description: 'Open-source model with extensive community support and customization',
+    description: 'Open-source model',
     icon: Cpu,
     color: 'blue'
   },
   {
     id: 'gemini_imagen',
     name: 'Google Gemini (Imagen)',
-    description: 'Google\'s advanced image generation model with strong photorealism',
+    description: 'Strong photorealism',
     icon: Camera,
     color: 'orange'
   },
   {
     id: 'flux',
     name: 'Flux',
-    description: 'Black Forest Labs\' state-of-the-art image generation model',
+    description: 'State-of-the-art image generation model',
     icon: Zap,
     color: 'cyan'
   },
   {
     id: 'leonardo',
     name: 'Leonardo AI',
-    description: 'Professional creative platform with fine-tuned control options',
+    description: 'Fine-tuned control options',
     icon: Sparkles,
     color: 'indigo'
   }
@@ -208,10 +208,10 @@ function GoalEngineSelection({
     >
       <div className="text-center">
         <h3 className="text-xl font-bold text-white mb-2">
-          Choose Your Goal
+          Prompt Optimization
         </h3>
         <p className="text-gray-300 text-sm">
-          What do you want to achieve with your {imageCount} image{imageCount !== 1 ? 's' : ''}?
+          Which AI engine will you use with this prompt?
         </p>
       </div>
 
