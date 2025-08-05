@@ -46,42 +46,42 @@ const engines = [
   {
     id: 'midjourney',
     name: 'Midjourney',
-    description: 'Leading AI art generator known for high-quality, artistic images',
+    description: 'Artistic images',
     icon: Palette,
     color: 'purple'
   },
   {
     id: 'dalle',
     name: 'ChatGPT (DALL-E 3)',
-    description: 'OpenAI\'s latest image generator with excellent text understanding',
+    description: 'OpenAI\'s latest image generator',
     icon: Bot,
     color: 'green'
   },
   {
     id: 'stable_diffusion',
     name: 'Stable Diffusion',
-    description: 'Open-source model with extensive community support and customization',
+    description: 'Open-source model',
     icon: Cpu,
     color: 'blue'
   },
   {
     id: 'gemini_imagen',
     name: 'Google Gemini (Imagen)',
-    description: 'Google\'s advanced image generation model with strong photorealism',
+    description: 'Strong photorealism',
     icon: Camera,
     color: 'orange'
   },
   {
     id: 'flux',
     name: 'Flux',
-    description: 'Black Forest Labs\' state-of-the-art image generation model',
+    description: 'State-of-the-art model',
     icon: Zap,
     color: 'cyan'
   },
   {
     id: 'leonardo',
     name: 'Leonardo AI',
-    description: 'Professional creative platform with fine-tuned control options',
+    description: 'Fine-tuned control options',
     icon: Sparkles,
     color: 'indigo'
   }

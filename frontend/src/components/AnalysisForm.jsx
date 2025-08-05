@@ -655,7 +655,7 @@ const AnalysisForm = ({
                   <>
                     <Sparkles className="w-5 h-5" />
                     <span>
-                      Create {formState.selected_engine || 'AI'} Prompt
+                      Create Prompt
                     </span>
                     <ArrowRight className="w-5 h-5" />
                   </>
