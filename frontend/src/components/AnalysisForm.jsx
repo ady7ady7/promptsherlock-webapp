@@ -1,5 +1,5 @@
 // =============================================================================
-// OPTIMIZED ANALYSIS FORM WITH LAZY LOADING
+// OPTIMIZED ANALYSIS FORM - MERGED COMPONENTS & CLICK-TO-PERFORM
 // File: frontend/src/components/AnalysisForm.jsx - REPLACE EXISTING
 // =============================================================================
 
@@ -21,9 +21,7 @@ import {
 
 // Component imports - keep immediate (needed for initial render)
 import ImageUploader from './ImageUploader';
-import GoalSelection from './GoalSelection';
-import EngineSelection from './EngineSelection';
-import CustomPromptInput from './CustomPromptInput';
+import GoalEngineSelection from './GoalEngineSelection'; // NEW MERGED COMPONENT
 import FinalOutput from './FinalOutput';
 
 // Auth context - already optimized with lazy loading
@@ -159,25 +157,22 @@ const AnalysisForm = ({
   initialState = {}
 }) => {
   // =============================================================================
-  // STATE MANAGEMENT
+  // STATE MANAGEMENT - SIMPLIFIED (NO CUSTOM PROMPT)
   // =============================================================================
 
   const [formState, setFormState] = useState({
     images: initialState.images || [],
     selected_goal: initialState.selected_goal || '',
     selected_engine: initialState.selected_engine || '',
-    custom_prompt: initialState.custom_prompt || '',
     is_loading: false,
     results: null,
-    error: null,
-    show_engine_selection: false
+    error: null
   });
 
   const [validation, setValidation] = useState({
     images: { is_valid: true, message: '' },
     goal: { is_valid: true, message: '' },
-    engine: { is_valid: true, message: '' },
-    prompt: { is_valid: true, message: '' }
+    engine: { is_valid: true, message: '' }
   });
 
   const resultsRef = useRef(null);
@@ -197,7 +192,7 @@ const AnalysisForm = ({
   }, [apiUrl]);
 
   // =============================================================================
-  // EVENT HANDLERS
+  // EVENT HANDLERS - SIMPLIFIED
   // =============================================================================
 
   const handleNewAnalysis = useCallback(() => {
@@ -205,18 +200,15 @@ const AnalysisForm = ({
       images: [],
       selected_goal: '',
       selected_engine: '',
-      custom_prompt: '',
       is_loading: false,
       results: null,
-      error: null,
-      show_engine_selection: false
+      error: null
     });
 
     setValidation({
       images: { is_valid: true, message: '' },
       goal: { is_valid: true, message: '' },
-      engine: { is_valid: true, message: '' },
-      prompt: { is_valid: true, message: '' }
+      engine: { is_valid: true, message: '' }
     });
   }, []);
 
@@ -233,12 +225,10 @@ const AnalysisForm = ({
     }));
   }, []);
 
-  const handleGoalChange = useCallback((goalId, requiresEngineSelection) => {
+  const handleGoalChange = useCallback((goalId) => {
     setFormState(prev => ({
       ...prev,
       selected_goal: goalId,
-      show_engine_selection: requiresEngineSelection,
-      selected_engine: requiresEngineSelection ? prev.selected_engine : '',
       error: null
     }));
 
@@ -261,29 +251,15 @@ const AnalysisForm = ({
     }));
   }, []);
 
-  const handleCustomPromptChange = useCallback((prompt) => {
-    setFormState(prev => ({
-      ...prev,
-      custom_prompt: prompt,
-      error: null
-    }));
-
-    setValidation(prev => ({
-      ...prev,
-      prompt: { is_valid: true, message: '' }
-    }));
-  }, []);
-
   // =============================================================================
-  // VALIDATION LOGIC
+  // VALIDATION LOGIC - SIMPLIFIED
   // =============================================================================
 
   const validateForm = useCallback(() => {
     const newValidation = {
       images: { is_valid: true, message: '' },
       goal: { is_valid: true, message: '' },
-      engine: { is_valid: true, message: '' },
-      prompt: { is_valid: true, message: '' }
+      engine: { is_valid: true, message: '' }
     };
 
     if (formState.images.length === 0) {
@@ -305,17 +281,10 @@ const AnalysisForm = ({
       };
     }
 
-    if (formState.show_engine_selection && !formState.selected_engine) {
+    if (!formState.selected_engine) {
       newValidation.engine = {
         is_valid: false,
         message: 'Please select an AI generation engine'
-      };
-    }
-
-    if (formState.custom_prompt.length > 1000) {
-      newValidation.prompt = {
-        is_valid: false,
-        message: 'Custom prompt must be less than 1000 characters'
       };
     }
 
@@ -359,18 +328,14 @@ const AnalysisForm = ({
         formData.append('images', image.file);
       });
 
-      // Send clean parameters
-      formData.append('prompt', formState.custom_prompt);
+      // Send parameters - NO CUSTOM PROMPT
       formData.append('goal', formState.selected_goal);
-      if (formState.selected_engine) {
-        formData.append('engine', formState.selected_engine);
-      }
+      formData.append('engine', formState.selected_engine);
 
       console.log('🚀 Sending analysis request:', {
         imageCount: formState.images.length,
         goal: formState.selected_goal,
-        engine: formState.selected_engine,
-        hasCustomPrompt: Boolean(formState.custom_prompt)
+        engine: formState.selected_engine
       });
 
       const response = await axios.post(
@@ -389,7 +354,6 @@ const AnalysisForm = ({
         ...response.data,
         goal: formState.selected_goal,
         engine: formState.selected_engine,
-        custom_prompt: formState.custom_prompt,
         submitted_at: new Date().toISOString(),
         image_count: formState.images.length
       };
@@ -511,11 +475,7 @@ const AnalysisForm = ({
       if (!axiosLoaded) {
         return 'Loading network components...';
       }
-      if (formState.selected_goal === 'find_common_features') {
-        return 'Analyzing your images...';
-      } else {
-        return `Creating ${formState.selected_engine || 'optimized'} prompt...`;
-      }
+      return `Creating ${formState.selected_engine || 'optimized'} prompt...`;
     };
 
     return (
@@ -533,8 +493,7 @@ const AnalysisForm = ({
             {getLoadingMessage()}
           </h3>
           <p className="text-gray-300">
-            {!axiosLoaded ? 'Preparing for analysis...' : 
-             formState.selected_goal === 'find_common_features' ? 'Creating your analysis...' : 'Creating your optimized prompt...'}
+            {!axiosLoaded ? 'Preparing for analysis...' : 'Creating your optimized prompt...'}
           </p>
           <div className="mt-4 flex items-center justify-center space-x-2 text-sm text-gray-400">
             <Clock className="w-4 h-4" />
@@ -598,9 +557,8 @@ const AnalysisForm = ({
             image_count: formState.images.length,
             goal: formState.selected_goal,
             engine: formState.selected_engine,
-            has_custom_prompt: Boolean(formState.custom_prompt),
             processing_time: formState.results.processingTime,
-            output_type: formState.selected_goal === 'find_common_features' ? 'analysis' : 'prompt'
+            output_type: 'prompt'
           }}
           onNewAnalysis={handleNewAnalysis}
         />
@@ -627,88 +585,29 @@ const AnalysisForm = ({
           />
         </LazyMotionDiv>
 
-        {/* Step 2: Goal Selection */}
+        {/* Step 2: Goal & Engine Selection - MERGED COMPONENT */}
         <LazyAnimatePresence>
           {formState.images.length > 0 && (
             <LazyMotionDiv
-              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              initial={{ opacity: 0, y: 20 }}
               animate={{
                 opacity: 1,
-                height: 'auto',
-                marginTop: 32,
-                transition: { duration: 0.5, delay: 0.2 }
+                y: 0,
+                transition: { duration: 0.4, ease: "easeOut" }
               }}
               exit={{
                 opacity: 0,
-                height: 0,
-                marginTop: 0,
+                y: -20,
                 transition: { duration: 0.3 }
               }}
             >
-              <GoalSelection
+              <GoalEngineSelection
                 selectedGoal={formState.selected_goal}
-                onGoalChange={handleGoalChange}
-                disabled={formState.is_loading || loading}
-                imageCount={formState.images.length}
-              />
-            </LazyMotionDiv>
-          )}
-        </LazyAnimatePresence>
-
-        {/* Step 3: Engine Selection */}
-        <LazyAnimatePresence>
-          {formState.show_engine_selection && formState.selected_goal && (
-            <LazyMotionDiv
-              initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{
-                opacity: 1,
-                height: 'auto',
-                marginTop: 32,
-                transition: { duration: 0.5, delay: 0.1 }
-              }}
-              exit={{
-                opacity: 0,
-                height: 0,
-                marginTop: 0,
-                transition: { duration: 0.3 }
-              }}
-            >
-              <EngineSelection
                 selectedEngine={formState.selected_engine}
+                onGoalChange={handleGoalChange}
                 onEngineChange={handleEngineChange}
                 disabled={formState.is_loading || loading}
-                goalType={formState.selected_goal}
-              />
-            </LazyMotionDiv>
-          )}
-        </LazyAnimatePresence>
-
-        {/* Step 4: Custom Prompt Input */}
-        <LazyAnimatePresence>
-          {formState.selected_goal && (
-            <LazyMotionDiv
-              initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{
-                opacity: 1,
-                height: 'auto',
-                marginTop: 32,
-                transition: { duration: 0.5, delay: 0.1 }
-              }}
-              exit={{
-                opacity: 0,
-                height: 0,
-                marginTop: 0,
-                transition: { duration: 0.3 }
-              }}
-            >
-              <CustomPromptInput
-                value={formState.custom_prompt}
-                onChange={handleCustomPromptChange}
-                disabled={formState.is_loading || loading}
-                selectedGoal={formState.selected_goal}
-                selectedEngine={formState.selected_engine}
                 imageCount={formState.images.length}
-                maxLength={1000}
               />
             </LazyMotionDiv>
           )}
@@ -719,24 +618,24 @@ const AnalysisForm = ({
           {renderValidationErrors()}
         </LazyAnimatePresence>
 
-        {/* Step 5: Submit Button */}
+        {/* Step 3: Submit Button */}
         <LazyAnimatePresence>
-          {formState.selected_goal && (!formState.show_engine_selection || formState.selected_engine) && (
+          {formState.selected_goal && formState.selected_engine && (
             <LazyMotionDiv
               className="flex justify-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{
                 opacity: 1,
                 y: 0,
-                transition: { duration: 0.5, delay: 0.2 }
+                transition: { duration: 0.4, delay: 0.2 }
               }}
               exit={{ opacity: 0, y: 20 }}
             >
               <LazyMotionButton
-                disabled={formState.is_loading || formState.images.length === 0 || !formState.selected_goal || loading}
+                disabled={formState.is_loading || formState.images.length === 0 || !formState.selected_goal || !formState.selected_engine || loading}
                 className={`
-                  glow-button flex items-center space-x-3 px-8 py-4 text-lg font-semibold
-                  ${formState.is_loading || formState.images.length === 0 || !formState.selected_goal || loading
+                  glow-button flex items-center space-x-3 px-10 py-4 text-lg font-semibold
+                  ${formState.is_loading || formState.images.length === 0 || !formState.selected_goal || !formState.selected_engine || loading
                     ? 'opacity-50 cursor-not-allowed'
                     : 'hover:scale-105 active:scale-95'
                   }
@@ -751,10 +650,7 @@ const AnalysisForm = ({
                   <>
                     <Sparkles className="w-5 h-5" />
                     <span>
-                      {formState.selected_goal === 'find_common_features'
-                        ? `Analyze ${formState.images.length} Image${formState.images.length !== 1 ? 's' : ''}`
-                        : `Create ${formState.selected_engine || 'AI'} Prompt`
-                      }
+                      Create {formState.selected_engine || 'AI'} Prompt
                     </span>
                     <ArrowRight className="w-5 h-5" />
                   </>
@@ -782,19 +678,15 @@ const AnalysisForm = ({
                 <div className={`w-3 h-3 rounded-full ${formState.selected_goal ? 'bg-green-400' : 'bg-gray-600'}`} />
                 <span>Goal Selected</span>
               </div>
-              {formState.show_engine_selection && (
-                <>
-                  <ArrowRight className="w-4 h-4" />
-                  <div className={`flex items-center space-x-2 ${formState.selected_engine ? 'text-green-400' : ''}`}>
-                    <div className={`w-3 h-3 rounded-full ${formState.selected_engine ? 'bg-green-400' : 'bg-gray-600'}`} />
-                    <span>Engine Selected</span>
-                  </div>
-                </>
-              )}
+              <ArrowRight className="w-4 h-4" />
+              <div className={`flex items-center space-x-2 ${formState.selected_engine ? 'text-green-400' : ''}`}>
+                <div className={`w-3 h-3 rounded-full ${formState.selected_engine ? 'bg-green-400' : 'bg-gray-600'}`} />
+                <span>Engine Selected</span>
+              </div>
               <ArrowRight className="w-4 h-4" />
               <div className="flex items-center space-x-2">
                 <div className="w-3 h-3 rounded-full bg-gray-600" />
-                <span>Ready to {formState.selected_goal === 'find_common_features' ? 'Analyze' : 'Create Prompt'}</span>
+                <span>Ready to Create Prompt</span>
               </div>
             </LazyMotionDiv>
           )}
@@ -820,8 +712,7 @@ AnalysisForm.propTypes = {
   initialState: PropTypes.shape({
     images: PropTypes.array,
     selected_goal: PropTypes.string,
-    selected_engine: PropTypes.string,
-    custom_prompt: PropTypes.string
+    selected_engine: PropTypes.string
   })
 };
 
