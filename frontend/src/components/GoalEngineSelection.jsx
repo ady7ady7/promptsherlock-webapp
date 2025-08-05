@@ -18,96 +18,154 @@ import {
 } from 'lucide-react';
 import PropTypes from 'prop-types';
 
-/**
- * Unified Goal and Engine Selection Component
- * Shows both goal selection and engine selection in one smooth interface
- */
-const GoalEngineSelection = ({ 
+// =============================================================================
+// GOAL DEFINITIONS
+// =============================================================================
+const goals = [
+  {
+    id: 'copy_image',
+    title: 'Copy Image',
+    description: 'Create a prompt to recreate the entire image accurately.',
+    icon: Copy,
+    color: 'green',
+    bestFor: 'Recreating specific images'
+  },
+  {
+    id: 'copy_style',
+    title: 'Copy Style',
+    description: 'Isolate and describe the artistic style for new creations.',
+    icon: Palette,
+    color: 'orange',
+    bestFor: 'Applying style to new subjects'
+  }
+];
+
+// =============================================================================
+// ENGINE DEFINITIONS
+// =============================================================================
+const engines = [
+  {
+    id: 'midjourney',
+    name: 'Midjourney',
+    description: 'Artistic and creative generation',
+    icon: Palette,
+    color: 'purple',
+    popularity: 5
+  },
+  {
+    id: 'dalle',
+    name: 'DALL-E 3',
+    description: 'Excellent prompt adherence',
+    icon: Bot,
+    color: 'green',
+    popularity: 4
+  },
+  {
+    id: 'stable_diffusion',
+    name: 'Stable Diffusion',
+    description: 'Open-source powerhouse',
+    icon: Cpu,
+    color: 'blue',
+    popularity: 4
+  },
+  {
+    id: 'gemini_imagen',
+    name: 'Gemini Imagen',
+    description: 'Photorealistic results',
+    icon: Camera,
+    color: 'orange',
+    popularity: 3
+  },
+  {
+    id: 'flux',
+    name: 'Flux',
+    description: 'Next-generation model',
+    icon: Zap,
+    color: 'cyan',
+    popularity: 4
+  },
+  {
+    id: 'leonardo',
+    name: 'Leonardo AI',
+    description: 'Professional-grade generation',
+    icon: Sparkles,
+    color: 'indigo',
+    popularity: 3
+  }
+];
+
+// =============================================================================
+// STYLING HELPER FUNCTION
+// =============================================================================
+const getColorClasses = (color, isSelected = false, isHovered = false) => {
+  const colors = {
+    green: {
+      border: isSelected ? 'border-green-400' : isHovered ? 'border-green-300' : 'border-green-500/30',
+      bg: isSelected ? 'bg-green-500/20' : isHovered ? 'bg-green-500/10' : 'bg-green-500/5',
+      icon: isSelected ? 'text-green-300' : 'text-green-400',
+      text: isSelected ? 'text-green-200' : 'text-green-300'
+    },
+    orange: {
+      border: isSelected ? 'border-orange-400' : isHovered ? 'border-orange-300' : 'border-orange-500/30',
+      bg: isSelected ? 'bg-orange-500/20' : isHovered ? 'bg-orange-500/10' : 'bg-orange-500/5',
+      icon: isSelected ? 'text-orange-300' : 'text-orange-400',
+      text: isSelected ? 'text-orange-200' : 'text-orange-300'
+    },
+    purple: {
+      border: isSelected ? 'border-purple-400' : isHovered ? 'border-purple-300' : 'border-purple-500/30',
+      bg: isSelected ? 'bg-purple-500/20' : isHovered ? 'bg-purple-500/10' : 'bg-purple-500/5',
+      icon: isSelected ? 'text-purple-300' : 'text-purple-400',
+      text: isSelected ? 'text-purple-200' : 'text-purple-300'
+    },
+    blue: {
+      border: isSelected ? 'border-blue-400' : isHovered ? 'border-blue-300' : 'border-blue-500/30',
+      bg: isSelected ? 'bg-blue-500/20' : isHovered ? 'bg-blue-500/10' : 'bg-blue-500/5',
+      icon: isSelected ? 'text-blue-300' : 'text-blue-400',
+      text: isSelected ? 'text-blue-200' : 'text-blue-300'
+    },
+    cyan: {
+      border: isSelected ? 'border-cyan-400' : isHovered ? 'border-cyan-300' : 'border-cyan-500/30',
+      bg: isSelected ? 'bg-cyan-500/20' : isHovered ? 'bg-cyan-500/10' : 'bg-cyan-500/5',
+      icon: isSelected ? 'text-cyan-300' : 'text-cyan-400',
+      text: isSelected ? 'text-cyan-200' : 'text-cyan-300'
+    },
+    indigo: {
+      border: isSelected ? 'border-indigo-400' : isHovered ? 'border-indigo-300' : 'border-indigo-500/30',
+      bg: isSelected ? 'bg-indigo-500/20' : isHovered ? 'bg-indigo-500/10' : 'bg-indigo-500/5',
+      icon: isSelected ? 'text-indigo-300' : 'text-indigo-400',
+      text: isSelected ? 'text-indigo-200' : 'text-indigo-300'
+    }
+  };
+  return colors[color] || colors.blue;
+};
+
+// =============================================================================
+// POPULARITY STARS COMPONENT
+// =============================================================================
+const renderPopularityStars = (popularity) => {
+  return Array.from({ length: 5 }, (_, i) => (
+    <Star
+      key={i}
+      className={`w-3 h-3 ${
+        i < popularity ? 'text-yellow-400 fill-current' : 'text-gray-600'
+      }`}
+    />
+  ));
+};
+
+// =============================================================================
+// MAIN COMPONENT
+// =============================================================================
+function GoalEngineSelection({ 
   selectedGoal,
   selectedEngine,
   onGoalChange, 
   onEngineChange,
   disabled = false,
   imageCount = 0 
-}) => {
+}) {
   const [hoveredGoal, setHoveredGoal] = useState(null);
   const [hoveredEngine, setHoveredEngine] = useState(null);
-
-  // =============================================================================
-  // GOAL DEFINITIONS
-  // =============================================================================
-  const goals = [
-    {
-      id: 'copy_image',
-      title: 'Copy Image',
-      description: 'Create a prompt to recreate the entire image accurately.',
-      icon: Copy,
-      color: 'green',
-      bestFor: 'Recreating specific images'
-    },
-    {
-      id: 'copy_style',
-      title: 'Copy Style',
-      description: 'Isolate and describe the artistic style for new creations.',
-      icon: Palette,
-      color: 'orange',
-      bestFor: 'Applying style to new subjects'
-    }
-  ];
-
-  // =============================================================================
-  // ENGINE DEFINITIONS
-  // =============================================================================
-  const engines = [
-    {
-      id: 'midjourney',
-      name: 'Midjourney',
-      description: 'Artistic and creative generation',
-      icon: Palette,
-      color: 'purple',
-      popularity: 5
-    },
-    {
-      id: 'dalle',
-      name: 'DALL-E 3',
-      description: 'Excellent prompt adherence',
-      icon: Bot,
-      color: 'green',
-      popularity: 4
-    },
-    {
-      id: 'stable_diffusion',
-      name: 'Stable Diffusion',
-      description: 'Open-source powerhouse',
-      icon: Cpu,
-      color: 'blue',
-      popularity: 4
-    },
-    {
-      id: 'gemini_imagen',
-      name: 'Gemini Imagen',
-      description: 'Photorealistic results',
-      icon: Camera,
-      color: 'orange',
-      popularity: 3
-    },
-    {
-      id: 'flux',
-      name: 'Flux',
-      description: 'Next-generation model',
-      icon: Zap,
-      color: 'cyan',
-      popularity: 4
-    },
-    {
-      id: 'leonardo',
-      name: 'Leonardo AI',
-      description: 'Professional-grade generation',
-      icon: Sparkles,
-      color: 'indigo',
-      popularity: 3
-    }
-  ];
 
   // =============================================================================
   // EVENT HANDLERS
@@ -120,62 +178,6 @@ const GoalEngineSelection = ({
   const handleEngineClick = (engineId) => {
     if (disabled) return;
     onEngineChange(engineId);
-  };
-
-  // =============================================================================
-  // STYLING HELPERS
-  // =============================================================================
-  const getColorClasses = (color, isSelected = false, isHovered = false) => {
-    const colors = {
-      green: {
-        border: isSelected ? 'border-green-400' : isHovered ? 'border-green-300' : 'border-green-500/30',
-        bg: isSelected ? 'bg-green-500/20' : isHovered ? 'bg-green-500/10' : 'bg-green-500/5',
-        icon: isSelected ? 'text-green-300' : 'text-green-400',
-        text: isSelected ? 'text-green-200' : 'text-green-300'
-      },
-      orange: {
-        border: isSelected ? 'border-orange-400' : isHovered ? 'border-orange-300' : 'border-orange-500/30',
-        bg: isSelected ? 'bg-orange-500/20' : isHovered ? 'bg-orange-500/10' : 'bg-orange-500/5',
-        icon: isSelected ? 'text-orange-300' : 'text-orange-400',
-        text: isSelected ? 'text-orange-200' : 'text-orange-300'
-      },
-      purple: {
-        border: isSelected ? 'border-purple-400' : isHovered ? 'border-purple-300' : 'border-purple-500/30',
-        bg: isSelected ? 'bg-purple-500/20' : isHovered ? 'bg-purple-500/10' : 'bg-purple-500/5',
-        icon: isSelected ? 'text-purple-300' : 'text-purple-400',
-        text: isSelected ? 'text-purple-200' : 'text-purple-300'
-      },
-      blue: {
-        border: isSelected ? 'border-blue-400' : isHovered ? 'border-blue-300' : 'border-blue-500/30',
-        bg: isSelected ? 'bg-blue-500/20' : isHovered ? 'bg-blue-500/10' : 'bg-blue-500/5',
-        icon: isSelected ? 'text-blue-300' : 'text-blue-400',
-        text: isSelected ? 'text-blue-200' : 'text-blue-300'
-      },
-      cyan: {
-        border: isSelected ? 'border-cyan-400' : isHovered ? 'border-cyan-300' : 'border-cyan-500/30',
-        bg: isSelected ? 'bg-cyan-500/20' : isHovered ? 'bg-cyan-500/10' : 'bg-cyan-500/5',
-        icon: isSelected ? 'text-cyan-300' : 'text-cyan-400',
-        text: isSelected ? 'text-cyan-200' : 'text-cyan-300'
-      },
-      indigo: {
-        border: isSelected ? 'border-indigo-400' : isHovered ? 'border-indigo-300' : 'border-indigo-500/30',
-        bg: isSelected ? 'bg-indigo-500/20' : isHovered ? 'bg-indigo-500/10' : 'bg-indigo-500/5',
-        icon: isSelected ? 'text-indigo-300' : 'text-indigo-400',
-        text: isSelected ? 'text-indigo-200' : 'text-indigo-300'
-      }
-    };
-    return colors[color] || colors.blue;
-  };
-
-  const renderPopularityStars = (popularity) => {
-    return Array.from({ length: 5 }, (_, i) => (
-      <Star
-        key={i}
-        className={`w-3 h-3 ${
-          i < popularity ? 'text-yellow-400 fill-current' : 'text-gray-600'
-        }`}
-      />
-    ));
   };
 
   // =============================================================================
@@ -396,8 +398,11 @@ const GoalEngineSelection = ({
       </div>
     </motion.div>
   );
-};
+}
 
+// =============================================================================
+// PROP TYPES
+// =============================================================================
 GoalEngineSelection.propTypes = {
   selectedGoal: PropTypes.string,
   selectedEngine: PropTypes.string,
@@ -407,4 +412,7 @@ GoalEngineSelection.propTypes = {
   imageCount: PropTypes.number
 };
 
+// =============================================================================
+// EXPORT
+// =============================================================================
 export default GoalEngineSelection;
