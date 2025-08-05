@@ -44,6 +44,7 @@ function App() {
     }, 100);
   };
 
+  // Scroll to upload section (keeping for potential future use)
   const scrollToUpload = useCallback(() => {
     document.querySelector('#upload-section')?.scrollIntoView({ 
       behavior: 'smooth' 
@@ -78,50 +79,17 @@ function App() {
         </h1>
       </SimpleMotion>
 
-      {/* Core Description */}
-      <div className="max-w-3xl mx-auto mb-8">
-        <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
-          Turn any image into the perfect AI art prompt.
-        </p>
-      </div>
-
-      {/* Main CTA Section */}
-      <SimpleMotion
-        className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.4 }}
-      >
-        <p className="text-white text-lg md:text-xl leading-relaxed mb-8 text-center">
-          <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, tailored for top AI engines.
-        </p>
-        
-        {/* Offline Mode Notice */}
-        {isOfflineMode && (
-          <div className="mb-6 p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg">
+      {/* Simple Offline Mode Notice - only show if needed */}
+      {isOfflineMode && (
+        <div className="max-w-2xl mx-auto mb-8">
+          <div className="p-4 bg-orange-500/20 border border-orange-500/50 rounded-lg">
             <div className="flex items-center justify-center text-orange-300">
               <Clock className="w-5 h-5 mr-2" />
               <span className="text-sm">Running in offline mode - some features may be limited</span>
             </div>
           </div>
-        )}
-        
-        {/* CTA Button */}
-        <div className="text-center">
-          <SimpleMotion
-            className="glass-button px-10 py-5 text-white font-bold text-xl bg-gradient-to-r from-blue-500/20 to-purple-500/20 hover:from-blue-500/30 hover:to-purple-500/30 transition-all duration-300 border border-blue-400/30 mx-auto cursor-pointer inline-block"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={scrollToUpload}
-          >
-            Get Started Now
-          </SimpleMotion>
-          
-          <p className="text-gray-400 text-sm mt-4">
-            Upload Your First Image and See Sherlock in Action!
-          </p>
         </div>
-      </SimpleMotion>
+      )}
     </header>
   );
 
