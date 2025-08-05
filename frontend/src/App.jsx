@@ -1,19 +1,15 @@
 // =============================================================================
-// UPDATED APP.JSX - SIMPLE & PERFORMANT
+// CLEANED APP.JSX - CORE FUNCTIONALITY ONLY
 // File: frontend/src/App.jsx - REPLACE EXISTING  
 // =============================================================================
 
 import React, { useState, useCallback, useEffect } from 'react';
 import { 
   Search, 
-  Zap, 
   Shield, 
   Heart, 
   Sparkles,
-  Clock,
-  Palette,
-  Target,
-  Lightbulb
+  Clock
 } from 'lucide-react';
 
 // Import components
@@ -21,7 +17,6 @@ import AnalysisForm from './components/AnalysisForm';
 import Navigation from './components/Navigation';
 import { useAuth } from './components/AuthContext';
 import { SimpleMotion, preloadMotion } from './components/SimpleMotion';
-import { SimpleCarousel } from './components/SimpleCarousel';
 
 // =============================================================================
 // MAIN APP COMPONENT
@@ -56,49 +51,6 @@ function App() {
   }, []);
 
   // =============================================================================
-  // FEATURE DATA
-  // =============================================================================
-
-  const features = [
-    {
-      icon: Search,
-      title: 'AI Analysis',
-      description: 'Sherlock "investigates" your images, extracting style, mood, composition, and subject matter.',
-      bgGradient: 'from-blue-500/10 to-cyan-500/10'
-    },
-    {
-      icon: Zap,
-      title: 'Engine Specific Prompts',
-      description: 'Choose your target engine (Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, etc.) (Coming soon)',
-      bgGradient: 'from-yellow-500/10 to-orange-500/10'
-    },
-    {
-      icon: Palette,
-      title: 'Style & Character Profiles',
-      description: 'Build a library of recurring styles and characters for consistent branding. (Coming soon)',
-      bgGradient: 'from-purple-500/10 to-pink-500/10'
-    },
-    {
-      icon: Lightbulb,
-      title: 'Instant Inspiration',
-      description: 'Turn any image into a perfect AI prompt—no guesswork.',
-      bgGradient: 'from-green-500/10 to-emerald-500/10'
-    },
-    {
-      icon: Target,
-      title: 'Style Consistency',
-      description: 'Keep your unique look across projects.',
-      bgGradient: 'from-red-500/10 to-rose-500/10'
-    },
-    {
-      icon: Clock,
-      title: 'Save Time',
-      description: 'Skip manual prompt writing, focus on creating.',
-      bgGradient: 'from-indigo-500/10 to-violet-500/10'
-    }
-  ];
-
-  // =============================================================================
   // RENDER COMPONENTS
   // =============================================================================
 
@@ -126,15 +78,14 @@ function App() {
         </h1>
       </SimpleMotion>
 
-      {/* Marketing Tagline */}
+      {/* Core Description */}
       <div className="max-w-3xl mx-auto mb-8">
         <p className="text-blue-200 text-lg md:text-xl lg:text-2xl mb-4 italic">
-          Uncover. Create. Repeat.<br />
           Turn any image into the perfect AI art prompt.
         </p>
       </div>
 
-      {/* Marketing Description */}
+      {/* Main CTA Section */}
       <SimpleMotion
         className="max-w-4xl mx-auto mb-12 glass-effect p-8 rounded-xl"
         initial={{ opacity: 0, y: 20 }}
@@ -142,7 +93,7 @@ function App() {
         transition={{ duration: 0.6, delay: 0.4 }}
       >
         <p className="text-white text-lg md:text-xl leading-relaxed mb-8 text-center">
-          <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, tailored for top AI engines like Midjourney, DALL·E, Stable Diffusion, Gemini Imagen, and more.
+          <strong className="gradient-text">Upload up to 10 images</strong> and let Prompt Sherlock instantly "investigate" every detail—style, mood, characters, composition, and more. Get ready-to-use prompts, tailored for top AI engines.
         </p>
         
         {/* Offline Mode Notice */}
@@ -170,15 +121,6 @@ function App() {
             Upload Your First Image and See Sherlock in Action!
           </p>
         </div>
-      </SimpleMotion>
-
-      {/* Feature Carousel */}
-      <SimpleMotion
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.8 }}
-      >
-        <SimpleCarousel features={features} />
       </SimpleMotion>
     </header>
   );
@@ -215,7 +157,7 @@ function App() {
               <span className="gradient-text font-bold text-xl">Prompt Sherlock</span>
             </div>
             <p className="text-gray-400 text-sm">
-              AI-powered creative sidekick that investigates images to create perfect AI art prompts.
+              AI-powered tool that investigates images to create perfect AI art prompts.
             </p>
           </div>
 
