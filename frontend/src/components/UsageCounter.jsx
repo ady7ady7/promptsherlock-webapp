@@ -38,6 +38,10 @@ const UsageCounter = ({ onUsageUpdate }) => {
         }
       });
 
+      console.log('🔍 Request headers sent:', {
+        'Authorization': `Bearer ${token.substring(0, 50)}...`,
+        'Content-Type': 'application/json'
+      });
       console.log('🔍 Response status:', response.status);
       console.log('🔍 Response URL:', response.url);
 
