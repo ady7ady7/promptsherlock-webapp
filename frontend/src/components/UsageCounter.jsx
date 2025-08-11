@@ -27,7 +27,7 @@ const UsageCounter = ({ onUsageUpdate }) => {
       const token = await currentUser.getIdToken();
       console.log('🔍 Got token:', token.substring(0, 30) + '...');
 
-      const url = `${import.meta.env.VITE_API_URL}/analyze/my-usage`;
+      const url = `${import.meta.env.VITE_API_URL}/api/analyze/my-usage`;
       console.log('🔍 Full URL:', url);
 
       const response = await fetch(url, {
