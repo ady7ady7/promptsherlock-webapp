@@ -32,35 +32,74 @@ function App() {
     preloadMotion();
   }, []);
 
-  // NEW: Fetch user's usage stats on component mount
+  // NEW: Fetch user's usage stats on component mount WITH DETAILED DEBUG
   useEffect(() => {
     const fetchUserUsage = async () => {
-      if (!currentUser || loading) return; // Wait for authentication
+      console.log('🔍 DEBUG - fetchUserUsage called:', { 
+        currentUser: !!currentUser, 
+        loading, 
+        uid: currentUser?.uid,
+        isOfflineMode 
+      });
+      
+      if (!currentUser || loading) {
+        console.log('❌ Skipping fetch - no user or still loading');
+        return;
+      }
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze/my-usage`, {
+        console.log('🚀 Attempting to fetch user usage...');
+        
+        const token = await currentUser.getIdToken();
+        console.log('✅ Got auth token:', token.substring(0, 30) + '...');
+        
+        const apiUrl = import.meta.env.VITE_API_URL;
+        const url = `${apiUrl}/analyze/my-usage`;
+        console.log('📡 API URL:', apiUrl);
+        console.log('📡 Full URL:', url);
+        
+        const response = await fetch(url, {
           headers: {
-            'Authorization': `Bearer ${await currentUser.getIdToken()}`
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
           }
         });
         
+        console.log('📥 Response status:', response.status);
+        console.log('📥 Response headers:', Object.fromEntries(response.headers.entries()));
+        
         if (response.ok) {
           const data = await response.json();
+          console.log('✅ Full response data:', data);
+          
           if (data.success) {
             setUsageStats(data.usage);
-            console.log('✅ User usage loaded:', data.usage); // Debug log
+            console.log('✅ User usage loaded and set:', data.usage);
+          } else {
+            console.log('❌ Response not successful:', data);
           }
         } else {
-          console.log('❌ Failed to fetch usage:', response.status);
+          const errorText = await response.text();
+          console.log('❌ Failed to fetch usage:', response.status, response.statusText);
+          console.log('❌ Error response:', errorText);
         }
       } catch (error) {
-        console.log('❌ Could not fetch user usage:', error);
-        // Silently fail - this is just for monitoring
+        console.log('❌ Fetch error:', error);
+        console.log('❌ Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
       }
     };
 
     fetchUserUsage();
   }, [currentUser, loading]); // Depend on currentUser and loading
+
+  // DEBUG: Log whenever usageStats changes
+  useEffect(() => {
+    console.log('📊 UsageStats state updated:', usageStats);
+  }, [usageStats]);
 
   // =============================================================================
   // EVENT HANDLERS
@@ -120,7 +159,7 @@ function App() {
         </h1>
       </SimpleMotion>
 
-      {/* NEW: User Usage Counter - Only show if we have user stats */}
+      {/* NEW: User Usage Counter with Debug Info */}
       {usageStats && !loading && currentUser && (
         <SimpleMotion
           className="flex items-center justify-center text-gray-400 text-sm mb-4"
@@ -139,8 +178,26 @@ function App() {
             {usageStats.isPro && (
               <span className="ml-2 text-purple-400">• Pro</span>
             )}
+            {usageStats.isAnonymous && (
+              <span className="ml-2 text-yellow-400">• Anonymous</span>
+            )}
           </span>
         </SimpleMotion>
+      )}
+
+      {/* DEBUG: Show loading state */}
+      {loading && (
+        <div className="flex items-center justify-center text-gray-500 text-sm mb-4">
+          <Clock className="w-4 h-4 mr-2 animate-spin" />
+          <span>Loading user data...</span>
+        </div>
+      )}
+
+      {/* DEBUG: Show when no stats available */}
+      {!usageStats && !loading && currentUser && (
+        <div className="flex items-center justify-center text-orange-400 text-sm mb-4">
+          <span>⚠️ Usage stats not loaded - check console</span>
+        </div>
       )}
 
       {/* Simple Offline Mode Notice - only show if needed */}
