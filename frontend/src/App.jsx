@@ -1,5 +1,5 @@
 // =============================================================================
-// CLEANED APP.JSX - CORE FUNCTIONALITY ONLY
+// CLEANED APP.JSX - CORE FUNCTIONALITY ONLY + USAGE COUNTER
 // File: frontend/src/App.jsx - REPLACE EXISTING  
 // =============================================================================
 
@@ -8,7 +8,8 @@ import {
   Search, 
   Shield, 
   Heart, 
-  Clock
+  Clock,
+  TrendingUp // NEW: For usage counter
 } from 'lucide-react';
 
 // Import components
@@ -23,11 +24,32 @@ import { SimpleMotion, preloadMotion } from './components/SimpleMotion';
 
 function App() {
   const [hasAnalysis, setHasAnalysis] = useState(false);
+  const [usageStats, setUsageStats] = useState(null); // NEW: Usage stats state
   const { currentUser, loading, isOfflineMode } = useAuth();
 
   // Preload motion after component mounts
   useEffect(() => {
     preloadMotion();
+  }, []);
+
+  // NEW: Fetch usage stats on component mount
+  useEffect(() => {
+    const fetchUsageStats = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze/live-stats`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success) {
+            setUsageStats(data.stats);
+          }
+        }
+      } catch (error) {
+        console.log('Could not fetch usage stats:', error);
+        // Silently fail - this is just for monitoring
+      }
+    };
+
+    fetchUsageStats();
   }, []);
 
   // =============================================================================
@@ -36,6 +58,15 @@ function App() {
 
   const handleAnalysisComplete = (results) => {
     setHasAnalysis(true);
+    
+    // NEW: Update usage stats after successful analysis
+    if (usageStats) {
+      setUsageStats(prev => ({
+        ...prev,
+        totalAnalyses: prev.totalAnalyses + 1
+      }));
+    }
+    
     setTimeout(() => {
       document.querySelector('#analysis-results')?.scrollIntoView({ 
         behavior: 'smooth' 
@@ -77,6 +108,26 @@ function App() {
           Prompt Sherlock
         </h1>
       </SimpleMotion>
+
+      {/* NEW: Subtle Usage Counter - Only show if we have stats */}
+      {usageStats && (
+        <SimpleMotion
+          className="flex items-center justify-center text-gray-400 text-sm mb-4"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <TrendingUp className="w-4 h-4 mr-2 text-green-400" />
+          <span>
+            {usageStats.totalAnalyses.toLocaleString()} analyses completed 
+            {usageStats.activeUsers > 0 && (
+              <span className="ml-2 text-blue-400">
+                • {usageStats.activeUsers} active today
+              </span>
+            )}
+          </span>
+        </SimpleMotion>
+      )}
 
       {/* Simple Offline Mode Notice - only show if needed */}
       {isOfflineMode && (
