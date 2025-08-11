@@ -1,4 +1,4 @@
-// backend/routes/analyze.js - MINIMAL UPDATE - ONLY ADDING FIRESTORE LIMITS
+// backend/routes/analyze.js - CLEANED VERSION
 // KEEPING ALL YOUR EXISTING CODE, JUST REPLACING THE HARDCODED LIMIT
 
 import express from 'express';
@@ -16,6 +16,135 @@ import verifyFirebaseToken from '../middleware/auth.js';
 import { firestoreConfigService } from '../services/firestoreConfigService.js';
 
 const router = express.Router();
+
+// =============================================================================
+// GET ROUTES FIRST (BEFORE POST ROUTE)
+// =============================================================================
+
+// NEW: Get current user's usage count (for frontend counter)
+router.get('/my-usage', verifyFirebaseToken, async (req, res) => {
+  try {
+    const { user } = req;
+    
+    console.log('📊 Getting usage for user:', user.uid);
+    
+    // Get user's data from Firestore
+    const userRef = db.collection('users').doc(user.uid);
+    const userDoc = await userRef.get();
+    
+    if (!userDoc.exists) {
+      console.log('⚠️ User document not found, returning default values');
+      // User doesn't exist yet, return zero usage
+      return res.json({
+        success: true,
+        usage: {
+          current: 0,
+          limit: 3, // Default anonymous limit
+          remaining: 3,
+          isAnonymous: user.firebase.sign_in_provider === 'anonymous',
+          isPro: false,
+          tier: 'free'
+        }
+      });
+    }
+
+    const userData = userDoc.data();
+    console.log('📊 User data from Firestore:', userData);
+    
+    // Get current limit from Firestore config
+    const config = await firestoreConfigService.getConfig();
+    const anonymousLimit = config.anonymousLimit || 3;
+    
+    const responseData = {
+      success: true,
+      usage: {
+        current: userData.usageCount || 0,
+        limit: userData.isPro ? 'unlimited' : anonymousLimit,
+        remaining: userData.isPro ? 'unlimited' : Math.max(0, anonymousLimit - (userData.usageCount || 0)),
+        isAnonymous: user.firebase.sign_in_provider === 'anonymous',
+        isPro: userData.isPro || false,
+        tier: userData.isPro ? 'pro' : 'free'
+      }
+    };
+    
+    console.log('✅ Sending usage response:', responseData);
+    res.json(responseData);
+
+  } catch (error) {
+    console.error('❌ Error getting user usage:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get user usage',
+      code: 'USER_USAGE_ERROR'
+    });
+  }
+});
+
+router.get('/health', (req, res) => {
+  res.json({
+    status: 'OK',
+    timestamp: new Date().toISOString(),
+    service: 'Image Analysis API',
+    message: 'Service is running normally',
+    availableGoals: ['copy_image', 'copy_style'],
+    availableEngines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo']
+  });
+});
+
+router.get('/config', async (req, res) => {
+  try {
+    // Get current limits from Firestore
+    const firestoreConfig = await firestoreConfigService.getConfig();
+    
+    res.json({
+      service: 'Image Analysis API',
+      version: '1.0.0',
+      limits: {
+        maxFiles: 10,
+        maxFileSize: '10MB',
+        supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP'],
+        anonymousLimit: firestoreConfig.anonymousLimit || 3,
+        tiers: firestoreConfig.tiers || {}
+      },
+      goals: [
+        {
+          id: 'copy_image',
+          name: 'Copy Image',
+          description: 'Generate prompts to recreate images',
+          requiresEngine: true
+        },
+        {
+          id: 'copy_style',
+          name: 'Copy Style',
+          description: 'Extract and describe artistic styles',
+          requiresEngine: true
+        }
+      ],
+      engines: [
+        { id: 'midjourney', name: 'Midjourney' },
+        { id: 'dalle', name: 'DALL-E 3' },
+        { id: 'stable_diffusion', name: 'Stable Diffusion' },
+        { id: 'gemini_imagen', name: 'Gemini Imagen' },
+        { id: 'flux', name: 'Flux' },
+        { id: 'leonardo', name: 'Leonardo AI' }
+      ],
+      environment: {
+        nodeEnv: process.env.NODE_ENV || 'development',
+        frontendUrl: process.env.FRONTEND_URL || 'Not configured',
+        aiModel: 'gemini-1.5-flash',
+        promptsLoaded: Object.keys(promptLoader.getAllPrompts()).length,
+        firestoreConfigLoaded: !!firestoreConfig
+      }
+    });
+  } catch (error) {
+    console.error('❌ Error getting config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get configuration',
+      code: 'CONFIG_ERROR'
+    });
+  }
+});
 
 // =============================================================================
 // AI SERVICE INITIALIZATION
@@ -144,8 +273,6 @@ router.post('/',
       const userDoc = await userRef.get();
 
       if (!userDoc.exists) {
-        // This shouldn't happen if AuthProvider on frontend works correctly,
-        // but we add it just in case to avoid errors
         console.warn(`No user document for UID: ${user.uid}. Creating new one.`);
         await userRef.set({
           usageCount: 0,
@@ -328,148 +455,5 @@ router.post('/',
     }
   }
 );
-
-// =============================================================================
-// HEALTH CHECK ENDPOINTS
-// =============================================================================
-
-router.get('/health', (req, res) => {
-  res.json({
-    status: 'OK',
-    timestamp: new Date().toISOString(),
-    service: 'Image Analysis API',
-    message: 'Service is running normally',
-    availableGoals: ['copy_image', 'copy_style'],
-    availableEngines: ['midjourney', 'dalle', 'stable_diffusion', 'gemini_imagen', 'flux', 'leonardo']
-  });
-});
-
-// NEW: Enhanced config endpoint that shows Firestore limits
-router.get('/config', async (req, res) => {
-  try {
-    // Get current limits from Firestore
-    const firestoreConfig = await firestoreConfigService.getConfig();
-    
-    res.json({
-      service: 'Image Analysis API',
-      version: '1.0.0',
-
-      limits: {
-        maxFiles: 10,
-        maxFileSize: '10MB',
-        supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP'],
-        anonymousLimit: firestoreConfig.anonymousLimit || 3, // Now shows Firestore value
-        tiers: firestoreConfig.tiers || {} // Show tier limits from Firestore
-      },
-
-      goals: [
-        {
-          id: 'copy_image',
-          name: 'Copy Image',
-          description: 'Generate prompts to recreate images',
-          requiresEngine: true
-        },
-        {
-          id: 'copy_style',
-          name: 'Copy Style',
-          description: 'Extract and describe artistic styles',
-          requiresEngine: true
-        }
-      ],
-
-      engines: [
-        { id: 'midjourney', name: 'Midjourney' },
-        { id: 'dalle', name: 'DALL-E 3' },
-        { id: 'stable_diffusion', name: 'Stable Diffusion' },
-        { id: 'gemini_imagen', name: 'Gemini Imagen' },
-        { id: 'flux', name: 'Flux' },
-        { id: 'leonardo', name: 'Leonardo AI' }
-      ],
-
-      environment: {
-        nodeEnv: process.env.NODE_ENV || 'development',
-        frontendUrl: process.env.FRONTEND_URL || 'Not configured',
-        aiModel: 'gemini-1.5-flash',
-        promptsLoaded: Object.keys(promptLoader.getAllPrompts()).length,
-        firestoreConfigLoaded: !!firestoreConfig // Shows if Firestore config is working
-      }
-    });
-  } catch (error) {
-    console.error('❌ Error getting config:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get configuration',
-      code: 'CONFIG_ERROR'
-    });
-  }
-});
-
-// NEW: Simple endpoint to get current usage stats (for monitoring)
-router.get('/usage-stats', async (req, res) => {
-  try {
-    const summary = await firestoreConfigService.getUsageSummary();
-    res.json({
-      success: true,
-      stats: summary
-    });
-  } catch (error) {
-    console.error('❌ Error getting usage stats:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get usage statistics',
-      code: 'STATS_ERROR'
-    });
-  }
-});
-
-// NEW: Get current user's usage count (for frontend counter)
-router.get('/my-usage', verifyFirebaseToken, async (req, res) => {
-  try {
-    const { user } = req;
-    
-    // Get user's data from Firestore
-    const userRef = db.collection('users').doc(user.uid);
-    const userDoc = await userRef.get();
-    
-    if (!userDoc.exists) {
-      // User doesn't exist yet, return zero usage
-      return res.json({
-        success: true,
-        usage: {
-          current: 0,
-          limit: 3, // Default anonymous limit
-          isAnonymous: user.firebase.sign_in_provider === 'anonymous',
-          isPro: false
-        }
-      });
-    }
-
-    const userData = userDoc.data();
-    
-    // Get current limit from Firestore config
-    const config = await firestoreConfigService.getConfig();
-    const anonymousLimit = config.anonymousLimit || 3;
-    
-    res.json({
-      success: true,
-      usage: {
-        current: userData.usageCount || 0,
-        limit: userData.isPro ? 'unlimited' : anonymousLimit,
-        remaining: userData.isPro ? 'unlimited' : Math.max(0, anonymousLimit - (userData.usageCount || 0)),
-        isAnonymous: user.firebase.sign_in_provider === 'anonymous',
-        isPro: userData.isPro || false,
-        tier: userData.isPro ? 'pro' : 'free'
-      }
-    });
-
-  } catch (error) {
-    console.error('❌ Error getting user usage:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Failed to get user usage',
-      code: 'USER_USAGE_ERROR'
-    });
-  }
-});
 
 export default router;
