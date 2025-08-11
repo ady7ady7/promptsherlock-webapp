@@ -32,25 +32,35 @@ function App() {
     preloadMotion();
   }, []);
 
-  // NEW: Fetch usage stats on component mount
+  // NEW: Fetch user's usage stats on component mount
   useEffect(() => {
-    const fetchUsageStats = async () => {
+    const fetchUserUsage = async () => {
+      if (!currentUser || loading) return; // Wait for authentication
+
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze/live-stats`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/analyze/my-usage`, {
+          headers: {
+            'Authorization': `Bearer ${await currentUser.getIdToken()}`
+          }
+        });
+        
         if (response.ok) {
           const data = await response.json();
           if (data.success) {
-            setUsageStats(data.stats);
+            setUsageStats(data.usage);
+            console.log('✅ User usage loaded:', data.usage); // Debug log
           }
+        } else {
+          console.log('❌ Failed to fetch usage:', response.status);
         }
       } catch (error) {
-        console.log('Could not fetch usage stats:', error);
+        console.log('❌ Could not fetch user usage:', error);
         // Silently fail - this is just for monitoring
       }
     };
 
-    fetchUsageStats();
-  }, []);
+    fetchUserUsage();
+  }, [currentUser, loading]); // Depend on currentUser and loading
 
   // =============================================================================
   // EVENT HANDLERS
@@ -60,10 +70,11 @@ function App() {
     setHasAnalysis(true);
     
     // NEW: Update usage stats after successful analysis
-    if (usageStats) {
+    if (usageStats && typeof usageStats.current === 'number') {
       setUsageStats(prev => ({
         ...prev,
-        totalAnalyses: prev.totalAnalyses + 1
+        current: prev.current + 1,
+        remaining: prev.remaining === 'unlimited' ? 'unlimited' : Math.max(0, prev.remaining - 1)
       }));
     }
     
@@ -109,21 +120,24 @@ function App() {
         </h1>
       </SimpleMotion>
 
-      {/* NEW: Subtle Usage Counter - Only show if we have stats */}
-      {usageStats && (
+      {/* NEW: User Usage Counter - Only show if we have user stats */}
+      {usageStats && !loading && currentUser && (
         <SimpleMotion
           className="flex items-center justify-center text-gray-400 text-sm mb-4"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.3 }}
         >
-          <TrendingUp className="w-4 h-4 mr-2 text-green-400" />
+          <TrendingUp className="w-4 h-4 mr-2 text-blue-400" />
           <span>
-            {usageStats.totalAnalyses.toLocaleString()} analyses completed 
-            {usageStats.activeUsers > 0 && (
-              <span className="ml-2 text-blue-400">
-                • {usageStats.activeUsers} active today
+            {usageStats.current} / {usageStats.limit === 'unlimited' ? '∞' : usageStats.limit} uses
+            {usageStats.remaining !== 'unlimited' && usageStats.remaining !== undefined && (
+              <span className="ml-2 text-green-400">
+                • {usageStats.remaining} remaining
               </span>
+            )}
+            {usageStats.isPro && (
+              <span className="ml-2 text-purple-400">• Pro</span>
             )}
           </span>
         </SimpleMotion>

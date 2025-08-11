@@ -422,46 +422,52 @@ router.get('/usage-stats', async (req, res) => {
   }
 });
 
-// NEW: Simple real-time usage counter endpoint (for frontend)
-router.get('/live-stats', async (req, res) => {
+// NEW: Get current user's usage count (for frontend counter)
+router.get('/my-usage', verifyFirebaseToken, async (req, res) => {
   try {
-    // Get real-time stats directly from Firestore (no caching)
-    const usersSnapshot = await db.collection('users').get();
+    const { user } = req;
     
-    let totalAnalyses = 0;
-    let activeUsers = 0;
-    let totalUsers = 0;
+    // Get user's data from Firestore
+    const userRef = db.collection('users').doc(user.uid);
+    const userDoc = await userRef.get();
     
-    const now = new Date();
-    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    if (!userDoc.exists) {
+      // User doesn't exist yet, return zero usage
+      return res.json({
+        success: true,
+        usage: {
+          current: 0,
+          limit: 3, // Default anonymous limit
+          isAnonymous: user.firebase.sign_in_provider === 'anonymous',
+          isPro: false
+        }
+      });
+    }
 
-    usersSnapshot.forEach(doc => {
-      const data = doc.data();
-      totalUsers++;
-      totalAnalyses += data.usageCount || 0;
-      
-      // Count users who used the app in last 24h
-      if (data.lastLogin && data.lastLogin.toDate() > yesterday) {
-        activeUsers++;
-      }
-    });
-
+    const userData = userDoc.data();
+    
+    // Get current limit from Firestore config
+    const config = await firestoreConfigService.getConfig();
+    const anonymousLimit = config.anonymousLimit || 3;
+    
     res.json({
       success: true,
-      stats: {
-        totalAnalyses,
-        totalUsers,
-        activeUsers,
-        timestamp: now.toISOString()
+      usage: {
+        current: userData.usageCount || 0,
+        limit: userData.isPro ? 'unlimited' : anonymousLimit,
+        remaining: userData.isPro ? 'unlimited' : Math.max(0, anonymousLimit - (userData.usageCount || 0)),
+        isAnonymous: user.firebase.sign_in_provider === 'anonymous',
+        isPro: userData.isPro || false,
+        tier: userData.isPro ? 'pro' : 'free'
       }
     });
 
   } catch (error) {
-    console.error('❌ Error getting live stats:', error);
+    console.error('❌ Error getting user usage:', error);
     res.status(500).json({
       success: false,
-      error: 'Failed to get live statistics',
-      code: 'LIVE_STATS_ERROR'
+      error: 'Failed to get user usage',
+      code: 'USER_USAGE_ERROR'
     });
   }
 });
