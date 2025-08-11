@@ -1,5 +1,5 @@
-// backend/routes/analyze.js - FIXED VERSION
-// All language changed to English and limits made consistent
+// backend/routes/analyze.js - MINIMAL UPDATE - ONLY ADDING FIRESTORE LIMITS
+// KEEPING ALL YOUR EXISTING CODE, JUST REPLACING THE HARDCODED LIMIT
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -11,6 +11,9 @@ import promptLoader from '../utils/promptLoader.js';
 // Firebase Admin SDK imports
 import { db, admin } from '../server.js';
 import verifyFirebaseToken from '../middleware/auth.js';
+
+// NEW: Import the config service
+import { firestoreConfigService } from '../services/firestoreConfigService.js';
 
 const router = express.Router();
 
@@ -152,7 +155,12 @@ router.post('/',
       }
 
       let userData = userDoc.data() || { usageCount: 0, isPro: false };
-      const ANONYMOUS_LIMIT = 3; // Usage limit for anonymous users
+
+      // NEW: GET DYNAMIC LIMIT FROM FIRESTORE INSTEAD OF HARDCODED
+      const config = await firestoreConfigService.getConfig();
+      const ANONYMOUS_LIMIT = config.anonymousLimit || 3; // Fallback to 3 if not set
+
+      console.log(`📊 Using anonymous limit from Firestore: ${ANONYMOUS_LIMIT}`);
 
       // Check if user is anonymous and has exceeded limit
       if (user.firebase.sign_in_provider === 'anonymous' && !userData.isPro) {
@@ -336,49 +344,82 @@ router.get('/health', (req, res) => {
   });
 });
 
-router.get('/config', (req, res) => {
-  res.json({
-    service: 'Image Analysis API',
-    version: '1.0.0',
+// NEW: Enhanced config endpoint that shows Firestore limits
+router.get('/config', async (req, res) => {
+  try {
+    // Get current limits from Firestore
+    const firestoreConfig = await firestoreConfigService.getConfig();
+    
+    res.json({
+      service: 'Image Analysis API',
+      version: '1.0.0',
 
-    limits: {
-      maxFiles: 10,
-      maxFileSize: '10MB',
-      supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP'],
-      anonymousLimit: 3 // Added this for consistency
-    },
-
-    goals: [
-      {
-        id: 'copy_image',
-        name: 'Copy Image',
-        description: 'Generate prompts to recreate images',
-        requiresEngine: true
+      limits: {
+        maxFiles: 10,
+        maxFileSize: '10MB',
+        supportedFormats: ['JPEG', 'PNG', 'GIF', 'WebP'],
+        anonymousLimit: firestoreConfig.anonymousLimit || 3, // Now shows Firestore value
+        tiers: firestoreConfig.tiers || {} // Show tier limits from Firestore
       },
-      {
-        id: 'copy_style',
-        name: 'Copy Style',
-        description: 'Extract and describe artistic styles',
-        requiresEngine: true
+
+      goals: [
+        {
+          id: 'copy_image',
+          name: 'Copy Image',
+          description: 'Generate prompts to recreate images',
+          requiresEngine: true
+        },
+        {
+          id: 'copy_style',
+          name: 'Copy Style',
+          description: 'Extract and describe artistic styles',
+          requiresEngine: true
+        }
+      ],
+
+      engines: [
+        { id: 'midjourney', name: 'Midjourney' },
+        { id: 'dalle', name: 'DALL-E 3' },
+        { id: 'stable_diffusion', name: 'Stable Diffusion' },
+        { id: 'gemini_imagen', name: 'Gemini Imagen' },
+        { id: 'flux', name: 'Flux' },
+        { id: 'leonardo', name: 'Leonardo AI' }
+      ],
+
+      environment: {
+        nodeEnv: process.env.NODE_ENV || 'development',
+        frontendUrl: process.env.FRONTEND_URL || 'Not configured',
+        aiModel: 'gemini-1.5-flash',
+        promptsLoaded: Object.keys(promptLoader.getAllPrompts()).length,
+        firestoreConfigLoaded: !!firestoreConfig // Shows if Firestore config is working
       }
-    ],
+    });
+  } catch (error) {
+    console.error('❌ Error getting config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get configuration',
+      code: 'CONFIG_ERROR'
+    });
+  }
+});
 
-    engines: [
-      { id: 'midjourney', name: 'Midjourney' },
-      { id: 'dalle', name: 'DALL-E 3' },
-      { id: 'stable_diffusion', name: 'Stable Diffusion' },
-      { id: 'gemini_imagen', name: 'Gemini Imagen' },
-      { id: 'flux', name: 'Flux' },
-      { id: 'leonardo', name: 'Leonardo AI' }
-    ],
-
-    environment: {
-      nodeEnv: process.env.NODE_ENV || 'development',
-      frontendUrl: process.env.FRONTEND_URL || 'Not configured',
-      aiModel: 'gemini-1.5-flash',
-      promptsLoaded: Object.keys(promptLoader.getAllPrompts()).length
-    }
-  });
+// NEW: Simple endpoint to get current usage stats (for monitoring)
+router.get('/usage-stats', async (req, res) => {
+  try {
+    const summary = await firestoreConfigService.getUsageSummary();
+    res.json({
+      success: true,
+      stats: summary
+    });
+  } catch (error) {
+    console.error('❌ Error getting usage stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get usage statistics',
+      code: 'STATS_ERROR'
+    });
+  }
 });
 
 export default router;
