@@ -422,4 +422,48 @@ router.get('/usage-stats', async (req, res) => {
   }
 });
 
+// NEW: Simple real-time usage counter endpoint (for frontend)
+router.get('/live-stats', async (req, res) => {
+  try {
+    // Get real-time stats directly from Firestore (no caching)
+    const usersSnapshot = await db.collection('users').get();
+    
+    let totalAnalyses = 0;
+    let activeUsers = 0;
+    let totalUsers = 0;
+    
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
+    usersSnapshot.forEach(doc => {
+      const data = doc.data();
+      totalUsers++;
+      totalAnalyses += data.usageCount || 0;
+      
+      // Count users who used the app in last 24h
+      if (data.lastLogin && data.lastLogin.toDate() > yesterday) {
+        activeUsers++;
+      }
+    });
+
+    res.json({
+      success: true,
+      stats: {
+        totalAnalyses,
+        totalUsers,
+        activeUsers,
+        timestamp: now.toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error getting live stats:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get live statistics',
+      code: 'LIVE_STATS_ERROR'
+    });
+  }
+});
+
 export default router;
