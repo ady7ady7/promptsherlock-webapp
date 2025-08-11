@@ -118,73 +118,67 @@ app.use(helmet({
 
 const getCorsOptions = () => {
   const frontendUrl = process.env.FRONTEND_URL;
+  const allowedOriginsEnv = process.env.ALLOWED_ORIGINS;
   const nodeEnv = process.env.NODE_ENV;
-
-  console.log('🔍 CORS Configuration:');
-  console.log('   Frontend URL:', frontendUrl);
-  console.log('   Environment:', nodeEnv);
-
-  // Development origins
+  
+  console.log('🔧 Configuring CORS...');
+  console.log(`   Frontend URL: ${frontendUrl}`);
+  console.log(`   Allowed Origins Env: ${allowedOriginsEnv}`);
+  
+  // Parse allowed origins from environment variable
+  let allowedOrigins = [];
+  if (allowedOriginsEnv) {
+    allowedOrigins = allowedOriginsEnv.split(',').map(origin => origin.trim());
+  }
+  
+  // Add development origins
   const devOrigins = [
-    'https://promptsherlock.ai',
-    'https://www.promptsherlock.ai',
-    'https://api.promptsherlock.ai',
     'http://localhost:3000',
     'http://localhost:5173',
     'http://127.0.0.1:5173',
     'http://127.0.0.1:3000'
   ];
-
-  // Production origins
-  const prodOrigins = [];
-  if (frontendUrl) {
-    prodOrigins.push(frontendUrl);
-
-    // Add common variations for Netlify
-    if (frontendUrl.includes('netlify.app')) {
-      const baseUrl = frontendUrl.replace('https://', '').replace('.netlify.app', '');
-      prodOrigins.push(`https://deploy-preview-*--${baseUrl}.netlify.app`);
-    }
+  
+  if (nodeEnv === 'development') {
+    allowedOrigins.push(...devOrigins);
   }
 
-  const allowedOrigins = [
-    ...devOrigins,
-    ...prodOrigins
-  ].filter(Boolean);
-
-  console.log('   Allowed origins:', allowedOrigins);
+  console.log('📋 Allowed origins:', allowedOrigins);
 
   return {
-    origin: function (origin, callback) {
-      // Allow requests with no origin (mobile apps, curl, etc.)
+    origin: (origin, callback) => {
+      console.log(`🔍 CORS check for origin: ${origin || 'no-origin'}`);
+
+      // Allow requests with no origin (mobile apps, Postman, etc.)
       if (!origin) {
-        console.log('   ✅ No origin header - allowing request');
+        console.log('   ✅ No origin header - allowing request');
         return callback(null, true);
       }
 
-      // Check exact matches
+      // Check exact matches from environment variables
       if (allowedOrigins.includes(origin)) {
-        console.log('   ✅ Origin allowed:', origin);
+        console.log('   ✅ Origin allowed (exact match):', origin);
         return callback(null, true);
       }
 
-      // Check Netlify deploy previews pattern
-      const isNetlifyPreview = origin.includes('netlify.app') &&
-                               frontendUrl && frontendUrl.includes('netlify.app');
-
-      if (isNetlifyPreview) {
-        console.log('   ✅ Netlify preview origin allowed:', origin);
+      // SECURE: Check if it's YOUR specific Netlify site deploy preview
+      // Pattern: https://[deploy-id]--promptsherlock-webapp.netlify.app
+      const netlifyPattern = /^https:\/\/[a-z0-9]+-*[a-z0-9]*--promptsherlock-webapp\.netlify\.app$/;
+      if (netlifyPattern.test(origin)) {
+        console.log('   ✅ Your Netlify deploy preview allowed:', origin);
         return callback(null, true);
       }
 
-      // Development mode - be more permissive
+      // Development mode - be more permissive for localhost
       if (nodeEnv === 'development') {
-        console.log('   ⚠️ Development mode - allowing origin:', origin);
-        return callback(null, true);
+        if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+          console.log('   ⚠️ Development mode - allowing localhost:', origin);
+          return callback(null, true);
+        }
       }
 
-      console.log('   ❌ Origin blocked:', origin);
-      console.log('   📋 Allowed origins:', allowedOrigins);
+      console.log('   ❌ Origin blocked:', origin);
+      console.log('   📋 Allowed origins:', allowedOrigins);
 
       const error = new Error('Not allowed by CORS');
       error.status = 403;
