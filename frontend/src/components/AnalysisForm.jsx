@@ -1,5 +1,5 @@
 // =============================================================================
-// OPTIMIZED ANALYSIS FORM - MERGED COMPONENTS & CLICK-TO-PERFORM
+// FIXED ANALYSIS FORM - PROPER ERROR HANDLING FOR AUTH ISSUES
 // File: frontend/src/components/AnalysisForm.jsx - REPLACE EXISTING
 // =============================================================================
 
@@ -7,11 +7,7 @@ import React, { useState, useCallback, useRef } from 'react';
 import PropTypes from 'prop-types';
 import { motion, AnimatePresence } from 'framer-motion';
 
-// =============================================================================
-// LAZY IMPORTS - LOAD ONLY WHEN NEEDED
-// =============================================================================
-
-// Icons - load immediately (small size)
+// Icons
 import {
   Send,
   AlertCircle,
@@ -20,127 +16,58 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-// Component imports - keep immediate (needed for initial render)
+// Component imports
 import ImageUploader from './ImageUploader';
-import GoalEngineSelection from './GoalEngineSelection'; // NEW MERGED COMPONENT
+import GoalEngineSelection from './GoalEngineSelection';
 import FinalOutput from './FinalOutput';
 
-// Auth context - already optimized with lazy loading
+// Auth context
 import { useAuth } from './AuthContext';
 
 // =============================================================================
 // LAZY LOADERS FOR HEAVY DEPENDENCIES
 // =============================================================================
 
-/**
- * Lazy load Framer Motion components
- */
-let motionModules = null;
-const loadMotionModules = async () => {
-  if (motionModules) return motionModules;
-  
-  try {
-    const { motion, AnimatePresence } = await import('framer-motion');
-    motionModules = { motion, AnimatePresence };
-    console.log('✅ Framer Motion loaded for form interactions');
-    return motionModules;
-  } catch (error) {
-    console.error('❌ Failed to load Framer Motion:', error);
-    // Fallback to regular div components
-    motionModules = {
-      motion: {
-        div: 'div',
-        button: 'button',
-        form: 'form'
-      },
-      AnimatePresence: ({ children }) => children
-    };
-    return motionModules;
-  }
-};
-
-/**
- * Lazy load Axios for form submission
- */
 let axiosModule = null;
 const loadAxios = async () => {
   if (axiosModule) return axiosModule;
   
   try {
-    axiosModule = await import('axios');
-    console.log('✅ Axios loaded for form submission');
-    return axiosModule.default;
+    const module = await import('axios');
+    axiosModule = module.default || module;
+    console.log('✅ Axios loaded successfully');
+    return axiosModule;
   } catch (error) {
     console.error('❌ Failed to load Axios:', error);
-    throw new Error('Network module failed to load');
+    throw new Error('Failed to load network module. Please refresh the page.');
   }
 };
 
 // =============================================================================
-// LIGHTWEIGHT MOTION WRAPPER COMPONENTS
+// LAZY MOTION COMPONENTS
 // =============================================================================
 
-/**
- * Lightweight wrapper that loads motion on first interaction
- */
-const LazyMotionDiv = ({ children, className, variants, initial, animate, exit, ...props }) => {
-  const [MotionDiv, setMotionDiv] = useState(null);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  
-  const handleInteraction = useCallback(async () => {
-    if (!hasInteracted) {
-      setHasInteracted(true);
-      const { motion } = await loadMotionModules();
-      setMotionDiv(() => motion.div);
-    }
-  }, [hasInteracted]);
-  
-  // Load on hover, focus, or scroll into view
-  const interactionProps = {
-    onMouseEnter: handleInteraction,
-    onFocus: handleInteraction,
-    onTouchStart: handleInteraction,
-    ...props
-  };
-  
-  if (!MotionDiv) {
-    return (
-      <div className={className} {...interactionProps}>
-        {children}
-      </div>
-    );
-  }
+const LazyMotionDiv = ({ children, ...props }) => {
+  return <motion.div {...props}>{children}</motion.div>;
+};
+
+const LazyMotionButton = ({ children, disabled, className, ...props }) => {
+  const MotionButton = motion.button;
   
   return (
-    <MotionDiv 
+    <MotionButton
       className={className}
-      variants={variants}
-      initial={initial}
-      animate={animate}
-      exit={exit}
+      disabled={disabled}
       {...props}
+      whileHover={!disabled ? { scale: 1.05 } : {}}
+      whileTap={!disabled ? { scale: 0.95 } : {}}
     >
       {children}
-    </MotionDiv>
+    </MotionButton>
   );
 };
 
-/**
- * Lazy AnimatePresence wrapper
- */
 const LazyAnimatePresence = ({ children, ...props }) => {
-  const [AnimatePresence, setAnimatePresence] = useState(null);
-  
-  React.useEffect(() => {
-    loadMotionModules().then(({ AnimatePresence: AP }) => {
-      setAnimatePresence(() => AP);
-    });
-  }, []);
-  
-  if (!AnimatePresence) {
-    return <>{children}</>;
-  }
-  
   return (
     <AnimatePresence {...props}>
       {children}
@@ -158,7 +85,7 @@ const AnalysisForm = ({
   initialState = {}
 }) => {
   // =============================================================================
-  // STATE MANAGEMENT - SIMPLIFIED (NO CUSTOM PROMPT)
+  // STATE MANAGEMENT
   // =============================================================================
 
   const [formState, setFormState] = useState({
@@ -179,7 +106,7 @@ const AnalysisForm = ({
   const resultsRef = useRef(null);
   const [axiosLoaded, setAxiosLoaded] = useState(false);
 
-  // Get user from auth context (already lazy loaded)
+  // Get user from auth context
   const { currentUser, loading } = useAuth();
 
   // =============================================================================
@@ -193,10 +120,9 @@ const AnalysisForm = ({
   }, [apiUrl]);
 
   // =============================================================================
-  // EVENT HANDLERS - SIMPLIFIED
+  // EVENT HANDLERS
   // =============================================================================
 
-  // 🔥 FIXED: Enhanced state reset with axiosLoaded and debugging
   const handleNewAnalysis = useCallback(() => {
     console.log('🔄 Starting new analysis - resetting all state');
     
@@ -215,7 +141,7 @@ const AnalysisForm = ({
       engine: { is_valid: true, message: '' }
     });
 
-    // 🔥 FIXED: Reset axios loaded state
+    // Reset axios loaded state to allow re-loading if needed
     setAxiosLoaded(false);
     
     console.log('✅ New analysis state reset complete');
@@ -261,7 +187,7 @@ const AnalysisForm = ({
   }, []);
 
   // =============================================================================
-  // VALIDATION LOGIC - SIMPLIFIED
+  // VALIDATION LOGIC
   // =============================================================================
 
   const validateForm = useCallback(() => {
@@ -302,13 +228,12 @@ const AnalysisForm = ({
   }, [formState]);
 
   // =============================================================================
-  // FORM SUBMISSION WITH LAZY AXIOS LOADING
+  // 🔥 FIXED FORM SUBMISSION WITH PROPER ERROR HANDLING
   // =============================================================================
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-
-    // 🔥 FIXED: Enhanced debugging and proper auth error handling
+    
     console.log('🚀 Form submission started');
     console.log('📊 Auth state:', { currentUser: !!currentUser, loading });
     console.log('📊 Form state:', { 
@@ -317,19 +242,39 @@ const AnalysisForm = ({
       engine: formState.selected_engine 
     });
 
-    // Validate form and auth
-    if (!validateForm() || !currentUser || loading) {
-      if (!currentUser) {
-        console.log('❌ No authenticated user - showing error');
-        setFormState(prev => ({ ...prev, error: "Authentication not ready. Please wait." }));
-      }
-      if (loading) {
-        console.log('❌ Authentication still loading - showing error');
-        setFormState(prev => ({ ...prev, error: "Authentication in progress. Please wait a moment." }));
-      }
+    // Clear any previous errors
+    setFormState(prev => ({ ...prev, error: null }));
+
+    // Validate form first
+    if (!validateForm()) {
+      console.log('❌ Form validation failed');
+      setFormState(prev => ({ 
+        ...prev, 
+        error: 'Please complete all required fields before submitting.' 
+      }));
       return;
     }
 
+    // 🔥 FIXED: Proper authentication check with user-visible error
+    if (!currentUser) {
+      console.log('❌ No authenticated user');
+      setFormState(prev => ({ 
+        ...prev, 
+        error: 'Authentication required. Please wait for authentication to complete, then try again.' 
+      }));
+      return;
+    }
+
+    if (loading) {
+      console.log('❌ Authentication still loading');
+      setFormState(prev => ({ 
+        ...prev, 
+        error: 'Authentication in progress. Please wait a moment and try again.' 
+      }));
+      return;
+    }
+
+    // Start loading state
     setFormState(prev => ({
       ...prev,
       is_loading: true,
@@ -337,13 +282,14 @@ const AnalysisForm = ({
     }));
 
     try {
-      // LAZY LOAD AXIOS ONLY WHEN FORM IS SUBMITTED
+      // Load Axios
       console.log('🚀 Loading Axios for form submission...');
       const axios = await loadAxios();
       setAxiosLoaded(true);
 
       // Get auth token
       const idToken = await currentUser.getIdToken();
+      console.log('🔐 Auth token obtained');
 
       const formData = new FormData();
 
@@ -351,14 +297,15 @@ const AnalysisForm = ({
         formData.append('images', image.file);
       });
 
-      // Send parameters - NO CUSTOM PROMPT
+      // Send parameters
       formData.append('goal', formState.selected_goal);
       formData.append('engine', formState.selected_engine);
 
       console.log('🚀 Sending analysis request:', {
         imageCount: formState.images.length,
         goal: formState.selected_goal,
-        engine: formState.selected_engine
+        engine: formState.selected_engine,
+        endpoint: getApiEndpoint('/api/analyze')
       });
 
       const response = await axios.post(
@@ -391,7 +338,8 @@ const AnalysisForm = ({
       setFormState(prev => ({
         ...prev,
         results,
-        is_loading: false
+        is_loading: false,
+        error: null
       }));
 
       if (onAnalysisComplete) {
@@ -408,7 +356,7 @@ const AnalysisForm = ({
       }, 100);
 
     } catch (error) {
-      console.error('Analysis failed:', error);
+      console.error('❌ Analysis failed:', error);
 
       let errorMessage = 'Analysis failed. Please try again.';
 
@@ -432,36 +380,39 @@ const AnalysisForm = ({
         is_loading: false
       }));
     }
-  }, [formState, validateForm, getApiEndpoint, onAnalysisComplete, currentUser, loading]);
+  }, [formState, currentUser, loading, validateForm, getApiEndpoint, onAnalysisComplete]);
 
   // =============================================================================
-  // RENDER METHODS WITH LAZY MOTION
+  // RENDER HELPER FUNCTIONS
   // =============================================================================
 
   const renderValidationErrors = () => {
-    const errors = Object.entries(validation)
-      .filter(([, field]) => !field.is_valid)
-      .map(([key, field]) => ({ key, message: field.message }));
-
-    if (errors.length === 0) return null;
+    const hasErrors = Object.values(validation).some(field => !field.is_valid);
+    if (!hasErrors) return null;
 
     return (
-      <LazyMotionDiv
-        className="bg-red-500/20 border border-red-500/50 rounded-lg p-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
+      <motion.div
+        className="glass-effect border-red-400/50 bg-red-500/10 p-4 rounded-lg"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
       >
-        <div className="flex items-center space-x-2 text-red-300 mb-2">
-          <AlertCircle className="w-5 h-5" />
-          <span className="font-medium">Please fix the following:</span>
+        <div className="flex items-start space-x-3">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-red-400 font-medium mb-2">Please fix the following:</h4>
+            <ul className="space-y-1">
+              {Object.entries(validation).map(([field, { is_valid, message }]) => (
+                !is_valid && (
+                  <li key={field} className="text-red-300 text-sm">
+                    • {message}
+                  </li>
+                )
+              ))}
+            </ul>
+          </div>
         </div>
-        <ul className="space-y-1 text-sm text-red-200">
-          {errors.map(({ key, message }) => (
-            <li key={key}>• {message}</li>
-          ))}
-        </ul>
-      </LazyMotionDiv>
+      </motion.div>
     );
   };
 
@@ -469,100 +420,62 @@ const AnalysisForm = ({
     if (!formState.error) return null;
 
     return (
-      <LazyMotionDiv
-        className="bg-red-500/20 border border-red-500/50 rounded-lg p-4"
-        initial={{ opacity: 0, y: -10 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -10 }}
+      <motion.div
+        className="glass-effect border-red-400/50 bg-red-500/10 p-4 rounded-lg"
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: 1, scale: 1 }}
+        exit={{ opacity: 0, scale: 0.95 }}
       >
-        <div className="flex items-center space-x-2 text-red-300">
-          <AlertCircle className="w-5 h-5" />
-          <div>
-            <p className="font-medium">Analysis Failed</p>
-            <p className="text-sm text-red-200 mt-1">{formState.error}</p>
-            {!axiosLoaded && (
-              <p className="text-xs text-red-300 mt-2">
-                Tip: This might be a network connectivity issue.
-              </p>
-            )}
+        <div className="flex items-start space-x-3">
+          <AlertCircle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h4 className="text-red-400 font-medium mb-1">Analysis Failed</h4>
+            <p className="text-red-300 text-sm">{formState.error}</p>
           </div>
+          <button
+            onClick={() => setFormState(prev => ({ ...prev, error: null }))}
+            className="text-red-400 hover:text-red-300 transition-colors"
+            aria-label="Dismiss error"
+          >
+            ×
+          </button>
         </div>
-      </LazyMotionDiv>
+      </motion.div>
     );
   };
 
   const renderLoadingState = () => {
     if (!formState.is_loading) return null;
 
-    const getLoadingMessage = () => {
-      if (!axiosLoaded) {
-        return 'Loading network components...';
-      }
-      return `Creating ${formState.selected_engine || 'optimized'} prompt...`;
-    };
-
     return (
-      <LazyMotionDiv
-        className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center"
+      <motion.div
+        className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
-        <div className="glass-effect p-8 rounded-lg text-center max-w-md mx-4">
-          <div className="flex justify-center mb-4">
-            <div className="spinner w-12 h-12"></div>
-          </div>
+        <motion.div
+          className="glass-effect p-8 rounded-xl text-center max-w-md mx-4"
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          exit={{ scale: 0.9, opacity: 0 }}
+        >
+          <div className="spinner w-12 h-12 mx-auto mb-4"></div>
           <h3 className="text-xl font-semibold text-white mb-2">
-            {getLoadingMessage()}
+            {axiosLoaded ? 'Creating Your Prompt...' : 'Loading...'}
           </h3>
-          <p className="text-gray-300">
-            {!axiosLoaded ? 'Preparing for analysis...' : 'Creating your optimized prompt...'}
+          <p className="text-gray-300 text-sm">
+            {axiosLoaded 
+              ? 'Analyzing your images and generating the perfect prompt. This usually takes 30-60 seconds.'
+              : 'Preparing the analysis tools...'
+            }
           </p>
-          <div className="mt-4 flex items-center justify-center space-x-2 text-sm text-gray-400">
+          <div className="mt-4 flex items-center justify-center space-x-2 text-blue-400">
             <Clock className="w-4 h-4" />
-            <span>Processing {formState.images.length} image{formState.images.length !== 1 ? 's' : ''}...</span>
+            <span className="text-sm">Please wait...</span>
           </div>
-        </div>
-      </LazyMotionDiv>
-    );
-  };
-
-  // =============================================================================
-  // LAZY MOTION BUTTON COMPONENT
-  // =============================================================================
-
-  const LazyMotionButton = ({ children, disabled, onClick, className, ...props }) => {
-    const [MotionButton, setMotionButton] = useState(null);
-    
-    const handleInteraction = useCallback(async () => {
-      if (!MotionButton) {
-        const { motion } = await loadMotionModules();
-        setMotionButton(() => motion.button);
-      }
-    }, [MotionButton]);
-
-    const buttonProps = {
-      type: "submit",
-      disabled,
-      onClick,
-      className,
-      onMouseEnter: handleInteraction,
-      onFocus: handleInteraction,
-      ...props
-    };
-
-    if (!MotionButton) {
-      return <button {...buttonProps}>{children}</button>;
-    }
-
-    return (
-      <MotionButton
-        {...buttonProps}
-        whileHover={!disabled ? { scale: 1.05 } : {}}
-        whileTap={!disabled ? { scale: 0.95 } : {}}
-      >
-        {children}
-      </MotionButton>
+        </motion.div>
+      </motion.div>
     );
   };
 
@@ -608,7 +521,7 @@ const AnalysisForm = ({
           />
         </LazyMotionDiv>
 
-        {/* Step 2: Goal & Engine Selection - SMOOTH ANIMATION */}
+        {/* Step 2: Goal & Engine Selection */}
         <AnimatePresence>
           {formState.images.length > 0 && (
             <motion.div
@@ -665,7 +578,7 @@ const AnalysisForm = ({
                   !formState.selected_goal || 
                   !formState.selected_engine || 
                   loading ||
-                  !currentUser  // 🔥 FIXED: Added !currentUser check
+                  !currentUser
                 }
                 className={`
                   glow-button flex items-center space-x-3 px-10 py-4 text-lg font-semibold
@@ -674,7 +587,7 @@ const AnalysisForm = ({
                     !formState.selected_goal || 
                     !formState.selected_engine || 
                     loading ||
-                    !currentUser  // 🔥 FIXED: Added !currentUser check
+                    !currentUser
                     ? 'opacity-50 cursor-not-allowed'
                     : 'hover:scale-105 active:scale-95'
                   }
@@ -688,9 +601,7 @@ const AnalysisForm = ({
                 ) : (
                   <>
                     <Sparkles className="w-5 h-5" />
-                    <span>
-                      Create Prompt
-                    </span>
+                    <span>Create Prompt</span>
                     <ArrowRight className="w-5 h-5" />
                   </>
                 )}
@@ -723,9 +634,9 @@ const AnalysisForm = ({
                 <span>Engine Selected</span>
               </div>
               <ArrowRight className="w-4 h-4" />
-              <div className="flex items-center space-x-2">
-                <div className="w-3 h-3 rounded-full bg-gray-600" />
-                <span>Ready to Create Prompt</span>
+              <div className={`flex items-center space-x-2 ${currentUser && !loading ? 'text-green-400' : ''}`}>
+                <div className={`w-3 h-3 rounded-full ${currentUser && !loading ? 'bg-green-400' : 'bg-gray-600'}`} />
+                <span>Ready to Create</span>
               </div>
             </LazyMotionDiv>
           )}
