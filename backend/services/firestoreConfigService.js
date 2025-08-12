@@ -1,8 +1,7 @@
 // backend/services/firestoreConfigService.js
 /**
- * Firestore Configuration Service
+ * Firestore Configuration Service - UPDATED FOR NEW TIER SCHEME
  * Manages dynamic configuration and limits from Firestore database
- * ONLY ADDS LIMIT FETCHING - DOESN'T CHANGE EXISTING FUNCTIONALITY
  */
 
 import { db } from '../server.js';
@@ -57,31 +56,42 @@ class FirestoreConfigService {
   }
 
   /**
-   * Get limits for a specific user
-   * @param {Object} user - User object with uid and tier info
+   * Get limits for a specific user by UID (NEW TIER-BASED)
+   * @param {string} userId - User UID
    * @returns {Object} User's limits
    */
-  async getUserLimits(user) {
+  async getUserLimits(userId) {
     try {
       const config = await this.getConfig();
       
-      // Determine user tier
-      let userTier = 'free'; // default
+      // Get user data from Firestore to determine actual tier
+      const userDoc = await db.collection('users').doc(userId).get();
+      const userData = userDoc.data() || {};
       
-      if (user.isPro) {
-        userTier = 'pro';
-      } else if (user.isAdmin) {
-        userTier = 'admin';
+      // Determine user tier from new scheme
+      let userTier = userData.tier || 'free';
+      
+      // Handle legacy users during migration (TEMPORARY)
+      if (!userData.tier && (userData.isPro || userData.isAdmin)) {
+        if (userData.isAdmin) {
+          userTier = 'admin';
+        } else if (userData.isPro) {
+          userTier = 'pro';
+        }
+        
+        // Optionally migrate legacy user to new scheme
+        console.log(`🔄 Migrating legacy user ${userId} to tier: ${userTier}`);
+        await db.collection('users').doc(userId).update({ tier: userTier });
       }
 
       const tierLimits = config.tiers?.[userTier] || config.tiers?.free;
       
       return {
         tier: userTier,
-        anonymousLimit: config.anonymousLimit || 5,
-        dailyLimit: tierLimits?.dailyLimit || 10,
-        weeklyLimit: tierLimits?.weeklyLimit || 50,
-        monthlyLimit: tierLimits?.monthlyLimit || 200,
+        anonymousLimit: config.anonymousLimit || 3,
+        dailyLimit: tierLimits?.dailyLimit || 3,
+        weeklyLimit: tierLimits?.weeklyLimit || 15,
+        monthlyLimit: tierLimits?.monthlyLimit || 50,
         isUnlimited: userTier === 'admin' || (userTier === 'pro' && tierLimits?.dailyLimit === -1)
       };
     } catch (error) {
@@ -89,97 +99,87 @@ class FirestoreConfigService {
       // Return safe defaults
       return {
         tier: 'free',
-        anonymousLimit: 5,
-        dailyLimit: 10,
-        weeklyLimit: 50,
-        monthlyLimit: 200,
+        anonymousLimit: 3,
+        dailyLimit: 3,
+        weeklyLimit: 15,
+        monthlyLimit: 50,
         isUnlimited: false
       };
     }
   }
 
   /**
-   * Check if user has exceeded any limits
+   * Check if user has exceeded any limits (NEW TIER-BASED)
    * @param {string} userId - User ID
-   * @param {Object} limits - User's limits
+   * @param {Object} limits - User's limits (optional, will fetch if not provided)
    * @returns {Object} Limit check result
    */
-  async checkUserLimits(userId, limits) {
+  async checkUserLimits(userId, limits = null) {
     try {
+      // Get limits if not provided
+      if (!limits) {
+        limits = await this.getUserLimits(userId);
+      }
+
       if (limits.isUnlimited) {
         return { allowed: true, reason: 'unlimited' };
       }
 
       const userDoc = await db.collection('users').doc(userId).get();
       const userData = userDoc.data() || {};
+      const userTier = userData.tier || 'free';
 
-      // For anonymous users, just check the simple usage count
-      if (!userData.isPro && !userData.isAdmin) {
-        const currentUsage = userData.usageCount || 0;
-        
-        if (currentUsage >= limits.anonymousLimit) {
-          return {
-            allowed: false,
-            reason: 'anonymous_limit_exceeded',
-            current: currentUsage,
-            limit: limits.anonymousLimit,
-            resetTime: null
-          };
-        }
-        
-        return {
-          allowed: true,
-          current: currentUsage,
-          limit: limits.anonymousLimit,
-          remaining: limits.anonymousLimit - currentUsage
-        };
-      }
-
-      // For pro/admin users, check time-based limits
-      const now = new Date();
-      const usage = await this.getUserUsageStats(userId, now);
+      // For anonymous/free users, check against their daily usage
+      const dailyUsage = userData.dailyUsage || 0;
+      const weeklyUsage = userData.weeklyUsage || 0;
+      const monthlyUsage = userData.monthlyUsage || 0;
 
       // Check daily limit
-      if (limits.dailyLimit > 0 && usage.daily >= limits.dailyLimit) {
+      if (limits.dailyLimit > 0 && dailyUsage >= limits.dailyLimit) {
         return {
           allowed: false,
           reason: 'daily_limit_exceeded',
-          current: usage.daily,
+          current: dailyUsage,
           limit: limits.dailyLimit,
-          resetTime: this.getNextResetTime('daily', now)
+          resetTime: this.getNextResetTime('daily')
         };
       }
 
       // Check weekly limit
-      if (limits.weeklyLimit > 0 && usage.weekly >= limits.weeklyLimit) {
+      if (limits.weeklyLimit > 0 && weeklyUsage >= limits.weeklyLimit) {
         return {
           allowed: false,
           reason: 'weekly_limit_exceeded',
-          current: usage.weekly,
+          current: weeklyUsage,
           limit: limits.weeklyLimit,
-          resetTime: this.getNextResetTime('weekly', now)
+          resetTime: this.getNextResetTime('weekly')
         };
       }
 
       // Check monthly limit
-      if (limits.monthlyLimit > 0 && usage.monthly >= limits.monthlyLimit) {
+      if (limits.monthlyLimit > 0 && monthlyUsage >= limits.monthlyLimit) {
         return {
           allowed: false,
           reason: 'monthly_limit_exceeded',
-          current: usage.monthly,
+          current: monthlyUsage,
           limit: limits.monthlyLimit,
-          resetTime: this.getNextResetTime('monthly', now)
+          resetTime: this.getNextResetTime('monthly')
         };
       }
 
       return {
         allowed: true,
-        usage: usage,
+        usage: {
+          daily: dailyUsage,
+          weekly: weeklyUsage,
+          monthly: monthlyUsage,
+          total: userData.usageCount || 0
+        },
         limits: limits,
         remaining: {
-          daily: Math.max(0, limits.dailyLimit - usage.daily),
-          weekly: Math.max(0, limits.weeklyLimit - usage.weekly),
-          monthly: Math.max(0, limits.monthlyLimit - usage.monthly)
+          daily: Math.max(0, limits.dailyLimit - dailyUsage),
+          weekly: Math.max(0, limits.weeklyLimit - weeklyUsage),
+          monthly: Math.max(0, limits.monthlyLimit - monthlyUsage)
         }
       };
 
@@ -187,44 +187,6 @@ class FirestoreConfigService {
       console.error('❌ Error checking user limits:', error);
       // On error, allow but log
       return { allowed: true, error: error.message };
-    }
-  }
-
-  /**
-   * Get user usage statistics for different time periods
-   * @param {string} userId - User ID
-   * @param {Date} now - Current date
-   * @returns {Object} Usage statistics
-   */
-  async getUserUsageStats(userId, now = new Date()) {
-    try {
-      const userDoc = await db.collection('users').doc(userId).get();
-      const userData = userDoc.data() || {};
-
-      // For simple counting (current implementation)
-      const totalUsage = userData.usageCount || 0;
-
-      // Calculate time boundaries
-      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-      const startOfWeek = new Date(startOfDay);
-      startOfWeek.setDate(startOfDay.getDate() - startOfDay.getDay());
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
-      // If you want detailed time-based tracking, query usage collection
-      // For now, we'll use the simple usageCount and distribute it
-      // You can enhance this later with actual timestamp-based tracking
-
-      return {
-        total: totalUsage,
-        daily: userData.dailyUsage || 0,
-        weekly: userData.weeklyUsage || 0,
-        monthly: userData.monthlyUsage || 0,
-        lastReset: userData.lastUsageReset || null
-      };
-
-    } catch (error) {
-      console.error('❌ Error getting usage stats:', error);
-      return { total: 0, daily: 0, weekly: 0, monthly: 0 };
     }
   }
 
@@ -264,40 +226,61 @@ class FirestoreConfigService {
   }
 
   /**
-   * Get default configuration structure
+   * Get default configuration structure (NEW TIER-BASED)
    */
   getDefaultConfig() {
     return {
-      anonymousLimit: 5,
+      enabled: true,
+      maintenanceMode: false,
+      anonymousLimit: 3,
+      resetHour: 0,
+      resetDay: 1,
+      resetDate: 1,
+      lastDailyReset: new Date(),
+      lastWeeklyReset: new Date(),
+      lastMonthlyReset: new Date(),
+      maxFileSize: 10485760,
+      maxFiles: 10,
+      supportedFormats: ["jpeg", "jpg", "png", "gif", "webp"],
       tiers: {
         free: {
-          dailyLimit: 10,
-          weeklyLimit: 50,
-          monthlyLimit: 200
+          name: "Free",
+          dailyLimit: 3,
+          weeklyLimit: 15,
+          monthlyLimit: 50,
+          maxFileSize: 5242880,
+          maxFiles: 5,
+          features: ["basic_analysis"],
+          stripePriceId: null
         },
         pro: {
-          dailyLimit: 100,
-          weeklyLimit: 500,
-          monthlyLimit: 2000
+          name: "Pro",
+          dailyLimit: 50,
+          weeklyLimit: 300,
+          monthlyLimit: 1000,
+          maxFileSize: 10485760,
+          maxFiles: 10,
+          features: ["basic_analysis", "advanced_prompts", "history"],
+          stripePriceId: "price_1ABC..."
         },
         admin: {
-          dailyLimit: -1, // -1 means unlimited
+          name: "Admin",
+          dailyLimit: -1,
           weeklyLimit: -1,
-          monthlyLimit: -1
+          monthlyLimit: -1,
+          maxFileSize: 52428800,
+          maxFiles: 20,
+          features: ["all"],
+          stripePriceId: null
         }
       },
-      features: {
-        rateLimiting: {
-          windowMs: 900000, // 15 minutes
-          maxRequests: 100
-        },
-        fileUpload: {
-          maxFileSize: 10485760, // 10MB
-          maxFiles: 10
-        }
+      analytics: {
+        trackUsage: true,
+        trackErrors: true,
+        retentionDays: 90
       },
       lastUpdated: new Date().toISOString(),
-      version: '1.0.0'
+      version: '2.0.0'
     };
   }
 
@@ -333,7 +316,7 @@ class FirestoreConfigService {
   }
 
   /**
-   * Get all users usage statistics (for monitoring)
+   * Get all users usage statistics (UPDATED FOR NEW SCHEME)
    * @param {number} limit - Number of users to fetch
    * @returns {Array} Users usage data
    */
@@ -349,9 +332,13 @@ class FirestoreConfigService {
         const data = doc.data();
         usersData.push({
           userId: doc.id,
+          tier: data.tier || 'free',
           usageCount: data.usageCount || 0,
-          isPro: data.isPro || false,
-          isAdmin: data.isAdmin || false,
+          dailyUsage: data.dailyUsage || 0,
+          weeklyUsage: data.weeklyUsage || 0,
+          monthlyUsage: data.monthlyUsage || 0,
+          subscriptionId: data.subscriptionId || '',
+          subscriptionStatus: data.subscriptionStatus || '',
           createdAt: data.createdAt,
           lastLogin: data.lastLogin
         });
@@ -365,7 +352,7 @@ class FirestoreConfigService {
   }
 
   /**
-   * Get usage statistics summary
+   * Get usage statistics summary (UPDATED FOR NEW SCHEME)
    * @returns {Object} Usage summary
    */
   async getUsageSummary() {
@@ -374,7 +361,7 @@ class FirestoreConfigService {
       
       let totalUsers = 0;
       let totalUsage = 0;
-      let proUsers = 0;
+      let tierCounts = { free: 0, pro: 0, admin: 0 };
       let activeUsers = 0;
       
       const now = new Date();
@@ -385,7 +372,9 @@ class FirestoreConfigService {
         totalUsers++;
         totalUsage += data.usageCount || 0;
         
-        if (data.isPro) proUsers++;
+        const tier = data.tier || 'free';
+        tierCounts[tier] = (tierCounts[tier] || 0) + 1;
+        
         if (data.lastLogin && data.lastLogin.toDate() > yesterday) {
           activeUsers++;
         }
@@ -394,8 +383,7 @@ class FirestoreConfigService {
       return {
         totalUsers,
         totalUsage,
-        proUsers,
-        freeUsers: totalUsers - proUsers,
+        tierCounts,
         activeUsers,
         averageUsagePerUser: totalUsers > 0 ? Math.round(totalUsage / totalUsers) : 0,
         timestamp: now.toISOString()
@@ -404,6 +392,50 @@ class FirestoreConfigService {
     } catch (error) {
       console.error('❌ Error getting usage summary:', error);
       return null;
+    }
+  }
+
+  /**
+   * Migrate legacy user to new tier scheme
+   * @param {string} userId - User ID
+   * @returns {boolean} Success status
+   */
+  async migrateLegacyUser(userId) {
+    try {
+      const userDoc = await db.collection('users').doc(userId).get();
+      const userData = userDoc.data();
+      
+      if (!userData || userData.tier) {
+        return true; // Already migrated or doesn't exist
+      }
+
+      let tier = 'free';
+      if (userData.isAdmin) {
+        tier = 'admin';
+      } else if (userData.isPro) {
+        tier = 'pro';
+      }
+
+      const updateData = {
+        tier: tier,
+        subscriptionId: '',
+        subscriptionStatus: '',
+        subscriptionEnd: new Date('2099-12-31'),
+        dailyUsage: 0,
+        weeklyUsage: 0,
+        monthlyUsage: 0,
+        lastDailyReset: new Date(),
+        lastWeeklyReset: new Date(),
+        lastMonthlyReset: new Date()
+      };
+
+      await db.collection('users').doc(userId).update(updateData);
+      console.log(`✅ Migrated user ${userId} to tier: ${tier}`);
+      return true;
+
+    } catch (error) {
+      console.error(`❌ Error migrating user ${userId}:`, error);
+      return false;
     }
   }
 }
