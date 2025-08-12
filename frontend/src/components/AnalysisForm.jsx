@@ -196,7 +196,10 @@ const AnalysisForm = ({
   // EVENT HANDLERS - SIMPLIFIED
   // =============================================================================
 
+  // 🔥 FIXED: Enhanced state reset with axiosLoaded and debugging
   const handleNewAnalysis = useCallback(() => {
+    console.log('🔄 Starting new analysis - resetting all state');
+    
     setFormState({
       images: [],
       selected_goal: '',
@@ -211,6 +214,11 @@ const AnalysisForm = ({
       goal: { is_valid: true, message: '' },
       engine: { is_valid: true, message: '' }
     });
+
+    // 🔥 FIXED: Reset axios loaded state
+    setAxiosLoaded(false);
+    
+    console.log('✅ New analysis state reset complete');
   }, []);
 
   const handleImagesChange = useCallback((newImages) => {
@@ -300,10 +308,24 @@ const AnalysisForm = ({
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
 
+    // 🔥 FIXED: Enhanced debugging and proper auth error handling
+    console.log('🚀 Form submission started');
+    console.log('📊 Auth state:', { currentUser: !!currentUser, loading });
+    console.log('📊 Form state:', { 
+      images: formState.images.length, 
+      goal: formState.selected_goal, 
+      engine: formState.selected_engine 
+    });
+
     // Validate form and auth
     if (!validateForm() || !currentUser || loading) {
       if (!currentUser) {
+        console.log('❌ No authenticated user - showing error');
         setFormState(prev => ({ ...prev, error: "Authentication not ready. Please wait." }));
+      }
+      if (loading) {
+        console.log('❌ Authentication still loading - showing error');
+        setFormState(prev => ({ ...prev, error: "Authentication in progress. Please wait a moment." }));
       }
       return;
     }
@@ -637,10 +659,22 @@ const AnalysisForm = ({
               exit={{ opacity: 0, y: 20 }}
             >
               <LazyMotionButton
-                disabled={formState.is_loading || formState.images.length === 0 || !formState.selected_goal || !formState.selected_engine || loading}
+                disabled={
+                  formState.is_loading || 
+                  formState.images.length === 0 || 
+                  !formState.selected_goal || 
+                  !formState.selected_engine || 
+                  loading ||
+                  !currentUser  // 🔥 FIXED: Added !currentUser check
+                }
                 className={`
                   glow-button flex items-center space-x-3 px-10 py-4 text-lg font-semibold
-                  ${formState.is_loading || formState.images.length === 0 || !formState.selected_goal || !formState.selected_engine || loading
+                  ${formState.is_loading || 
+                    formState.images.length === 0 || 
+                    !formState.selected_goal || 
+                    !formState.selected_engine || 
+                    loading ||
+                    !currentUser  // 🔥 FIXED: Added !currentUser check
                     ? 'opacity-50 cursor-not-allowed'
                     : 'hover:scale-105 active:scale-95'
                   }
