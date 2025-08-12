@@ -1,5 +1,5 @@
 // =============================================================================
-// MINIMAL AUTHCONTEXT FIX - KEEP LAZY LOADING WORKING
+// FIXED AUTHCONTEXT - NO FRONTEND USER CREATION
 // File: frontend/src/components/AuthContext.jsx - REPLACE EXISTING
 // =============================================================================
 
@@ -63,11 +63,12 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   // =============================================================================
-  // USER INITIALIZATION
+  // USER INITIALIZATION - SIMPLIFIED (NO USER CREATION)
   // =============================================================================
 
   /**
-   * Initialize user in Firestore using lazy functions
+   * Initialize user - ONLY sets auth state, NO Firestore operations
+   * Backend will handle user creation on first API call
    */
   const initializeUser = useCallback(async (user) => {
     if (!user) {
@@ -77,27 +78,22 @@ export const AuthProvider = ({ children }) => {
     }
 
     try {
-      // Only initialize Firestore if Firebase is available
+      // Only update last login if user already exists, don't create new users
       if (isFirebaseAvailable) {
         try {
-          // Use lazy Firestore functions
           const userRef = await lazyFirebaseFirestore.doc('users', user.uid);
           const userSnap = await lazyFirebaseFirestore.getDoc(userRef);
 
-          if (!userSnap.exists()) {
-            await lazyFirebaseFirestore.setDoc(userRef, {
-              usageCount: 0,
-              isPro: false,
-              createdAt: new Date(),
-              lastLogin: new Date()
-            });
-            console.log('✅ New user initialized in Firestore');
-          } else {
-            // Update last login
+          if (userSnap.exists()) {
+            // User exists - update last login only
             await lazyFirebaseFirestore.setDoc(userRef, {
               lastLogin: new Date()
             }, { merge: true });
             console.log('✅ User login updated in Firestore');
+          } else {
+            // User doesn't exist - DON'T CREATE HERE
+            // Backend will create user with proper scheme on first API call
+            console.log('ℹ️ New user detected - will be created by backend on first API call');
           }
         } catch (firestoreError) {
           console.warn('⚠️ Firestore operation failed:', firestoreError);
