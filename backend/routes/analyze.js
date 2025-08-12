@@ -1,5 +1,5 @@
-// backend/routes/analyze.js - CLEANED VERSION
-// KEEPING ALL YOUR EXISTING CODE, JUST REPLACING THE HARDCODED LIMIT
+// backend/routes/analyze.js - UPDATED FOR NEW USER SCHEME
+// KEEPING ALL YOUR EXISTING CODE, JUST UPDATING USER MANAGEMENT
 
 import express from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
@@ -21,7 +21,7 @@ const router = express.Router();
 // GET ROUTES FIRST (BEFORE POST ROUTE)
 // =============================================================================
 
-// NEW: Get current user's usage count (for frontend counter)
+// UPDATED: Get current user's usage count (for frontend counter)
 router.get('/my-usage', verifyFirebaseToken, async (req, res) => {
   try {
     const { user } = req;
@@ -42,7 +42,7 @@ router.get('/my-usage', verifyFirebaseToken, async (req, res) => {
           limit: 3, // Default anonymous limit
           remaining: 3,
           isAnonymous: user.firebase.sign_in_provider === 'anonymous',
-          isPro: false,
+          isPro: false, // Keep for frontend compatibility
           tier: 'free'
         }
       });
@@ -53,17 +53,35 @@ router.get('/my-usage', verifyFirebaseToken, async (req, res) => {
     
     // Get current limit from Firestore config
     const config = await firestoreConfigService.getConfig();
-    const anonymousLimit = config.anonymousLimit || 3;
+    const userTier = userData.tier || 'free'; // Handle empty tier
+    const tierLimits = config.tiers?.[userTier] || config.tiers?.free;
+    
+    // Determine current limit based on tier
+    let currentLimit;
+    let isUnlimited = false;
+    
+    if (userTier === 'admin') {
+      currentLimit = 'unlimited';
+      isUnlimited = true;
+    } else if (userTier === 'pro') {
+      currentLimit = tierLimits?.dailyLimit === -1 ? 'unlimited' : tierLimits?.dailyLimit || 50;
+      isUnlimited = tierLimits?.dailyLimit === -1;
+    } else {
+      // Free tier or anonymous
+      currentLimit = user.firebase.sign_in_provider === 'anonymous' 
+        ? (config.anonymousLimit || 3)
+        : (tierLimits?.dailyLimit || 3);
+    }
     
     const responseData = {
       success: true,
       usage: {
-        current: userData.usageCount || 0,
-        limit: userData.isPro ? 'unlimited' : anonymousLimit,
-        remaining: userData.isPro ? 'unlimited' : Math.max(0, anonymousLimit - (userData.usageCount || 0)),
+        current: userData.dailyUsage || 0, // Use daily usage instead of total
+        limit: currentLimit,
+        remaining: isUnlimited ? 'unlimited' : Math.max(0, currentLimit - (userData.dailyUsage || 0)),
         isAnonymous: user.firebase.sign_in_provider === 'anonymous',
-        isPro: userData.isPro || false,
-        tier: userData.isPro ? 'pro' : 'free'
+        isPro: userTier === 'pro', // Keep for frontend compatibility
+        tier: userTier
       }
     };
     
@@ -274,28 +292,65 @@ router.post('/',
 
       if (!userDoc.exists) {
         console.warn(`No user document for UID: ${user.uid}. Creating new one.`);
+        const now = admin.firestore.FieldValue.serverTimestamp();
         await userRef.set({
+          tier: 'free',
+          subscriptionId: '',
+          subscriptionStatus: '',
+          subscriptionEnd: admin.firestore.Timestamp.fromDate(new Date('2099-12-31')),
           usageCount: 0,
-          isPro: false,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          dailyUsage: 0,
+          weeklyUsage: 0,
+          monthlyUsage: 0,
+          lastDailyReset: now,
+          lastWeeklyReset: now,
+          lastMonthlyReset: now,
+          createdAt: now,
+          lastLogin: now
         });
       }
 
-      let userData = userDoc.data() || { usageCount: 0, isPro: false };
-
-      // NEW: GET DYNAMIC LIMIT FROM FIRESTORE INSTEAD OF HARDCODED
+      let userData = userDoc.data() || { tier: 'free', dailyUsage: 0, usageCount: 0 };
+      
+      // Get config and determine user's limits
       const config = await firestoreConfigService.getConfig();
-      const ANONYMOUS_LIMIT = config.anonymousLimit || 3; // Fallback to 3 if not set
+      const userTier = userData.tier || 'free';
+      const tierLimits = config.tiers?.[userTier] || config.tiers?.free;
+      
+      console.log(`📊 User tier: ${userTier}, Daily usage: ${userData.dailyUsage || 0}`);
 
-      console.log(`📊 Using anonymous limit from Firestore: ${ANONYMOUS_LIMIT}`);
-
-      // Check if user is anonymous and has exceeded limit
-      if (user.firebase.sign_in_provider === 'anonymous' && !userData.isPro) {
-        if (userData.usageCount >= ANONYMOUS_LIMIT) {
-          console.log(`Anonymous user ${user.uid} exceeded limit (${userData.usageCount}/${ANONYMOUS_LIMIT}).`);
+      // Check limits based on user type and tier
+      let currentLimit;
+      let currentUsage = userData.dailyUsage || 0;
+      
+      if (userTier === 'admin') {
+        // Admin users have unlimited access
+        console.log('👑 Admin user - unlimited access');
+      } else if (userTier === 'pro') {
+        currentLimit = tierLimits?.dailyLimit || 50;
+        if (currentLimit !== -1 && currentUsage >= currentLimit) {
+          console.log(`Pro user ${user.uid} exceeded daily limit (${currentUsage}/${currentLimit}).`);
           return res.status(403).json({
             success: false,
-            error: `You have reached the limit of ${ANONYMOUS_LIMIT} uses for anonymous users. Please sign in to continue.`,
+            error: `You have reached your daily limit of ${currentLimit} analyses. Limit resets daily.`,
+            code: 'DAILY_LIMIT_EXCEEDED',
+            resetTime: 'midnight'
+          });
+        }
+      } else {
+        // Free tier or anonymous users
+        if (user.firebase.sign_in_provider === 'anonymous') {
+          currentLimit = config.anonymousLimit || 3;
+        } else {
+          currentLimit = tierLimits?.dailyLimit || 3;
+        }
+        
+        if (currentUsage >= currentLimit) {
+          const userType = user.firebase.sign_in_provider === 'anonymous' ? 'anonymous' : 'free';
+          console.log(`${userType} user ${user.uid} exceeded limit (${currentUsage}/${currentLimit}).`);
+          return res.status(403).json({
+            success: false,
+            error: `You have reached the limit of ${currentLimit} uses. ${user.firebase.sign_in_provider === 'anonymous' ? 'Please sign in to continue.' : 'Upgrade to Pro for higher limits.'}`,
             code: 'USAGE_LIMIT_EXCEEDED'
           });
         }
@@ -365,9 +420,15 @@ router.post('/',
         engine: engine
       });
 
-      // 2. INCREMENT USAGE COUNTER IN FIRESTORE (ONLY IF ANALYSIS SUCCEEDED)
-      await userRef.update({ usageCount: admin.firestore.FieldValue.increment(1) });
-      console.log(`Usage counter for user ${user.uid} incremented to ${userData.usageCount + 1}.`);
+      // 2. INCREMENT ALL USAGE COUNTERS IN FIRESTORE (ONLY IF ANALYSIS SUCCEEDED)
+      await userRef.update({ 
+        usageCount: admin.firestore.FieldValue.increment(1),
+        dailyUsage: admin.firestore.FieldValue.increment(1),
+        weeklyUsage: admin.firestore.FieldValue.increment(1),
+        monthlyUsage: admin.firestore.FieldValue.increment(1),
+        lastLogin: admin.firestore.FieldValue.serverTimestamp()
+      });
+      console.log(`Usage counters for user ${user.uid} incremented. Daily: ${(userData.dailyUsage || 0) + 1}, Total: ${userData.usageCount + 1}`);
 
       // Return successful response
       res.json({
@@ -382,8 +443,9 @@ router.post('/',
           output_type: 'prompt', // Both functions generate prompts
           user_id: user.uid,
           is_anonymous: user.firebase.sign_in_provider === 'anonymous',
-          current_usage: userData.usageCount + 1,
-          limit: userData.isPro ? 'unlimited' : ANONYMOUS_LIMIT
+          current_usage: (userData.dailyUsage || 0) + 1,
+          limit: userTier === 'admin' ? 'unlimited' : (userTier === 'pro' && tierLimits?.dailyLimit === -1) ? 'unlimited' : currentLimit,
+          tier: userTier
         }
       });
 
